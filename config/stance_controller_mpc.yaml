@@ -1,0 +1,82 @@
+horizon: 12
+friction: 0.7
+f_min: 0.0 #-90.0
+f_max: 90.0 #90.0
+Q: [6.0, 6.0, 3.0, # orientation
+    24.0, 26.0, 70.0, # position
+    0.0, 0.0, 0.8, # angular velocity
+    1.5, 2.0, 0.05, 0.0] # linear velocity
+# Q: [20.0, 20.0, 3.0, # orientation
+#     100.0, 50.0, 1000.0, # position
+#     0.0, 0.0, 0.8, # angular velocity
+#     0.2, 0.2, 0.05, 0.0] # linear velocity
+R: [1.0, 1.0, 1.0,  # orientation
+    1.0, 1.0, 1.0,  # position
+    1.0, 1.0, 1.0,  # angular velocity
+    1.0, 1.0, 1.0]  # linear velocity
+
+Q_gain: 9e2
+R_gain: 1e-1
+
+# much better
+# horizon: 12
+# friction: 0.45
+# f_min: 0.0 #-90.0
+# f_max: 90.0 #90.0
+# Q: [6.0, 10.0, 3.0, # orientation
+#     35.0, 25.0, 250.0, # position
+#     0.0, 0.0, 0.8, # angular velocity
+#     0.7, 0.8, 0.05, 0.0] # linear velocity
+# # Q: [20.0, 20.0, 3.0, # orientation
+# #     100.0, 50.0, 1000.0, # position
+# #     0.0, 0.0, 0.8, # angular velocity
+# #     0.2, 0.2, 0.05, 0.0] # linear velocity
+# R: [1.0, 1.0, 1.0,  # orientation
+#     1.0, 1.0, 1.0,  # position
+#     1.0, 1.0, 1.0,  # angular velocity
+#     1.0, 1.0, 1.0]  # linear velocity
+
+# Q_gain: 2.6e1
+# R_gain: 0.3e-2
+
+#better
+# horizon: 12
+# friction: 0.45
+# f_min: 0.0 #-90.0
+# f_max: 90.0 #90.0
+# Q: [6.0, 10.0, 3.0, # orientation
+#     35.0, 20.0, 250.0, # position
+#     0.0, 0.0, 0.8, # angular velocity
+#     0.7, 0.7, 0.05, 0.0] # linear velocity
+# # Q: [20.0, 20.0, 3.0, # orientation
+# #     100.0, 50.0, 1000.0, # position
+# #     0.0, 0.0, 0.8, # angular velocity
+# #     0.2, 0.2, 0.05, 0.0] # linear velocity
+# R: [1.0, 1.0, 1.0,  # orientation
+#     1.0, 1.0, 1.0,  # position
+#     1.0, 1.0, 1.0,  # angular velocity
+#     1.0, 1.0, 1.0]  # linear velocity
+
+# Q_gain: 2.5e1
+# R_gain: 0.3e-2
+
+#good
+# horizon: 12
+# friction: 0.45
+# f_min: 0.0 #-90.0
+# f_max: 90.0 #90.0
+# Q: [6.0, 10.0, 3.0, # orientation
+#     35.0, 20.0, 250.0, # position
+#     0.0, 0.0, 0.8, # angular velocity
+#     0.3, 0.3, 0.05, 0.0] # linear velocity
+# # Q: [20.0, 20.0, 3.0, # orientation
+# #     100.0, 50.0, 1000.0, # position
+# #     0.0, 0.0, 0.8, # angular velocity
+# #     0.2, 0.2, 0.05, 0.0] # linear velocity
+# R: [1.0, 1.0, 1.0,  # orientation
+#     1.0, 1.0, 1.0,  # position
+#     1.0, 1.0, 1.0,  # angular velocity
+#     1.0, 1.0, 1.0]  # linear velocity
+
+# Q_gain: 2.5e1
+# R_gain: 0.2e-2

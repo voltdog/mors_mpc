@@ -1,0 +1,17 @@
+enable: "ENABLE"
+control_type: "CONTROL_TYPE" # 1 - LEG, 2 - SERVO
+
+imu_data: "IMU_DATA"
+odometry: "ODOMETRY"
+
+servo_cmd: "SERVO_CMD"
+servo_state: "SERVO_STATE"
+
+foot_cmd: "FOOT_CMD"
+grf_cmd: "GRF_CMD"
+
+robot_cmd: "ROBOT_CMD"
+robot_state: "ROBOT_STATE"
+
+gait_phase: "GAIT_PHASE"
+gait_params: "GAIT_PARAMS"
