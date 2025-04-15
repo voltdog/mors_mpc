@@ -27,6 +27,15 @@ LegState::LegState(RobotPhysicalParams &robot)
     contact.resize(4);
 }
 
+void LegState::set_grf_observer_params(double lamb, double dt, const Eigen::VectorXd& p)
+{
+    this->p = p;
+    gm_observer_r1.set_params(lamb, dt, p);
+    gm_observer_l1.set_params(lamb, dt, -p);
+    gm_observer_r2.set_params(lamb, dt, -p);
+    gm_observer_l2.set_params(lamb, dt, p);
+}
+
 LegState::~LegState()
 {
 
@@ -42,7 +51,8 @@ LegData LegState::get_leg_state(VectorXd theta, VectorXd d_theta, VectorXd tau)
     calc_jacobians(theta, d_theta);
     calc_pos_vel_acc(theta, d_theta);
     calc_joint_space_matrices(theta, d_theta);
-    calc_grf(tau);
+    calc_grf(tau, d_theta, theta);
+
     calc_contacts();
 
     leg_data.r1_pos = X_R1;
@@ -129,16 +139,33 @@ VectorXd LegState::inv_dyn_force_observer(VectorXd tau, MatrixXd J, VectorXd G, 
     return f_hat;
 }
 
-void LegState::calc_grf(VectorXd tau)
+void LegState::calc_grf(VectorXd tau, VectorXd d_theta, VectorXd theta)
 {
     tau_r1 = tau.segment(0, 3);
     tau_l1 = tau.segment(3, 3);
     tau_r2 = tau.segment(6, 3);
     tau_l2 = tau.segment(9, 3);
-    f_hat_r1 = inv_dyn_force_observer(tau_r1, J_R1, G_R1, V_R1);
-    f_hat_l1 = inv_dyn_force_observer(tau_l1, J_L1, G_L1, V_L1);
-    f_hat_r2 = inv_dyn_force_observer(tau_r2, J_R2, G_R2, V_R2);
-    f_hat_l2 = inv_dyn_force_observer(tau_l2, J_L2, G_L2, V_L2);
+    dq_r1 = d_theta.segment(0, 3);
+    dq_l1 = d_theta.segment(3, 3);
+    dq_r2 = d_theta.segment(6, 3);
+    dq_l2 = d_theta.segment(9, 3);
+    // inverse dynamics force observer
+    // f_hat_r1 = inv_dyn_force_observer(tau_r1, J_R1, G_R1, V_R1);
+    // f_hat_l1 = inv_dyn_force_observer(tau_l1, J_L1, G_L1, V_L1);
+    // f_hat_r2 = inv_dyn_force_observer(tau_r2, J_R2, G_R2, V_R2);
+    // f_hat_l2 = inv_dyn_force_observer(tau_l2, J_L2, G_L2, V_L2);
+    // cout << f_hat_r1 << endl;
+    // general momentum based force observer
+    // if (theta(2) > 0)
+    //     gm_observer_r1.set_p(p);
+    // else
+    //     gm_observer_r1.set_p(-p);
+    f_hat_r1 = gm_observer_r1.step(tau_r1, dq_r1, M_R1, V_R1, G_R1, J_R1);
+    f_hat_l1 = gm_observer_l1.step(tau_l1, dq_l1, M_L1, V_L1, G_L1, J_L1);
+    f_hat_r2 = gm_observer_r2.step(tau_r2, dq_r2, M_R2, V_R2, G_R2, J_R2);
+    f_hat_l2 = gm_observer_l2.step(tau_l2, dq_l2, M_L2, V_L2, G_L2, J_L2);
+    // cout << f_hat_r1 << endl;
+    // cout << "===" << endl;
 }
 
 void LegState::calc_contacts()

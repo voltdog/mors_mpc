@@ -15,6 +15,7 @@
 #include "system_functions.hpp"
 #include <yaml-cpp/yaml.h>
 #include "structs.hpp"
+#include "gm_force_observer.hpp"
 
 #define X 0
 #define Y 1
@@ -31,17 +32,20 @@ class LegState
     public:
         LegState(RobotPhysicalParams &robot);
         ~LegState();
-
+ 
         void set_contact_threshold(double threshold);
+        void set_grf_observer_params(double lamb, double dt, const Eigen::VectorXd& p);
         LegData get_leg_state(VectorXd theta, VectorXd d_theta, VectorXd tau);
         
     private:
         void calc_jacobians(VectorXd theta, VectorXd d_theta);
         void calc_pos_vel_acc(VectorXd theta, VectorXd d_theta);
         void calc_joint_space_matrices(VectorXd theta, VectorXd d_theta);
-        void calc_grf(VectorXd tau);
+        void calc_grf(VectorXd tau, VectorXd d_theta, VectorXd theta);
         void calc_contacts();
         VectorXd inv_dyn_force_observer(VectorXd tau, MatrixXd J, VectorXd G, VectorXd V);
+
+        GMBasedForceObserver gm_observer_r1, gm_observer_l1, gm_observer_r2, gm_observer_l2;
 
         LegData leg_data;
         LegModel leg_model;
@@ -64,8 +68,10 @@ class LegState
         VectorXd f_hat;
         VectorXd f_hat_r1, f_hat_l1, f_hat_r2, f_hat_l2;
         VectorXd tau_r1, tau_l1, tau_r2, tau_l2;
+        VectorXd dq_r1, dq_l1, dq_r2, dq_l2;
 
         VectorXd contact;
+        Eigen::VectorXd p;
 
         double threshold;
 

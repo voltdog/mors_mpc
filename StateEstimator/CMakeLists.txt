@@ -140,6 +140,7 @@ set(EXEC_SOURCES src/main.cpp
             src/lcm_data_exchange_se.cpp
             src/low_pass_filtering.cpp
             src/leg_state.cpp
+            src/gm_force_observer.cpp
             ../common/src/system_functions.cpp
             ../common/src/leg_model.cpp
 )

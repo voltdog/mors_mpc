@@ -80,6 +80,8 @@ int main() {
     motor_kp.setZero(12);
     motor_kd.setZero(12);
 
+    lcmExch.sendServoCmd(ref_theta, ref_omega, ref_tau, motor_kp, motor_kd);
+
     signal(SIGINT, raiseFlag);
 
     cout << "RobotModeController started" << endl;

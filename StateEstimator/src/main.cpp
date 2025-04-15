@@ -124,6 +124,14 @@ int main()
     
     // define other data
     LegState leg_state_estimator(robot);
+    VectorXd p(3);
+    // R1
+    // double lamb = 100.0;
+    p << 0.032, -0.01, 0.001;
+    double lamb = 100.0;
+    // p << -0.032, 0.01, -0.001;
+    // p.setZero();
+    leg_state_estimator.set_grf_observer_params(lamb, module_dt, p);
     leg_state_estimator.set_contact_threshold(contact_threshold);
 
     LowPassFiltering lpf(module_dt);
