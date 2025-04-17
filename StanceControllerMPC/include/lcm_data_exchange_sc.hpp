@@ -51,7 +51,7 @@ class LCMExchanger
         void phaseSignalThread();
 
         RobotData getRobotCmd();
-        RobotData getRobotState();
+        RobotData getBodyState();
         LegData getLegsState();
         VectorXd getPhaseSignals();
 

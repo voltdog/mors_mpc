@@ -15,3 +15,5 @@ robot_state: "ROBOT_STATE"
 
 gait_phase: "GAIT_PHASE"
 gait_params: "GAIT_PARAMS"
+
+robot_ref: "ROBOT_REF"

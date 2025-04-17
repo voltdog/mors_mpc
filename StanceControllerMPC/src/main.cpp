@@ -135,7 +135,7 @@ int main() {
         // -----------------------------------------------
         // read data from lcm
         robot_cmd = lcmExch.getRobotCmd();
-        robot_state = lcmExch.getRobotState();
+        robot_state = lcmExch.getBodyState();
         leg_state = lcmExch.getLegsState();
         gait_phase = lcmExch.getPhaseSignals();
 

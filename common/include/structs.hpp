@@ -37,7 +37,7 @@ struct LegData
     VectorXd r2_acc; 
     VectorXd l2_acc;
 
-    VectorXd contacts;
+    vector<bool> contacts;
 
     VectorXd kp; 
     VectorXd kd; 

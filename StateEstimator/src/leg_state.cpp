@@ -171,22 +171,22 @@ void LegState::calc_grf(VectorXd tau, VectorXd d_theta, VectorXd theta)
 void LegState::calc_contacts()
 {
     if (f_hat_r1(2) >= threshold)
-        contact(0) = true;
+        contact[0] = true;
     else
-        contact(0) = false;
+        contact[0] = false;
 
     if (f_hat_l1(2) >= threshold)
-        contact(1) = true;
+        contact[1] = true;
     else
-        contact(1) = false;
+        contact[1] = false;
 
     if (f_hat_r2(2) >= threshold)
-        contact(2) = true;
+        contact[2] = true;
     else
-        contact(2) = false;
+        contact[2] = false;
 
     if (f_hat_l2(2) >= threshold)
-        contact(3) = true;
+        contact[3] = true;
     else
-        contact(3) = false;
+        contact[3] = false;
 }

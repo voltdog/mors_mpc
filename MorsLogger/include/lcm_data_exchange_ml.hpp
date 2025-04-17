@@ -100,7 +100,7 @@ class LCMExchanger
         ServoData getServoStateFiltData();
         ServoData getServoCmdData();
         Odometry getOdometry();
-        RobotData getRobotState();
+        RobotData getBodyState();
         LegData getLegState();
         RobotData getRobotCmd();
         void getPhaseSig(Vector4d& phase, Vector4d& phi);

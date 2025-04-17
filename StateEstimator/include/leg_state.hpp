@@ -70,7 +70,7 @@ class LegState
         VectorXd tau_r1, tau_l1, tau_r2, tau_l2;
         VectorXd dq_r1, dq_l1, dq_r2, dq_l2;
 
-        VectorXd contact;
+        vector<bool> contact;
         Eigen::VectorXd p;
 
         double threshold;

@@ -584,7 +584,7 @@ Odometry LCMExchanger::getOdometry()
     return odometry;
 }
 
-RobotData LCMExchanger::getRobotState()
+RobotData LCMExchanger::getBodyState()
 {
     return body_state;
 }

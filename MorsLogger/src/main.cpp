@@ -80,7 +80,7 @@ int main() {
         control_type = lcmExch.getCtrlTypeData();
         odometry = lcmExch.getOdometry();
         servo_state_filt = lcmExch.getServoStateFiltData();
-        body_state = lcmExch.getRobotState();
+        body_state = lcmExch.getBodyState();
         body_cmd = lcmExch.getRobotCmd();
         leg_state = lcmExch.getLegState();
         lcmExch.getPhaseSig(phase, phi);
