@@ -1,7 +1,11 @@
+"""Foot step planner for MORS quadruped robot"""
+
 import numpy as np
 
 
 class FootStepPlanner():
+    """ The foot step planner class""" 
+
     def __init__(self):
         self.p0_b = np.array([0.106, -0.067, 0.0], dtype=np.float64)
         self.g = 9.81
@@ -10,13 +14,22 @@ class FootStepPlanner():
         self.k2 = 0.17
 
     def set_robot_params(self, p0_b):
+        """p0_b - shoulder position"""
         self.p0_b = p0_b
 
     def set_coefficients(self, k1, k2):
+        """
+        k1 - linear capture point constant
+        k2 - angular capture point constant
+        """
         self.k1 = k1
         self.k2 = k2
 
     def set_start_position(self, base_pos, base_orient):
+        """
+        base_pos - robot body linear position
+        base_orient - robot body orientation
+        """
         self.base_pos = base_pos
         self.base_orient = base_orient
     
