@@ -51,7 +51,7 @@ LCMExchanger::LCMExchanger()
     robot_cmd.lin_vel.setZero();
     robot_cmd.orientation.setZero();
     robot_cmd.pos.setZero();
-    leg_state.contacts.setZero();
+    leg_state.contacts = {false, false, false, false};
     leg_state.r1_pos.setZero();
     leg_state.l1_pos.setZero();
     leg_state.r2_pos.setZero();
@@ -101,14 +101,14 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer* rbuf,
         // leg_state.r2_grf(i) = msg->legs.r2_grf[i];
         // leg_state.l2_grf(i) = msg->legs.l2_grf[i];
 
-        leg_state.contacts(i) = msg->legs.contact_states[i];
+        leg_state.contacts[i] = msg->legs.contact_states[i];
 
         robot_state.pos(i) = msg->body.position[i];
         robot_state.orientation(i) = msg->body.orientation[i];
         robot_state.lin_vel(i) = msg->body.lin_vel[i];
         robot_state.ang_vel(i) = msg->body.ang_vel[i];
     }
-    leg_state.contacts(3) = msg->legs.contact_states[3];
+    leg_state.contacts[3] = msg->legs.contact_states[3];
 }
 
 void LCMExchanger::phaseSignalHandler(const lcm::ReceiveBuffer* rbuf,

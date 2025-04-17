@@ -30,7 +30,7 @@ void init_vectors(RobotData &robot_state, LegData &leg_state)
     robot_state.ang_vel.setZero();
 
     leg_state.contacts.resize(4);
-    leg_state.contacts.setZero();
+    leg_state.contacts = {false, false, false, false};
     leg_state.r1_pos.resize(3);
     leg_state.r1_pos.setZero();
     leg_state.l1_pos.resize(3);

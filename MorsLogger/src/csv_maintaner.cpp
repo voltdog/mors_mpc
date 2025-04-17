@@ -343,6 +343,12 @@ void CSVMaintainer::write_phase_sig(double t, Vector4d& phase, Vector4d& phi)
     phase_sig_csv.writeToFile(phase_sig_addr, true);
 }
 
+void CSVMaintainer::set_vector(vector<bool> &data, int size, CSVWriter &csv)
+{
+    for (int i=0; i<size; i++)
+        csv << data[i];
+}
+
 void CSVMaintainer::set_vector(VectorXd &data, int size, CSVWriter &csv)
 {
     for (int i=0; i<size; i++)

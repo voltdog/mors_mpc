@@ -187,7 +187,7 @@ LCMExchanger::LCMExchanger()
     leg_state.r2_acc.setZero();
     leg_state.l1_acc.setZero();
     leg_state.l2_acc.setZero();
-    leg_state.contacts.setZero();
+    leg_state.contacts = {false, false, false, false};
 
     phase.setZero();
     phi.setZero();
@@ -387,14 +387,14 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer* rbuf,
         leg_state.r2_grf(i) = msg->legs.r2_grf[i];
         leg_state.l2_grf(i) = msg->legs.l2_grf[i];
 
-        leg_state.contacts(i) = msg->legs.contact_states[i];
+        leg_state.contacts[i] = msg->legs.contact_states[i];
 
         body_state.pos(i) = msg->body.position[i];
         body_state.orientation(i) = msg->body.orientation[i];
         body_state.lin_vel(i) = msg->body.lin_vel[i];
         body_state.ang_vel(i) = msg->body.ang_vel[i];
     }
-    leg_state.contacts(3) = msg->legs.contact_states[3];
+    leg_state.contacts[3] = msg->legs.contact_states[3];
 }
 
 void LCMExchanger::robotCmdHandler(const lcm::ReceiveBuffer* rbuf,

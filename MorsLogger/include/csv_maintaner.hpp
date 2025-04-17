@@ -43,6 +43,7 @@ class CSVMaintainer
         void create_csv(CSVWriter &csv, const vector<string> &head, string &addr);
         void set_vector(VectorXd &data, int size, CSVWriter &csv);
         void set_vector(Vector4d &data, CSVWriter &csv);
+        void set_vector(vector<bool> &data, int size, CSVWriter &csv);
         // vector<string> servo_state_head;
 
         CSVWriter servo_state_csv, servo_cmd_csv, imu_data_csv, foot_cmd_csv, grf_cmd_csv;
