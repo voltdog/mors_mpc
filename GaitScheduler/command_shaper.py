@@ -77,7 +77,7 @@ class CommandShaper():
         ref_body_vel_filtered = self.lpf_lin_vel.update(ref_body_vel)
         ref_body_yaw_vel_filtered = self.lpf_ang_vel.update(ref_body_yaw_vel)[0]
 
-        # body height adaptation
+        # body height adaptation 
         for i in range(4):
             if (self.pre_phase_signal[i] == SWING and phase_signal[i] == STANCE) or (self.pre_phase_signal[i] == LATE and phase_signal[i] == STANCE):
                 # np.copyto(self.foot_pos_global_just_stance[i], self.foot_pos_global_just_stance[i])

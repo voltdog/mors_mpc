@@ -159,11 +159,11 @@ int main(int argc, char **argv)
 
 				quaternionToEuler(imu_msg.orientation_quaternion[W], imu_msg.orientation_quaternion[X], imu_msg.orientation_quaternion[Y], imu_msg.orientation_quaternion[Z], roll, pitch, yaw);
 
-				// if (first)
-				// {
-				// 	first = false;
-				// 	yaw_offset = yaw;
-				// }
+				if (first)
+				{
+					first = false;
+					yaw_offset = yaw;
+				}
 
 				imu_msg.orientation_euler[X] = roll;
 				imu_msg.orientation_euler[Y] = pitch;

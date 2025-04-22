@@ -4,6 +4,7 @@ import yaml
 import time
 from transforms3d.euler import euler2mat
 import argparse
+from scipy import linalg
 
 from lcm_data_exchange_sc import LCMDataExchange
 from swing_controller import SwingLegController
@@ -119,6 +120,8 @@ if __name__ == "__main__":
          
         # doing control
         R_body = euler2mat(base_orientation[0], base_orientation[1], base_orientation[2])
+        v = np.array([base_ang_vel[0], base_ang_vel[1], base_ang_vel[2]])
+        base_rpy_rate = np.matmul(linalg.inv(R_body), v) #np.matmul(R_body, v) #
 
         foot_pos_global = np.array([np.array(base_pos) + R_body @ np.array(r1_pos), 
                                     np.array(base_pos) + R_body @ np.array(l1_pos), 

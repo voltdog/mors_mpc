@@ -18,7 +18,8 @@
 	# robot control
 	# ./RobotModeController/build/robot_mode_controller & 
 	
-	python3 ./GaitScheduler/main.py --config "${config_dir}" &
+	./GaitScheduler/build/gait_scheduler &
+	# python3 ./GaitScheduler/main.py --config "${config_dir}" &
 	python3 ./SwingController/main.py --config "${config_dir}" &
 	./StanceControllerMPC/build/stanceControllerMPC  & 
 	./LegController/build/leg_controller & 
@@ -27,7 +28,7 @@
 
 	# data logger
 	./MorsLogger/build/mors_logger &
-	sleep 15s; kill $!; echo "MorsLogger killed" &
+	sleep 30s; kill $!; echo "MorsLogger killed" &
 
 	wait
 	)

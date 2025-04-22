@@ -5,4 +5,4 @@ dz_near_ground: -0.0
 
 # foot step planner
 k1_fsp: 0.02 # capture point constant
-k2_fsp: 0.17 # centrifugal term contant
+k2_fsp: 0.17 #0.0 # centrifugal term contant

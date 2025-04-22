@@ -127,7 +127,7 @@ int main()
     VectorXd p(3);
     // R1
     // double lamb = 100.0;
-    p << 0.032, -0.01, 0.001;
+    p << 0.032, -0.03, 0.001;
     double lamb = 100.0;
     // p << -0.032, 0.01, -0.001;
     // p.setZero();
@@ -138,8 +138,8 @@ int main()
     init_vectors(robot_state, leg_state);
 
     MatrixXd R_body(3,3);
-    VectorXd odom_rpy_rate(3);
-    MatrixXd ang_vel_cross(3,3);
+    VectorXd rpy_rate(3);
+    MatrixXd rpy_rate_cross(3,3);
 
     VectorXd P_body_cam(3);
     P_body_cam << CAMERA_OFFSET_X, CAMERA_OFFSET_Y, CAMERA_OFFSET_Z;
@@ -148,6 +148,11 @@ int main()
     VectorXd offset(3);
     offset.setZero();
     bool first = true;
+
+    // yaw variables
+    // double yaw_tmp = 0.0;
+    // double pre_yaw = 0.0;
+    // double yaw = 0.0;
     
     cout << "StateEstimator started" << endl;
 
@@ -166,22 +171,19 @@ int main()
 
         // do smth
         // orientation data fusion
-        data_fusioned.orientation = sensor_fusion.update_orientation(imu_data.orientation_euler, odometry.orientation);
+        data_fusioned.orientation = sensor_fusion.update_orientation(imu_data.orientation_euler, odometry.orientation); //odometry.orientation;//
         // fused orientation filtering
-        robot_state.orientation = odometry.orientation;//lpf.update_orientation(data_fusioned.orientation);
+        robot_state.orientation = lpf.update_orientation(data_fusioned.orientation); //odometry.orientation;//
         // convert odometry.ang_vel to rpy_rate
         R_body = mors_sys::euler2mat(robot_state.orientation(0), robot_state.orientation(1), robot_state.orientation(2));
-        odom_rpy_rate = R_body.transpose() * odometry.ang_vel;
-        // rpy rates fusion
-        data_fusioned.ang_vel = sensor_fusion.update_rpy_rate(imu_data.ang_vel, odom_rpy_rate);
+        rpy_rate = imu_data.ang_vel;//odometry.ang_vel; //R_body * 
+        // angular velocity fusion
+        data_fusioned.ang_vel = odometry.ang_vel; //imu_data.ang_vel; //sensor_fusion.update_rpy_rate(imu_data.ang_vel, rpy_rate); //rpy_rate;// 
         // fused rpy rate filtering
         robot_state.ang_vel = lpf.update_rpy_rate(data_fusioned.ang_vel);
         // convert position from camera frame to body frame
         body_pos = odometry.position + R_body * P_body_cam  - offset;
-        // cout << R_body * P_body_cam  << endl;
-        // cout << "---" << endl;
-        // cout << odometry.position<< endl;
-        // cout << "====" << endl;
+
         if (first)
         {
             offset = body_pos;
@@ -191,10 +193,13 @@ int main()
         robot_state.pos = lpf.update_position(body_pos);
         
         
-        ang_vel_cross << 0,                     -robot_state.ang_vel(Z), robot_state.ang_vel(Y),
-                         robot_state.ang_vel(Z), 0,                     -robot_state.ang_vel(X),
-                        -robot_state.ang_vel(Y), robot_state.ang_vel(X), 0;
-        robot_state.lin_vel =  (lpf.update_lin_vel(odometry.lin_vel) + ang_vel_cross * R_body * P_body_cam);
+        // rpy_rate_cross << 0,                     -robot_state.ang_vel(Z), robot_state.ang_vel(Y),
+        //                  robot_state.ang_vel(Z), 0,                     -robot_state.ang_vel(X),
+        //                 -robot_state.ang_vel(Y), robot_state.ang_vel(X), 0;
+        rpy_rate_cross << 0,         -rpy_rate(Z),  rpy_rate(Y),
+                         rpy_rate(Z), 0,           -rpy_rate(X),
+                        -rpy_rate(Y), rpy_rate(X),  0;
+        robot_state.lin_vel =  (lpf.update_lin_vel(odometry.lin_vel) + (rpy_rate_cross) * R_body * P_body_cam);
         // cout << robot_state.ang_vel.cross(P_body_cam) << endl;
 
         // get leg states

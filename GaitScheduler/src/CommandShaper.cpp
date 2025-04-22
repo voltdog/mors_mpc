@@ -13,7 +13,10 @@ CommandShaper::CommandShaper(double dt, double c_freq)
     this->dt = dt;
     pre_phase_signal = {STANCE, STANCE, STANCE, STANCE};
     foot_pos_global_just_stance.resize(4,3);
-    foot_pos_global_just_stance.setZero();
+    foot_pos_global_just_stance << 0, 0, -0.035,
+                                    0, 0, -0.035,
+                                    0, 0, -0.035,
+                                    0, 0, -0.035;
     foot_pos_local_just_stance.resize(4,3);
     foot_pos_local_just_stance.setZero();
     x_ref.resize(13);
@@ -31,6 +34,7 @@ CommandShaper::CommandShaper(double dt, double c_freq)
     lpf_z_vel.reconfigureFilter(dt, c_freq);
     lpf_pitch_vel.reconfigureFilter(dt, c_freq);
     lpf_yaw_vel.reconfigureFilter(dt, c_freq);
+    lpf_z_pos.reconfigureFilter(dt, 6.0);
 
     // Initialize foot positions in local frame
     double ref_z_pos = 0.0;
@@ -82,10 +86,11 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
     }
     
     // Compute reference z position
-    double ref_z_pos = compute_ref_z_pos() + ref_body_height;
+    double ref_z_pos = lpf_z_pos.update(compute_ref_z_pos() + ref_body_height + 0.035);
+    // double ref_z_pos = ref_body_height;
 
     // Compute reference pitch position
-    double ref_pitch_pos = compute_ref_pitch_pos();
+    double ref_pitch_pos = 0.0;//compute_ref_pitch_pos();
 
     // Update reference yaw and position
     ref_yaw_pos += ref_body_yaw_vel_filtered * dt;

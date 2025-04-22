@@ -27,7 +27,7 @@ using namespace Eigen;
 
 #define ORIENTATION_CF 24.0
 #define RPY_RATE_CF 24.0
-#define POSITION_CF 24.0
+#define POSITION_CF 200.0 //24.0
 #define LIN_VEL_CF 24.0
 
 class LowPassFiltering

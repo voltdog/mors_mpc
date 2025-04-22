@@ -61,7 +61,7 @@ LCMExchanger::LCMExchanger()
     t_st = 0.4;
     stride_height = 0.05;
     gait_type = {M_PI, 0, 0, M_PI};
-    standing = false;
+    standing = true;
 }
 
 void LCMExchanger::start_exchanger()

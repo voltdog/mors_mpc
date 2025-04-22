@@ -174,7 +174,7 @@ int main() {
     ref_tau.setZero(12);
     motor_kp.setZero(12);
     // motor_kd.setZero();
-    motor_kd = motor_kd.setOnes(12)*0.2;
+    motor_kd = motor_kd.setOnes(12)*0.6;
 
     lcmExch.sendServoCmd(ref_theta, ref_omega, ref_tau, motor_kp, motor_kd);
 

@@ -49,6 +49,7 @@ private:
     double dt;
     LowPassFilter lpf_x_vel, lpf_y_vel, lpf_z_vel;
     LowPassFilter lpf_pitch_vel, lpf_yaw_vel;
+    LowPassFilter lpf_z_pos;
 
     // State variables
     std::vector<int> pre_phase_signal;

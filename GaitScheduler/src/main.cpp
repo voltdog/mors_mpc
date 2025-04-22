@@ -128,6 +128,7 @@ int main() {
         else if (standing == false && pre_standing == true)
         {
             gait_scheduler.init_integrator(module_dt);
+            phi_cur = gait_scheduler.step();
         }
         
         phase_signal = contact_fsm.step(leg_state.contacts, phi_cur);

@@ -51,7 +51,7 @@ VectorXd SensorFusion::update_orientation(VectorXd orientation_in1, VectorXd ori
     pre_yaw2 = yaw2;
 
     in1 = orientation_in1;
-    in1[Z] = yaw1_final;
+    in1[Z] = yaw2;//yaw1_final;
 
     in2 = orientation_in2;
     in2[Z] = yaw2;

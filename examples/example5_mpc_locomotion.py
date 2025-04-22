@@ -17,14 +17,14 @@ import yaml
  
 dt = 0.01
  
-DURATION = 10.0
+DURATION = 12.0
 
 GAIT_TYPE = [np.pi, 0, 0, np.pi]
 T_SW = 0.25
 T_ST = 0.4
 STRIDE_HEIGHT = 0.09
 
-LIN_VEL_X = 0.0
+LIN_VEL_X = 0.1
 LIN_VEL_Y = 0.0
 ANG_VEL_Z = 0.0
 POS_Z = 0.21
@@ -91,6 +91,13 @@ print("[Example5 MPC Locomotion]: starting...")
 lc = lcm.LCM()
 null_servo()
 
+gait_prms_msg = gait_params_msg()
+gait_prms_msg.gait_type = GAIT_TYPE
+gait_prms_msg.t_st = T_ST
+gait_prms_msg.t_sw = T_SW
+gait_prms_msg.stride_height = STRIDE_HEIGHT
+gait_prms_msg.standing = True
+lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
 
 control_type_msg = std_int()
 control_type_msg.data = LEG_CONTROL
@@ -102,13 +109,7 @@ cmd_msg.cmd_pose[Z] = 0.0
 cmd_msg.cmd_vel = [0.0]*6
 lc.publish(ROBOT_CMD_CHANNEL, cmd_msg.encode())
 
-gait_prms_msg = gait_params_msg()
-gait_prms_msg.gait_type = GAIT_TYPE
-gait_prms_msg.t_st = T_ST
-gait_prms_msg.t_sw = T_SW
-gait_prms_msg.stride_height = STRIDE_HEIGHT
-gait_prms_msg.standing = True
-lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
+
 
 t = 0.0
 z_idle = POS_Z
@@ -120,15 +121,20 @@ print("Standing up...")
 
 
 try:
+    # go_robot_pos([0.0, 0.0, 0.00,  #position
+    #             0.0, 0.0, 0.0], #orientation,
+    #             [0.0, 0.0, 0.0,  #position
+    #             0.0, 0.0, 0.0], #orientation
+    #             1.0)
     go_robot_pos([0.0, 0.0, 0.00,  #position
                 0.0, 0.0, 0.0], #orientation,
                 [0.0, 0.0, z_idle,  #position
                 0.0, 0.0, 0.0], #orientation
                 2.0)
     
-    time.sleep(1)
+    time.sleep(0.5)
 
-    gait_prms_msg.standing = False
+    gait_prms_msg.standing = False#True#
     lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
 
     cmd_pose[Z] = z_idle
@@ -139,7 +145,7 @@ try:
 
     t = 0.0
     print("[Example5 MPC Locomotion]:  started")
-    time.sleep(2)
+    time.sleep(1)
 
     
     while t < DURATION:
@@ -171,12 +177,12 @@ try:
     cmd_msg.cmd_pose = cmd_pose[:]
     cmd_msg.cmd_vel = cmd_vel[:]
     lc.publish(ROBOT_CMD_CHANNEL, cmd_msg.encode())
-    time.sleep(3)
+    time.sleep(1)
     print("[Example5 MPC Locomotion]: Almost finish")
 
     gait_prms_msg.standing = True
     lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
-    time.sleep(1)
+    time.sleep(0.5)
     # lay down
     go_robot_pos([cmd_pose[X], 0.0, z_idle,  #position
                   0.0, 0.0, 0.0], #orientation
