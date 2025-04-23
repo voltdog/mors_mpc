@@ -90,7 +90,7 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
     // double ref_z_pos = ref_body_height;
 
     // Compute reference pitch position
-    double ref_pitch_pos = 0.0;//compute_ref_pitch_pos();
+    double ref_pitch_pos = compute_ref_pitch_pos();//0.0;//
 
     // Update reference yaw and position
     ref_yaw_pos += ref_body_yaw_vel_filtered * dt;

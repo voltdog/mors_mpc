@@ -1,5 +1,5 @@
 # swing trajectory generator
-interleave_x: [0.04, 0.04, 0.02, 0.02]
+interleave_x: [0.02, 0.02, 0.02, 0.02]
 interleave_y: [0.095, 0.095, 0.095, 0.095]
 dz_near_ground: -0.0
 

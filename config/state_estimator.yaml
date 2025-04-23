@@ -1,1 +1,1 @@
-contact_threshold: 8.0
+contact_threshold: 5.0 # - for Hs=0.13 #3.0 - for Hs=0.11

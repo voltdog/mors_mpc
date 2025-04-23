@@ -162,6 +162,18 @@ class SwingTrajectoryGenerator():
                     self.d_p_ref[3*i+2] = self.dz_near_ground
                 else:
                     self.p_ref[3*i+2] += (-0.5*self.inc)
-                    self.d_p_ref[3*i+2] = -0.5
+                    self.d_p_ref[3*i+2] = -0.3
+            # elif leg_phase[i] == STANCE:
+            #     self.p_ref[3*i] = 0.0
+            #     self.p_ref[3*i+1] = 0.0
+            #     self.p_ref[3*i+2] = 0.0
+
+            #     self.d_p_ref[3*i] = 0.0
+            #     self.d_p_ref[3*i+1] = 0.0
+            #     self.d_p_ref[3*i+2] = 0.0
+
+            #     self.dd_p_ref[3*i] = 0.0
+            #     self.dd_p_ref[3*i+1] = 0.0
+            #     self.dd_p_ref[3*i+2] = 0.0
 
         return self.p_ref, self.d_p_ref, self.dd_p_ref

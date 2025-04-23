@@ -36,7 +36,7 @@ class SwingLegController():
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0]]
-        self.p_finish = [[0.2, 0.0, 0.0],
+        self.p_finish = [[0.0, 0.0, 0.0],
                     [0.0, 0.0, 0.0],
                     [0.0, 0.0, 0.0],
                     [0.0, 0.0, 0.0]]
@@ -44,10 +44,10 @@ class SwingLegController():
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0],
                 [0.0, 0.0, 0.0]]
-        self.d_p_start = [[0.0, 0.0, 1.0],
-                    [0.0, 0.0, 1.0],
-                    [0.0, 0.0, 1.0],
-                    [0.0, 0.0, 1.0]]
+        self.d_p_start = [[0.0, 0.0, 0.2],
+                    [0.0, 0.0, 0.2],
+                    [0.0, 0.0, 0.2],
+                    [0.0, 0.0, 0.2]]
         
         self.cnt = [-1]*4
         self.it_swing = [0.0]*4
@@ -92,6 +92,7 @@ class SwingLegController():
                                                 body_yaw_vel_cmd=ref_body_yaw_vel,
                                                 body_height_cmd=ref_body_height,
                                                 Tst=self.t_st).tolist()
+                # self.p_finish[i][Z] = self.p_start[i][Z]
                 # if i == R1:
                 #     print(f"{base_pos[Z]:.4f} | {self.p_finish[i][2]:.4f}")
                 max_rize_z = self.step_planner[i].get_hip_location()[Z] + ref_body_height - 0.03
@@ -121,21 +122,41 @@ class SwingLegController():
 
         # convert from global to local coordinates
         inv_R_body = linalg.inv(R_body)
+        # if phase_signal[R1] == SWING or phase_signal[R1] == LATE:
         x_ref_local_R1 = (inv_R_body @ (np.array(x_ref_global[ :3]) - np.array(base_pos))).reshape(3,1)
         dx_ref_R1 = (inv_R_body @ np.array(d_p_ref[:3])).reshape(3,1)
         ddx_ref_R1 = (inv_R_body @ np.array(dd_p_ref[:3])).reshape(3,1)
+        # else:
+        #     x_ref_local_R1 = np.zeros((3,1))
+        #     dx_ref_R1 = np.zeros((3,1))
+        #     ddx_ref_R1 = np.zeros((3,1))
 
+        # if phase_signal[L1] == SWING or phase_signal[L1] == LATE:
         x_ref_local_L1 = (inv_R_body @ (np.array(x_ref_global[3:6]) - np.array(base_pos))).reshape(3,1)
         dx_ref_L1 = (inv_R_body @ np.array(d_p_ref[3:6])).reshape(3,1)
         ddx_ref_L1 = (inv_R_body @ np.array(dd_p_ref[3:6])).reshape(3,1)
+        # else:
+        #     x_ref_local_L1 = np.zeros((3,1))
+        #     dx_ref_L1 = np.zeros((3,1))
+        #     ddx_ref_L1 = np.zeros((3,1))
 
+        # if phase_signal[R2] == SWING or phase_signal[R2] == LATE:
         x_ref_local_R2 = (inv_R_body @ (np.array(x_ref_global[6:9]) - np.array(base_pos))).reshape(3,1)
         dx_ref_R2 = (inv_R_body @ np.array(d_p_ref[6:9])).reshape(3,1)
         ddx_ref_R2 = (inv_R_body @ np.array(dd_p_ref[6:9])).reshape(3,1)
+        # else:
+        #     x_ref_local_R2 = np.zeros((3,1))
+        #     dx_ref_R2 = np.zeros((3,1))
+        #     ddx_ref_R2 = np.zeros((3,1))
 
+        # if phase_signal[L2] == SWING or phase_signal[L2] == LATE:
         x_ref_local_L2 = (inv_R_body @ (np.array(x_ref_global[9: ]) - np.array(base_pos))).reshape(3,1)
         dx_ref_L2 = (inv_R_body @ np.array(d_p_ref[9: ])).reshape(3,1)
         ddx_ref_L2 = (inv_R_body @ np.array(dd_p_ref[9: ])).reshape(3,1)
+        # else:
+        #     x_ref_local_L2 = np.zeros((3,1))
+        #     dx_ref_L2 = np.zeros((3,1))
+        #     ddx_ref_L2 = np.zeros((3,1))
 
         self.pre_phase_signal = phase_signal[:]
 

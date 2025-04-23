@@ -121,7 +121,7 @@ int main() {
         w_sw = M_PI/t_sw;
         w_st = M_PI/t_st;
         gait_scheduler.set_gait_params(w_sw, w_st, ref_gait);
-        phi_cur = gait_scheduler.step();
+        
         
         if (standing == true)
             phi_cur = {-0.5, -0.5, -0.5, -0.5};
@@ -130,20 +130,22 @@ int main() {
             gait_scheduler.init_integrator(module_dt);
             phi_cur = gait_scheduler.step();
         }
+        else
+            phi_cur = gait_scheduler.step();
         
         phase_signal = contact_fsm.step(leg_state.contacts, phi_cur);
 
         // Command shaping
         // calc foot pos local
         R_body = mors_sys::euler2mat(body_state.orientation(X), body_state.orientation(Y), body_state.orientation(Z));
-        foot_pos_local[0] = R_body * leg_state.r1_pos;
-        foot_pos_local[1] = R_body * leg_state.l1_pos;
-        foot_pos_local[2] = R_body * leg_state.r2_pos;
-        foot_pos_local[3] = R_body * leg_state.l2_pos;
+        foot_pos_local[0] = leg_state.r1_pos; //R_body * 
+        foot_pos_local[1] = leg_state.l1_pos;//R_body * 
+        foot_pos_local[2] = leg_state.r2_pos;//R_body * 
+        foot_pos_local[3] = leg_state.l2_pos;//R_body * 
 
         // calc foot pos global
         for (int i = 0; i < 4; i++)
-            foot_pos_global[i] = foot_pos_local[i] + body_state.pos;
+            foot_pos_global[i] = R_body*foot_pos_local[i] + body_state.pos;
 
         // step command shaper
         

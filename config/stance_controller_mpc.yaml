@@ -1,9 +1,9 @@
 horizon: 12
 friction: 0.7
-f_min: 0.0 #-90.0
+f_min: 2.0 #-90.0
 f_max: 90.0 #90.0
 Q: [6.0, 6.0, 5.0, # orientation
-    30.0, 26.0, 70.0, # position
+    30.0, 26.0, 200.0, # position
     0.0, 0.0, 0.3, # angular velocity
     1.5, 2.0, 0.05, 0.0] # linear velocity
 # Q: [20.0, 20.0, 3.0, # orientation
@@ -15,9 +15,48 @@ R: [1.0, 1.0, 1.0,  # orientation
     1.0, 1.0, 1.0,  # angular velocity
     1.0, 1.0, 1.0]  # linear velocity
 
-Q_gain: 9e2
-R_gain: 1e-1
+Q_gain: 9.0e2
+R_gain: 1.0
 
+# very best (for stairs)
+# horizon: 12
+# friction: 0.7
+# f_min: 2.0 #-90.0
+# f_max: 90.0 #90.0
+# Q: [6.0, 6.0, 5.0, # orientation
+#     30.0, 26.0, 140.0, # position
+#     0.0, 0.0, 0.3, # angular velocity
+#     1.5, 2.0, 0.05, 0.0] # linear velocity
+# # Q: [20.0, 20.0, 3.0, # orientation
+# #     100.0, 50.0, 1000.0, # position
+# #     0.0, 0.0, 0.8, # angular velocity
+# #     0.2, 0.2, 0.05, 0.0] # linear velocity
+# R: [1.0, 1.0, 1.0,  # orientation
+#     1.0, 1.0, 1.0,  # position
+#     1.0, 1.0, 1.0,  # angular velocity
+#     1.0, 1.0, 1.0]  # linear velocity
+
+# Q_gain: 9.1e2
+# R_gain: 5.0e-1
+# best
+# horizon: 12
+# friction: 0.7
+# f_min: 0.0 #-90.0
+# f_max: 90.0 #90.0
+# Q: [6.0, 6.0, 5.0, # orientation
+#     30.0, 26.0, 70.0, # position
+#     0.0, 0.0, 0.3, # angular velocity
+#     1.5, 2.0, 0.05, 0.0] # linear velocity
+# # Q: [20.0, 20.0, 3.0, # orientation
+# #     100.0, 50.0, 1000.0, # position
+# #     0.0, 0.0, 0.8, # angular velocity
+# #     0.2, 0.2, 0.05, 0.0] # linear velocity
+# R: [1.0, 1.0, 1.0,  # orientation
+#     1.0, 1.0, 1.0,  # position
+#     1.0, 1.0, 1.0,  # angular velocity
+#     1.0, 1.0, 1.0]  # linear velocity
+# Q_gain: 9.0e2
+# R_gain: 1.0e-1
 # much better
 # horizon: 12
 # friction: 0.45
