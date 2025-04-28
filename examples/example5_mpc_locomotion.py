@@ -17,7 +17,7 @@ import yaml
  
 dt = 0.01
  
-DURATION = 10.0
+DURATION = 5.0
 
 GAIT_TYPE = [np.pi, 0, 0, np.pi]
 T_SW = 0.25
