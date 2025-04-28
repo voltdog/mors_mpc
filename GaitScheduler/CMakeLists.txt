@@ -136,11 +136,12 @@ target_include_directories(messages-cpp INTERFACE
 add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
 
 set(EXEC_SOURCES src/main.cpp 
-            src/HopfGaitScheduler.cpp
+            
             src/ContactStateFSM.cpp
             src/CommandShaper.cpp
             src/lcm_data_exchange_gs.cpp
             
+            ../common/src/SimpleGaitScheduler.cpp
             ../common/src/system_functions.cpp
             ../common/src/leg_model.cpp
 )

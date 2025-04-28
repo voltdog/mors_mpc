@@ -9,12 +9,13 @@ public:
     static constexpr int SWING = 0;
     static constexpr int STANCE = 1;
     static constexpr int LATE = 2;
+    static constexpr int EARLY_CONTACT = 3;
 
     // Конструктор
     explicit ContactStateFSM(double start_td_detecting);
 
     // Метод для выполнения шага
-    std::vector<int> step(const std::vector<bool>& contact_flag, const std::vector<double>& phi);
+    std::vector<int> step(const std::vector<bool>& contact_flag, const std::vector<double>& phi, const std::vector<int>& des_leg_state) ;
 
 private:
     double start_td_detecting; // Параметр для обнаружения начала фазы

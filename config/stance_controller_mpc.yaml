@@ -15,7 +15,7 @@ R: [1.0, 1.0, 1.0,  # orientation
     1.0, 1.0, 1.0,  # angular velocity
     1.0, 1.0, 1.0]  # linear velocity
 
-Q_gain: 12.0e2
+Q_gain: 1e3
 R_gain: 1.0
 
 # very best (for stairs)

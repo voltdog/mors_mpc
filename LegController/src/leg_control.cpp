@@ -85,7 +85,7 @@ VectorXd LegControl::get_tau_ff(VectorXd dd_x_ref, VectorXd dq, MatrixXd M, Vect
     return tau;
 }
 
-VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4d &phase_signal)
+VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal)
 {
     // prepare data
 
@@ -141,60 +141,83 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     dX_R2 = J_R2 * d_theta_r2;
     dX_L2 = J_L2 * d_theta_l2;
 
-    // feedback control
-    if (phase_signal(R1) != STANCE)
-    {
-        e_r1 = x_ref_r1 - X_R1;
-        de_r1 = dx_ref_r1 - dX_R1;
-        u_r1 = Kp * e_r1 + Kd * de_r1;// + ddx_ref_r1;
-    }
-    else
-        u_r1.setZero();
-
-    if (phase_signal(L1) != STANCE)
-    {
-        e_l1 = x_ref_l1 - X_L1;
-        de_l1 = dx_ref_l1 - dX_L1;
-        u_l1 = Kp * e_l1 + Kd * de_l1;// + ddx_ref_l1;
-    }
-    else
-        u_l1.setZero();
-    
-    if (phase_signal(R2) != STANCE)
-    {
-        e_r2 = x_ref_r2 - X_R2;
-        de_r2 = dx_ref_r2 - dX_R2;
-        u_r2 = Kp * e_r2 + Kd * de_r2;// + ddx_ref_r2;
-    }
-    else
-        u_r2.setZero();
-
-    if (phase_signal(L2) != STANCE)
-    {
-        e_l2 = x_ref_l2 - X_L2;
-        de_l2 = dx_ref_l2 - dX_L2;
-        u_l2 = Kp * e_l2 + Kd * de_l2;// + ddx_ref_l2;
-    }
-    else
-        u_l2.setZero();
-
     // calculate dynamics matrices
     leg_model.joint_space_matrices_R1(theta, d_theta, M_R1, V_R1, G_R1, F_R1);
     leg_model.joint_space_matrices_L1(theta, d_theta, M_L1, V_L1, G_L1, F_L1);
     leg_model.joint_space_matrices_R2(theta, d_theta, M_R2, V_R2, G_R2, F_R2);
     leg_model.joint_space_matrices_L2(theta, d_theta, M_L2, V_L2, G_L2, F_L2);
 
-    // get desired tau for impedance control
-    imp_tau_ref_r1 = J_R1.transpose() * u_r1 - get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1);
-    imp_tau_ref_l1 = J_L1.transpose() * u_l1 + get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1);
-    imp_tau_ref_r2 = J_R2.transpose() * u_r2 - get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2);
-    imp_tau_ref_l2 = J_L2.transpose() * u_l2 + get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2);
+    // feedback control
+    // cout << phase_signal.transpose() << endl;
+    if (phase_signal(R1) == SWING || phase_signal(R1) == LATE)
+    {
+        e_r1 = x_ref_r1 - X_R1;
+        de_r1 = dx_ref_r1 - dX_R1;
+        u_r1 = Kp * e_r1 + Kd * de_r1;// + ddx_ref_r1;
+        imp_tau_ref_r1 = J_R1.transpose() * u_r1 - get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1);
+        grf_tau_ref_r1.setZero();
+    }
+    else
+    {
+        grf_tau_ref_r1 = J_R1.transpose() * (invR * grf_ref_r1);
+        imp_tau_ref_r1.setZero();
+    }
 
-    // get desired tau for GRF control
-    grf_tau_ref_r1 = J_R1.transpose() * (invR * grf_ref_r1);
-    grf_tau_ref_l1 = J_L1.transpose() * (invR * grf_ref_l1);
-    grf_tau_ref_r2 = J_R2.transpose() * (invR * grf_ref_r2);
-    grf_tau_ref_l2 = J_L2.transpose() * (invR * grf_ref_l2);
+    if (phase_signal(L1) == SWING || phase_signal(L1) == LATE)
+    {
+        e_l1 = x_ref_l1 - X_L1;
+        de_l1 = dx_ref_l1 - dX_L1;
+        u_l1 = Kp * e_l1 + Kd * de_l1;// + ddx_ref_l1;
+        imp_tau_ref_l1 = J_L1.transpose() * u_l1 + get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1);
+        grf_tau_ref_l1.setZero();
+    }
+    else
+    {
+        grf_tau_ref_l1 = J_L1.transpose() * (invR * grf_ref_l1);
+        imp_tau_ref_l1.setZero();
+    }
+    
+    if (phase_signal(R2) == SWING || phase_signal(R2) == LATE)
+    {
+        e_r2 = x_ref_r2 - X_R2;
+        de_r2 = dx_ref_r2 - dX_R2;
+        u_r2 = Kp * e_r2 + Kd * de_r2;// + ddx_ref_r2;
+        imp_tau_ref_r2 = J_R2.transpose() * u_r2 - get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2);
+        grf_tau_ref_r2.setZero();
+    }
+    else
+    {
+        grf_tau_ref_r2 = J_R2.transpose() * (invR * grf_ref_r2);
+        imp_tau_ref_r2.setZero();
+    }
+
+    if (phase_signal(L2) == SWING || phase_signal(L2) == LATE)
+    {
+        e_l2 = x_ref_l2 - X_L2;
+        de_l2 = dx_ref_l2 - dX_L2;
+        u_l2 = Kp * e_l2 + Kd * de_l2;// + ddx_ref_l2;
+        imp_tau_ref_l2 = J_L2.transpose() * u_l2 + get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2);
+        grf_tau_ref_l2.setZero();
+    }
+    else
+    {
+        grf_tau_ref_l2 = J_L2.transpose() * (invR * grf_ref_l2);
+        imp_tau_ref_l2.setZero();
+    }
+
+    // cout << imp_tau_ref_r1 << endl;
+
+    // // get desired tau for impedance control
+    // imp_tau_ref_r1 = J_R1.transpose() * u_r1 - get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1);
+    // imp_tau_ref_l1 = J_L1.transpose() * u_l1 + get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1);
+    // imp_tau_ref_r2 = J_R2.transpose() * u_r2 - get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2);
+    // imp_tau_ref_l2 = J_L2.transpose() * u_l2 + get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2);
+
+    // // get desired tau for GRF control
+    // grf_tau_ref_r1 = J_R1.transpose() * (invR * grf_ref_r1);
+    // grf_tau_ref_l1 = J_L1.transpose() * (invR * grf_ref_l1);
+    // grf_tau_ref_r2 = J_R2.transpose() * (invR * grf_ref_r2);
+    // grf_tau_ref_l2 = J_L2.transpose() * (invR * grf_ref_l2);
 
     tau_ref_r1 = imp_tau_ref_r1 + grf_tau_ref_r1;
     tau_ref_l1 = imp_tau_ref_l1 + grf_tau_ref_l1;

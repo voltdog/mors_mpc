@@ -105,7 +105,7 @@ int main() {
     MatrixXd Kp(3,3);
     MatrixXd Kd(3,3);
 
-    Vector4d phase_signal;
+    Vector4i phase_signal;
 
     ref_theta.setZero(12);
     ref_omega.setZero(12);
@@ -138,6 +138,7 @@ int main() {
         lcmExch.getEnableData(enable, reset);
         control_type = lcmExch.getCtrlTypeData();
         phase_signal = lcmExch.getPhaseSignal();
+        
         // cout << "control_type: " << control_type << endl;
         // enable = true;
         // control_type = LEG_CONTROL;

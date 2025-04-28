@@ -20,6 +20,7 @@ using namespace std;
 #define SWING  0
 #define STANCE 1
 #define LATE   2
+#define EARLY_CONTACT   3
 
 class LegControl{
 public:
@@ -52,7 +53,7 @@ public:
     VectorXd cartesian_inverse_dynamics(VectorXd dd_x, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ);
     VectorXd get_tau_ff(VectorXd dd_x_ref, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ);
 
-    VectorXd calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4d &phase_signal);
+    VectorXd calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal);
                         //MatrixXd &leg_pos_ref, MatrixXd &leg_vel_ref, MatrixXd &leg_acc_ref, MatrixXd &leg_grf_ref,
 private:
 

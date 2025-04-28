@@ -157,11 +157,11 @@ class SwingTrajectoryGenerator():
                 self.dd_p_ref[3*i+1] = dd_p_y
                 self.dd_p_ref[3*i+2] = dd_p_z
             elif leg_phase[i] == LATE:
-                if self.dz_near_ground < -0.5:
+                if self.dz_near_ground < -0.3:
                     self.p_ref[3*i+2] += (self.dz_near_ground*self.inc)
                     self.d_p_ref[3*i+2] = self.dz_near_ground
                 else:
-                    self.p_ref[3*i+2] += (-0.5*self.inc)
+                    self.p_ref[3*i+2] += (-0.3*self.inc)
                     self.d_p_ref[3*i+2] = -0.3
             # elif leg_phase[i] == STANCE:
             #     self.p_ref[3*i] = 0.0

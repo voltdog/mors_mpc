@@ -358,7 +358,7 @@ void LCMExchanger::getEnableData(bool &en, bool &reset)
     reset = this->reset;
 }
 
-Vector4d LCMExchanger::getPhaseSignal()
+Vector4i LCMExchanger::getPhaseSignal()
 {
     return phase_signal;
 }

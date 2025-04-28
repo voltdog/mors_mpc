@@ -75,7 +75,7 @@ class LCMExchanger
         void getServoStateData(VectorXd &position, VectorXd &velocity, VectorXd &torque);
         void getEnableData(bool &en, bool &reset);
         int getCtrlTypeData();
-        Vector4d getPhaseSignal();
+        Vector4i getPhaseSignal();
 
         void sendServoCmd(VectorXd &position, VectorXd &velocity, VectorXd &torque, VectorXd &kp, VectorXd &kd);
 
@@ -115,7 +115,7 @@ class LCMExchanger
         int control_type;
         double gear_ratio;
 
-        Vector4d phase_signal;
+        Vector4i phase_signal;
 };
 
 #endif //_lcm_data_exchange_lc_hpp_
