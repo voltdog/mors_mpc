@@ -213,8 +213,8 @@ int main() {
         t += module_dt;
 
         // -----------------------------------------------
-        std::chrono::duration<double, std::milli> elapsed_{now() - start};
-        cout << "[GaitScheduler]: Waited for : " << elapsed_.count() << " ms" << endl;
+        // std::chrono::duration<double, std::milli> elapsed_{now() - start};
+        // cout << "[GaitScheduler]: Waited for : " << elapsed_.count() << " ms" << endl;
         // Wait until spinning time
         while(true)
         {

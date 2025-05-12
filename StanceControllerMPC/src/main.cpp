@@ -264,8 +264,8 @@ int main() {
         lcmExch.sendGrfCmd(leg_cmd);
 
         // -----------------------------------------------
-        std::chrono::duration<double, std::milli> elapsed_{now() - start};
-        cout << "[cMPC]: Waited for : " << elapsed_.count() << " ms" << endl;
+        // std::chrono::duration<double, std::milli> elapsed_{now() - start};
+        // cout << "[cMPC]: Waited for : " << elapsed_.count() << " ms" << endl;
 
         // Wait until spinning time
         while(true)
