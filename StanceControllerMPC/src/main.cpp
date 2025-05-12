@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include "lcm_data_exchange_sc.hpp"
 #include "convex_mpc.hpp"
+#include "SimpleGaitScheduler.hpp"
 #include "structs.hpp"
 #include <vbmath.hpp>
 #include <yaml-cpp/yaml.h>
@@ -15,9 +16,9 @@ using namespace Eigen;
 using namespace YAML;
 using namespace std::chrono;
 
-#define SWING  0
-#define STANCE 1
-#define LATE   2
+// #define SWING  0
+// #define STANCE 1
+// #define LATE   2
 
 #define X 0
 #define Y 1
@@ -96,9 +97,7 @@ int main() {
     RobotData robot_cmd;
     LegData leg_state;
 
-    VectorXd gait_phase(4);
-    VectorXd contact_states(4);
-    contact_states << STANCE, STANCE, STANCE, STANCE;
+    
 
     LegData leg_cmd;
     leg_cmd.r1_grf.resize(3);
@@ -124,6 +123,42 @@ int main() {
     MatrixXd R_body(3,3);
     VectorXd grf_cmd(12);
 
+    // gait generator for future phases
+    // bounding
+    // double t_sw = 0.25;
+    // double t_st = 0.25;
+    // std::vector<double> phase_offsets = {0.0, 0.0, 0.5, 0.5};
+    // jumping
+    // double t_sw = 0.25;
+    // double t_st = 0.25;
+    // std::vector<double> phase_offsets = {0.0, 0.0, 0.0, 0.0};
+    // trot walk
+    // double t_sw = 0.3;
+    // double t_st = 0.3;
+    // std::vector<double> phase_offsets = {0.0, 0.5, 0.5, 0.0};
+    // standing
+    double t_sw = 0.0;
+    double t_st = 0.3;
+    std::vector<double> phase_offsets = {0.0, 0.0, 0.0, 0.0};
+    bool standing = true;
+    // walk
+    // double t_sw = 0.3;
+    // double t_st = 1.1;
+    // std::vector<double> phase_offsets = {0.0, 0.25, 0.5, 0.75};
+
+    std::vector<int> phase_init = {STANCE, STANCE, STANCE, STANCE};
+    // double dt_mpc = 0.01;
+    // int mpc_horizon = 12;
+    SimpleGaitScheduler gait_scheduler;
+    gait_scheduler.set_gait_params(t_st, t_sw, phase_offsets, phase_init);
+    gait_scheduler.setMpcParams(module_dt, horizon);
+    vector<int> gait_table(4 * horizon);
+    vector<int> gait_phase(4);
+    vector<double> gait_phi(4);
+    // vector<int> contact_states = {STANCE, STANCE, STANCE, STANCE};
+    // contact_states << STANCE, STANCE, STANCE, STANCE;
+    double t_gait;
+
     cout << "Stance Controller ConvexMPC started" << endl;
 
     while(true)
@@ -138,7 +173,10 @@ int main() {
         robot_state = lcmExch.getBodyState();
         leg_state = lcmExch.getLegsState();
         gait_phase = lcmExch.getPhaseSignals();
-
+        t_gait = lcmExch.getTGait();
+        gait_phi = lcmExch.getPhiGait();
+        lcmExch.get_gait_params(t_st, t_sw, phase_offsets, standing);
+        gait_scheduler.reset();
         // robot_cmd.pos(Z) = 0.5;
 
 
@@ -179,20 +217,41 @@ int main() {
         foot_positions.col(3) = R_body * leg_state.l2_pos;
         
         // define contact states
-        for (int i=0; i<4; i++)
-        {
-            if (gait_phase(i) == LATE)
-                contact_states(i) = SWING;
-            else
-                contact_states(i) = gait_phase(i);
-        }
+        // for (int i=0; i<4; i++)
+        // {
+        //     if (gait_phase(i) == LATE)
+        //         contact_states(i) = SWING;
+        //     else
+        //         contact_states(i) = gait_phase(i);
+        // }
+        gait_scheduler.set_gait_params(t_st, t_sw, phase_offsets, phase_init);
+        gait_table = gait_scheduler.getMpcTable(t_gait, standing, gait_phase, gait_phi);
         // contact_states << STANCE, SWING, STANCE, SWING;
         // contact_states << 1, 1, 1, 0;
         // cout << contact_states.transpose() << endl;
         // cout << "----" << endl;
+        // cout << standing << endl;
+        // if (t_gait > 4.03 && t_gait < 4.07)
+        // {
+        //     cout << "t: " << t_gait << endl;
+        //     for (int i=0; i < 4; i++)
+        //     {
+        //         cout << gait_phase[i] << " ";
+        //     }
+        //     cout << endl;
+        //     cout << "-" << endl;
+        //     for (int i=0; i < static_cast<int>(gait_table.size()); i++)
+        //     {
+        //         cout << gait_table[i] << " ";
+        //         if ((i+1) % 4 == 0)
+        //             cout << "| ";
+        //     }
+        //     cout << endl;
+        //     cout << "===" << endl;
+        // }
 
         // solve mpc problem
-        grf_cmd = mpc.get_contact_forces(x0, x_ref, foot_positions, contact_states);
+        grf_cmd = mpc.get_contact_forces(x0, x_ref, foot_positions, gait_table);
 
 
         // convert grf_cmd to convinient format
@@ -205,6 +264,8 @@ int main() {
         lcmExch.sendGrfCmd(leg_cmd);
 
         // -----------------------------------------------
+        std::chrono::duration<double, std::milli> elapsed_{now() - start};
+        cout << "[cMPC]: Waited for : " << elapsed_.count() << " ms" << endl;
 
         // Wait until spinning time
         while(true)

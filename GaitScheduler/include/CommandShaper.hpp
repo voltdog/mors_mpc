@@ -20,6 +20,7 @@ public:
     static constexpr int SWING = 0;
     static constexpr int STANCE = 1;
     static constexpr int LATE = 2;
+    static constexpr int EARLY_CONTACT = 3;
 
     static constexpr int R1 = 0;
     static constexpr int L1 = 1;

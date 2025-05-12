@@ -54,7 +54,7 @@ class LCMExchanger
         LegData getLegState();
         void get_gait_params(double& t_st, double& t_sw, vector<double>& gait_type, bool& standing, double& stride_height);
 
-        void sendPhaseSig(vector<int>& phase, vector<double>& phi);
+        void sendPhaseSig(vector<int>& phase, vector<double>& phi, double t);//, VectorXi &gait_table);
         void sendRobotCmd(RobotData& robot_cmd);
 
     private:

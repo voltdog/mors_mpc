@@ -11,7 +11,7 @@ LCMExchanger::LCMExchanger()
         return;
     if(!robot_state_subscriber.good())
         return;
-    if(!gait_params_subscriber.good())
+    if(!gait_params_subscriber.good()) 
         return;
 
     string config_address = mors_sys::GetEnv("CONFIGPATH");//cwd;
@@ -57,10 +57,10 @@ LCMExchanger::LCMExchanger()
     leg_state.l1_pos.setZero();
     leg_state.r2_pos.setZero();
     leg_state.l2_pos.setZero();
-    t_sw = 0.25;
+    t_sw = 0.0;
     t_st = 0.4;
     stride_height = 0.05;
-    gait_type = {M_PI, 0, 0, M_PI};
+    gait_type = {0, 0, 0, 0};
     standing = true;
 }
 
@@ -178,13 +178,20 @@ void LCMExchanger::sendRobotCmd(RobotData& robot_cmd)
     robot_cmd_publisher.publish(robot_cmd_channel, &robotCmdMsg);
 }
 
-void LCMExchanger::sendPhaseSig(vector<int>& phase, vector<double>& phi)
+void LCMExchanger::sendPhaseSig(vector<int>& phase, vector<double>& phi, double t)//, VectorXi &gait_table)
 {
     for (int i = 0; i < 4; i++)
     {
         phaseSigMsg.phase[i] = phase[i];
         phaseSigMsg.phi[i] = phi[i];
     }
+    // phaseSigMsg.num = static_cast<int16_t>(gait_table.size());
+    // phaseSigMsg.gait_table.resize(static_cast<int16_t>(gait_table.size()));
+    // for (int16_t i = 0; i < static_cast<int16_t>(gait_table.size()); i++)
+    // {
+    //     phaseSigMsg.gait_table[i] = static_cast<int16_t>(gait_table[i]);
+    // }
+    phaseSigMsg.t = t;
     phase_sig_publisher.publish(phase_signal_channel, &phaseSigMsg);
 }
 

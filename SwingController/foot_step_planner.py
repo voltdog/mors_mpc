@@ -42,7 +42,8 @@ class FootStepPlanner():
         self.h = body_height_cmd
         twisting_speed_cmd = np.array([0.0, 0.0, body_yaw_vel_cmd], dtype=np.float64)        
         
-        p_hip = (np.array(body_pos)-np.array([0.0, 0.0, self.h])) + R_body @ self.p0_b# -0.015 |0.15 - диаметр шарика
+        # p_hip = (np.array(body_pos)-np.array([0.0, 0.0, self.h])) + R_body @ self.p0_b# -0.015 |0.15 - диаметр шарика
+        p_hip = (np.array(body_pos)) + R_body @ self.p0_b# -0.015 |0.15 - диаметр шарика
         p_cross_omega = np.cross(self.p0_b, body_ang_vel)
         p_cross_omega[2] = 0.0
         dp_hip = body_lin_vel + p_cross_omega
@@ -54,6 +55,6 @@ class FootStepPlanner():
         capture_point = self.k1 * (dp_hip - dp_hip_cmd)
         centrifugal_term = self.k2 * np.cross(dp_hip, twisting_speed_cmd)
 
-        p_ef_cmd = self.hip_location + raibert_heuristic + capture_point + centrifugal_term
+        p_ef_cmd = self.hip_location + raibert_heuristic + capture_point + centrifugal_term - np.array([0.0, 0.0, self.h+0.02])
 
         return p_ef_cmd

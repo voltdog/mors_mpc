@@ -598,7 +598,7 @@ RobotData LCMExchanger::getRobotCmd()
 {
     return body_cmd;
 }
-void LCMExchanger::getPhaseSig(Vector4d& phase, Vector4d& phi)
+void LCMExchanger::getPhaseSig(Vector4i& phase, Vector4d& phi)
 {
     phase = this->phase;
     phi = this->phi;

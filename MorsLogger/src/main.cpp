@@ -47,7 +47,8 @@ int main() {
     LegData leg_state;
     RobotData body_state;
     RobotData body_cmd;
-    Vector4d phase, phi;
+    Vector4i phase;
+    Vector4d phi;
 
     int control_type = 0;
     bool leg_controller_enable, leg_controller_reset;

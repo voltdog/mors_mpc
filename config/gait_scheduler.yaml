@@ -5,4 +5,4 @@ lamb: 0.6
 a: 400.0
 
 # leg state fsm
-start_td_detecting: 0.75
+start_td_detecting: 0.5

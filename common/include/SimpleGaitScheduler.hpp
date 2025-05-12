@@ -26,9 +26,9 @@ public:
                         const std::vector<int>& phase_init);
 
     void reset();
-    void step(double t, std::vector<int>& leg_state, std::vector<double>& leg_phase);
+    void step(double t, bool standing, std::vector<int>& leg_state, std::vector<double>& leg_phase);
     void setMpcParams(double dt_mpc, int n_horizon);
-    Eigen::VectorXd getMpcTable(double t0, const std::vector<int>& current_leg_state);
+    vector<int> getMpcTable(double t0, bool standing, const std::vector<int>& current_leg_state, vector<double>& current_leg_phase);
 
 private:
     double T_st_;
@@ -50,6 +50,7 @@ private:
     std::vector<int> mpc_leg_state_;
     std::vector<int> desired_leg_state_;
     std::vector<double> normalized_phase_;
+    vector<double> standing_phase;
 };
 
 #endif // SIMPLE_GAIT_SCHEDULER_HPP

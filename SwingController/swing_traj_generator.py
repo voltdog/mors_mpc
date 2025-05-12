@@ -54,9 +54,14 @@ class SwingTrajectoryGenerator():
         a0 = p0
         a1 = d_p0
         a2 = dd_p0/2
-        a3 = (20*pf - 20*p0 - (8*d_pf + 12*d_p0)*tf - (3*dd_p0 - dd_pf)*tf**2) / (2 * tf**3)
-        a4 = (30*p0 - 30*pf + (14*d_pf + 16*d_p0)*tf + (3*dd_p0 - 2*dd_pf)*tf**2) / (2 * tf**4)
-        a5 = (12*pf - 12*p0 - (6*d_pf + 6*d_p0)*tf - (dd_p0 - dd_pf)*tf**2) / (2 * tf**5)
+        if tf != 0:
+            a3 = (20*pf - 20*p0 - (8*d_pf + 12*d_p0)*tf - (3*dd_p0 - dd_pf)*tf**2) / (2 * tf**3)
+            a4 = (30*p0 - 30*pf + (14*d_pf + 16*d_p0)*tf + (3*dd_p0 - 2*dd_pf)*tf**2) / (2 * tf**4)
+            a5 = (12*pf - 12*p0 - (6*d_pf + 6*d_p0)*tf - (dd_p0 - dd_pf)*tf**2) / (2 * tf**5)
+        else:
+            a3 = 0.0
+            a4 = 0.0
+            a5 = 0.0
 
         return [a0, a1, a2, a3, a4, a5]
     
@@ -157,12 +162,12 @@ class SwingTrajectoryGenerator():
                 self.dd_p_ref[3*i+1] = dd_p_y
                 self.dd_p_ref[3*i+2] = dd_p_z
             elif leg_phase[i] == LATE:
-                if self.dz_near_ground < -0.3:
+                if self.dz_near_ground < -0.1:
                     self.p_ref[3*i+2] += (self.dz_near_ground*self.inc)
                     self.d_p_ref[3*i+2] = self.dz_near_ground
                 else:
-                    self.p_ref[3*i+2] += (-0.3*self.inc)
-                    self.d_p_ref[3*i+2] = -0.3
+                    self.p_ref[3*i+2] += (-0.1*self.inc)
+                    self.d_p_ref[3*i+2] = -0.1
             # elif leg_phase[i] == STANCE:
             #     self.p_ref[3*i] = 0.0
             #     self.p_ref[3*i+1] = 0.0

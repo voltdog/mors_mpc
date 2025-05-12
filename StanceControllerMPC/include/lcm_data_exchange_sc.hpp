@@ -13,6 +13,7 @@
 #include "mors_msgs/robot_state_msg.hpp"
 #include "mors_msgs/phase_signal_msg.hpp"
 #include "mors_msgs/enable_msg.hpp"
+#include "mors_msgs/gait_params_msg.hpp"
 
 #include "system_functions.hpp"
 #include <yaml-cpp/yaml.h>
@@ -44,16 +45,23 @@ class LCMExchanger
         void phaseSignalHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const mors_msgs::phase_signal_msg* msg);
+        void gaitParamsHandler(const lcm::ReceiveBuffer* rbuf,
+                            const std::string& chan,
+                            const mors_msgs::gait_params_msg* msg);
 
 
         void robotCmdThread();
         void robotStateThread();
         void phaseSignalThread();
+        void gaitParamsThread();
 
         RobotData getRobotCmd();
         RobotData getBodyState();
         LegData getLegsState();
-        VectorXd getPhaseSignals();
+        vector<int> getPhaseSignals();
+        double getTGait();
+        vector<double> getPhiGait();
+        void get_gait_params(double& t_st, double& t_sw, vector<double>& gait_type, bool& standing);
 
         void sendGrfCmd(LegData &leg_data);
 
@@ -78,7 +86,17 @@ class LCMExchanger
         RobotData robot_state;
         RobotData robot_cmd;
         LegData leg_state;
-        VectorXd phase;
+        vector<int> phase;
+        double t_gait;
+        vector<double> phi;
+
+        lcm::LCM gait_params_subscriber;
+        string gait_params_channel;
+        unique_ptr<thread> thGaitParams;
+        double t_st;
+        double t_sw;
+        vector<double> gait_type;
+        bool standing;
 };
 
 #endif //_lcm_data_exchange_sc_hpp_

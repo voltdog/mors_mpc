@@ -34,7 +34,9 @@ void SimpleGaitScheduler::set_gait_params(double T_st,
         }
     }
 
-    reset();
+    // standing_phase = {-1,-1,-1,-1};
+
+    // reset();
 }
 void SimpleGaitScheduler::reset()
 {
@@ -44,62 +46,99 @@ void SimpleGaitScheduler::reset()
     desired_leg_state_ = phase_init_;
 }
 
-void SimpleGaitScheduler::step(double t, std::vector<int>& leg_state, std::vector<double>& leg_phase)
+void SimpleGaitScheduler::step(double t, bool standing, std::vector<int>& leg_state, std::vector<double>& leg_phase)
 {
-    for (int leg = 0; leg < num_legs_; ++leg) {
+    for (int leg = 0; leg < num_legs_; ++leg) 
+    {
         double augmented_time = t + phase_offsets_[leg] * full_cycle_period_;
         double phase_in_full_cycle = std::fmod(augmented_time, full_cycle_period_) / full_cycle_period_;
         double ratio = initial_state_ratio_in_cycle_[leg];
 
-        if (phase_in_full_cycle < ratio) {
-            desired_leg_state_[leg] = phase_init_[leg];
-            normalized_phase_[leg] = phase_in_full_cycle / ratio;
-        } else {
-            desired_leg_state_[leg] = next_leg_state_[leg];
-            normalized_phase_[leg] = (phase_in_full_cycle - ratio) / (1.0 - ratio);
+        
+        if (standing == true)
+        {
+            if (phase_in_full_cycle < ratio) {
+                desired_leg_state_[leg] = phase_init_[leg];
+                normalized_phase_[leg] = phase_in_full_cycle / ratio;
+            }
+            else {
+                // desired_leg_state_[leg] = next_leg_state_[leg];
+                normalized_phase_[leg] = (phase_in_full_cycle - ratio) / (1.0 - ratio);
+            }
+        }
+        else
+        {
+            if (phase_in_full_cycle < ratio) {
+                desired_leg_state_[leg] = phase_init_[leg];
+                normalized_phase_[leg] = phase_in_full_cycle / ratio;
+            } else {
+                desired_leg_state_[leg] = next_leg_state_[leg];
+                normalized_phase_[leg] = (phase_in_full_cycle - ratio) / (1.0 - ratio);
+            }
         }
 
         leg_state[leg] = desired_leg_state_[leg];
         leg_phase[leg] = normalized_phase_[leg];
+        
     }
+    // cout << leg_state[0] << " " << leg_state[1] << " " << leg_state[2] << " " << leg_state[3] << endl;
 
 }
 
 void SimpleGaitScheduler::setMpcParams(double dt_mpc, int n_horizon)
 {
-    dt_mpc_ = dt_mpc;
-    n_horizon_ = n_horizon;
+    this->dt_mpc_ = dt_mpc;
+    this->n_horizon_ = n_horizon;
 }
 
-Eigen::VectorXd SimpleGaitScheduler::getMpcTable(double t0, const std::vector<int>& current_leg_state)
+vector<int> SimpleGaitScheduler::getMpcTable(double t0, bool standing, const std::vector<int>& current_leg_state, vector<double>& current_leg_phase)
 {
-    Eigen::VectorXd gait_table(num_legs_ * n_horizon_);
+    vector<int> gait_table(num_legs_ * n_horizon_);
     double t = t0;
 
-    for (int i = 0; i < n_horizon_; ++i) {
-        for (int leg = 0; leg < num_legs_; ++leg) {
-            double augmented_time = t + phase_offsets_[leg] * full_cycle_period_;
-            double phase_in_full_cycle = std::fmod(augmented_time, full_cycle_period_) / full_cycle_period_;
-            double ratio = initial_state_ratio_in_cycle_[leg];
-
-            if (phase_in_full_cycle < ratio) {
-                mpc_leg_state_[leg] = phase_init_[leg];
-            } else {
-                mpc_leg_state_[leg] = next_leg_state_[leg];
+    // if (current_leg_phase == standing_phase)
+    // {
+    //     std::fill(gait_table.begin(), gait_table.end(), STANCE);
+    // }
+    // else
+    // {
+        for (int i = 0; i < n_horizon_; ++i) {
+            for (int leg = 0; leg < num_legs_; ++leg) {
+                double augmented_time = t + phase_offsets_[leg] * full_cycle_period_;
+                double phase_in_full_cycle = std::fmod(augmented_time, full_cycle_period_) / full_cycle_period_;
+                double ratio = initial_state_ratio_in_cycle_[leg];
+                
+                if (standing == true)
+                {
+                    if (phase_in_full_cycle < ratio) 
+                        mpc_leg_state_[leg] = phase_init_[leg];
+                }
+                else
+                {
+                    if (phase_in_full_cycle < ratio) {
+                        mpc_leg_state_[leg] = phase_init_[leg];
+                    } else {
+                        mpc_leg_state_[leg] = next_leg_state_[leg];
+                    }
+                }
+    
+                if (current_leg_state[leg] == EARLY_CONTACT) {
+                    mpc_leg_state_[leg] = STANCE;
+                }
+                
+                if (i == 0)
+                {
+                    if (current_leg_state[leg] == LATE_CONTACT) {
+                        mpc_leg_state_[leg] = SWING;
+                    }
+                }
+    
+                gait_table[i * num_legs_ + leg] = mpc_leg_state_[leg];
             }
-
-            if (current_leg_state[leg] == EARLY_CONTACT) {
-                mpc_leg_state_[leg] = STANCE;
-            }
-
-            if (current_leg_state[leg] == LATE_CONTACT) {
-                mpc_leg_state_[leg] = SWING;
-            }
-
-            gait_table(i * num_legs_ + leg) = static_cast<float>(static_cast<int>(mpc_leg_state_[leg]));
+            t += dt_mpc_;
         }
-        t += dt_mpc_;
-    }
+    // }
+    
 
     return gait_table;
 }

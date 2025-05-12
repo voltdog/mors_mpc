@@ -331,7 +331,7 @@ void CSVMaintainer::write_robot_cmd(double time, RobotData& body_cmd)
     robot_cmd_csv.writeToFile(robot_cmd_addr, true);
 }
 
-void CSVMaintainer::write_phase_sig(double t, Vector4d& phase, Vector4d& phi)
+void CSVMaintainer::write_phase_sig(double t, Vector4i& phase, Vector4d& phi)
 {
     // foot_cmd
     phase_sig_csv.resetContent();
@@ -356,6 +356,12 @@ void CSVMaintainer::set_vector(VectorXd &data, int size, CSVWriter &csv)
 }
 
 void CSVMaintainer::set_vector(Vector4d &data, CSVWriter &csv)
+{
+    for (int i=0; i<4; i++)
+        csv << data(i);
+}
+
+void CSVMaintainer::set_vector(Vector4i &data, CSVWriter &csv)
 {
     for (int i=0; i<4; i++)
         csv << data(i);

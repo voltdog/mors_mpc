@@ -60,7 +60,7 @@ int main() {
     RobotData body_state;
     RobotData robot_cmd, robot_ref;
     LegData leg_state;
-    double t_st, t_sw, stride_height;
+    double stride_height; //t_st, t_sw, 
     vector<double> ref_gait = {M_PI, 0.0, 0.0, M_PI};
     bool standing;//, pre_standing;
     
@@ -88,18 +88,39 @@ int main() {
     VectorXd x_ref(13);
 
     // init gait scheduler
-    t_sw = 0.25;
-    t_st = 0.4;
-    std::vector<double> phase_offsets = {0.0, 0.5, 0.5, 0.0};
-    std::vector<int> phase_init = {0,0,0,0};
-    double dt_mpc = 0.01;
-    int mpc_horizon = 16;
+    // bounding
+    // double t_sw = 0.25;
+    // double t_st = 0.25;
+    // std::vector<double> phase_offsets = {0.0, 0.0, 0.5, 0.5};
+    // jumping
+    // double t_sw = 0.25;
+    // double t_st = 0.25;
+    // std::vector<double> phase_offsets = {0.0, 0.0, 0.0, 0.0};
+    // trot walk
+    // double t_sw = 0.3;
+    // double t_st = 0.3;
+    // std::vector<double> phase_offsets = {0.0, 0.5, 0.5, 0.0};
+    // walk
+    // double t_sw = 0.3;
+    // double t_st = 1.1;
+    // std::vector<double> phase_offsets = {0.0, 0.25, 0.5, 0.75};
+    // stand
+    double t_sw = 0.0;
+    double t_st = 0.4;
+    std::vector<double> phase_offsets = {0.0, 0.0, 0.0, 0.0};
+
+    std::vector<int> phase_init = {STANCE, STANCE, STANCE, STANCE};
+    // double dt_mpc = 0.01;
+    // int mpc_horizon = 12;
     SimpleGaitScheduler gait_scheduler;
-    gait_scheduler.set_gait_params(t_sw, t_st, phase_offsets, phase_init);
-    gait_scheduler.setMpcParams(dt_mpc, mpc_horizon);
+    gait_scheduler.set_gait_params(t_st, t_sw, phase_offsets, phase_init);
+    gait_scheduler.reset();
+    // gait_scheduler.setMpcParams(dt_mpc, mpc_horizon);
 
     std::vector<int> desired_leg_state = {STANCE, STANCE, STANCE, STANCE};
-    std::vector<double> leg_phase = {0,0,0,0};
+    std::vector<double> leg_phi = {0,0,0,0};
+    // int num_legs = static_cast<int>(phase_offsets.size());
+    // Eigen::VectorXi gait_table(num_legs * mpc_horizon);
 
     // init contact state fsm
     ContactStateFSM contact_fsm(start_td_detecting);
@@ -129,7 +150,7 @@ int main() {
         // gait_scheduler.set_gait_params(w_sw, w_st, ref_gait);
 
         
-        // cout << leg_phase[0] << endl;
+        // cout << leg_phi[0] << endl;
         // cout << "1" << endl;
         
         
@@ -140,20 +161,25 @@ int main() {
 
         
 
-        if (standing == true)
-        {
-            phase_signal = {STANCE, STANCE, STANCE, STANCE};
-            leg_phase = {0,0,0,0};
-        }
-        else
-        {
-            gait_scheduler.step(t, desired_leg_state, leg_phase);
-            phase_signal = contact_fsm.step(leg_state.contacts, leg_phase, desired_leg_state);
-        }
+        // if (standing == true)
+        // {
+        //     phase_signal = {STANCE, STANCE, STANCE, STANCE};
+        //     leg_phi = {-1,-1,-1,-1};
+        //     // gait_table.setConstant(STANCE);
+        // }
+        // else
+        // {
+        gait_scheduler.set_gait_params(t_st, t_sw, ref_gait, phase_init);
+        gait_scheduler.step(t, standing, desired_leg_state, leg_phi);
+        phase_signal = contact_fsm.step(leg_state.contacts, leg_phi, desired_leg_state);
+            // // gait_table = gait_scheduler.getMpcTable(t, phase_signal);
+        // }
+
+        
 
         // Command shaping
         // calc foot pos local
-        R_body = mors_sys::euler2mat(body_state.orientation(X), body_state.orientation(Y), body_state.orientation(Z));
+        R_body = mors_sys::euler2mat(body_state.orientation(X), body_state.orientation(Y), 0.0);//body_state.orientation(Z));
         foot_pos_local[0] = R_body * leg_state.r1_pos;
         foot_pos_local[1] = R_body * leg_state.l1_pos;
         foot_pos_local[2] = R_body * leg_state.r2_pos;
@@ -178,16 +204,17 @@ int main() {
         robot_cmd.lin_vel = x_ref.segment(9, 3);
 
         // send data to lcm
-        // cout << standing << " | " << leg_phase[0] << endl;
+        // cout << standing << " | " << leg_phi[0] << endl;
         lcmExch.sendRobotCmd(robot_cmd);
-        lcmExch.sendPhaseSig(phase_signal, leg_phase);
+        lcmExch.sendPhaseSig(phase_signal, leg_phi, t);//, gait_table);
 
         // pre_standing = standing;
 
         t += module_dt;
 
         // -----------------------------------------------
-
+        std::chrono::duration<double, std::milli> elapsed_{now() - start};
+        cout << "[GaitScheduler]: Waited for : " << elapsed_.count() << " ms" << endl;
         // Wait until spinning time
         while(true)
         {

@@ -25,7 +25,7 @@ public:
     void set_mpc_params(double timestep, int horizon, double friction_coeff,
                         double f_min, double f_max, VectorXd &Q, VectorXd &R);
     void set_physical_params(RobotPhysicalParams &robot_params);
-    VectorXd get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& foot_positions, VectorXd& contact_state);
+    VectorXd get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& foot_positions, vector<int>& contact_state);
     
 
 private:
@@ -40,7 +40,7 @@ private:
                           Sparse_Matrix& H_sparse, VectorXd& q_dense);
     void calc_constraint_matrix(int& planning_horizon_steps, 
                                   Vector4d& friction_coeff, Sparse_Matrix& Ac_sparse);
-    void calc_constraint_bounds(int& planning_horizon_steps, VectorXd& contact_state,
+    void calc_constraint_bounds(int& planning_horizon_steps, vector<int>& contact_state,
                                      double& fz_max, double& fz_min,
                                      VectorXd& l, VectorXd& u);
 

@@ -138,6 +138,7 @@ set(EXEC_SOURCES  src/main.cpp
                   src/convex_mpc.cpp 
                   src/lcm_data_exchange_sc.cpp
                   ../common/src/system_functions.cpp
+                  ../common/src/SimpleGaitScheduler.cpp
 )
 add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
 target_link_libraries(${PROJECT_NAME} OsqpEigen::OsqpEigen)

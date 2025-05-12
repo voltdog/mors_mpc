@@ -17,11 +17,11 @@ import yaml
  
 dt = 0.01
  
-DURATION = 5.0
+DURATION = 5.07
 
-GAIT_TYPE = [np.pi, 0, 0, np.pi]
-T_SW = 0.25
-T_ST = 0.35
+GAIT_TYPE = [0.0, 0.5, 0.5, 0.0]
+T_SW = 0.3
+T_ST = 0.3
 STRIDE_HEIGHT = 0.09
 
 LIN_VEL_X = 0.0
@@ -135,6 +135,7 @@ try:
     time.sleep(1)
 
     gait_prms_msg.standing = False#True#
+    # gait_prms_msg.t_sw = T_SW
     lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
 
     cmd_pose[Z] = z_idle
@@ -147,9 +148,16 @@ try:
     print("[Example5 MPC Locomotion]:  started")
     time.sleep(2)
 
-    
+    cnt = 0
+    cmd_vel[X] = -LIN_VEL_X
     while t < DURATION:
         start = time.time()
+
+        # if cnt % 400 == 0:
+        #     cmd_vel[X] = -cmd_vel[X]
+        #     gait_prms_msg.standing = not gait_prms_msg.standing
+        #     # gait_prms_msg.t_sw = 0.0
+        #     lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
 
         cmd_vel[X] = LIN_VEL_X
         # cmd_pose[X] += cmd_vel[X] * dt
@@ -163,6 +171,7 @@ try:
         lc.publish(ROBOT_CMD_CHANNEL, cmd_msg.encode())
 
         t += dt
+        cnt += 1
         while(True):
             end = time.time()
             elapsed = end - start
@@ -181,6 +190,7 @@ try:
     print("[Example5 MPC Locomotion]: Almost finish")
 
     gait_prms_msg.standing = True
+    # gait_prms_msg.t_sw = 0.0
     lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
     time.sleep(1)
     # lay down
@@ -209,6 +219,7 @@ except KeyboardInterrupt:
     print("[Example5 MPC Locomotion]: Finishing process...")
 
     gait_prms_msg.standing = True
+    # gait_prms_msg.t_sw = 0.0#T_SW
     lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
     # lay down
     go_robot_pos([0.0, 0.0, z_idle,  #position

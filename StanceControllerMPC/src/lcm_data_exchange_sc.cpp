@@ -13,6 +13,8 @@ LCMExchanger::LCMExchanger()
         return;
     if(!phase_signal_subscriber.good())
         return;
+    if(!gait_params_subscriber.good()) 
+        return;
 
     string config_address = mors_sys::GetEnv("CONFIGPATH");//cwd;
     config_address += "/channels.yaml";
@@ -22,6 +24,7 @@ LCMExchanger::LCMExchanger()
     robot_state_channel = channel_config["robot_state"].as<string>();
     phase_signal_channel = channel_config["gait_phase"].as<string>();
     grf_cmd_channel = channel_config["grf_cmd"].as<string>();
+    gait_params_channel = channel_config["gait_params"].as<string>();
 
     // cmd_vel.resize(6);
     // cmd_pose.resize(6);
@@ -42,7 +45,8 @@ LCMExchanger::LCMExchanger()
 
     // cmd_vel.setZero();
     // cmd_pose.setZero();
-    phase << 1,1,1,1;
+    phase = {1,1,1,1};
+    t_gait = 0.0;
     robot_state.ang_vel.setZero();
     robot_state.lin_vel.setZero();
     robot_state.orientation.setZero();
@@ -56,6 +60,11 @@ LCMExchanger::LCMExchanger()
     leg_state.l1_pos.setZero();
     leg_state.r2_pos.setZero();
     leg_state.l2_pos.setZero();
+
+    t_sw = 0.0;
+    t_st = 0.4;
+    gait_type = {0.0, 0, 0, 0.0};
+    standing = true;
 }
 
 void LCMExchanger::start_exchanger()
@@ -63,6 +72,7 @@ void LCMExchanger::start_exchanger()
     thRobotCmd = make_unique<thread> (&LCMExchanger::robotCmdThread, this);
     thRobotState = make_unique<thread> (&LCMExchanger::robotStateThread, this);
     thPhaseSignal = make_unique<thread> (&LCMExchanger::phaseSignalThread, this);
+    thGaitParams = make_unique<thread> (&LCMExchanger::gaitParamsThread, this);
 }
 
 void LCMExchanger::robotCmdHandler(const lcm::ReceiveBuffer* rbuf,
@@ -115,8 +125,26 @@ void LCMExchanger::phaseSignalHandler(const lcm::ReceiveBuffer* rbuf,
                                     const std::string& chan,
                                     const mors_msgs::phase_signal_msg* msg)
 {
-    for (int i=0; i<4; i++)
-        phase(i) = msg->phase[i];
+    // for (int i=0; i<4; i++)
+    //     phase(i) = msg->phase[i];
+
+    phase.assign(msg->phase, msg->phase+4);
+    phi.assign(msg->phi, msg->phi+4);
+    // cout << phase.transpose() << endl;
+    t_gait = msg->t;
+}
+
+void LCMExchanger::gaitParamsHandler(const lcm::ReceiveBuffer* rbuf,
+    const std::string& chan,
+    const mors_msgs::gait_params_msg* msg)
+{
+    // for (int i=0; i<4; i++)
+    //     phase(i) = msg->phase[i];
+    t_sw = msg->t_sw;
+    t_st = msg->t_st;
+    standing = msg->standing;
+    for (int i = 0; i < 4; i++)
+        gait_type[i] = msg->gait_type[i];
     // cout << phase.transpose() << endl;
 }
 
@@ -153,6 +181,17 @@ void LCMExchanger::phaseSignalThread()
     }
 }
 
+void LCMExchanger::gaitParamsThread()
+{
+    gait_params_subscriber.subscribe(gait_params_channel, &LCMExchanger::gaitParamsHandler, this);
+    while(true)
+    {
+        gait_params_subscriber.handle();
+        // cout << "imu thread" << endl;
+        // sleep(0.001);
+    }
+}
+
 
 void LCMExchanger::sendGrfCmd(LegData &leg_data)
 {
@@ -181,9 +220,27 @@ LegData LCMExchanger::getLegsState()
     return leg_state;
 }
 
-VectorXd LCMExchanger::getPhaseSignals()
+vector<int> LCMExchanger::getPhaseSignals()
 {
     return phase;
+}
+
+double LCMExchanger::getTGait()
+{
+    return t_gait;
+}
+
+vector<double> LCMExchanger::getPhiGait()
+{
+    return phi;
+}
+
+void LCMExchanger::get_gait_params(double& t_st, double& t_sw, vector<double>& gait_type, bool& standing)
+{
+    t_st = this->t_st;
+    t_sw = this->t_sw;
+    gait_type = this->gait_type;
+    standing = this->standing;
 }
 
 

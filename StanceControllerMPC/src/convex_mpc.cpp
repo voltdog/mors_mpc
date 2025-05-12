@@ -225,7 +225,7 @@ void ConvexMPC::calc_constraint_matrix(int& planning_horizon_steps,
 }
 
 void ConvexMPC::calc_constraint_bounds(
-                    int& planning_horizon_steps, VectorXd& contact_state,
+                    int& planning_horizon_steps, vector<int>& contact_state,
                     double& fz_max, double& fz_min,
                     VectorXd& l, VectorXd& u)
 {
@@ -236,7 +236,7 @@ void ConvexMPC::calc_constraint_bounds(
     {
         for (int j = 0; j < num_legs; j++)
         {
-            if (contact_state(j) != 0)
+            if (contact_state[4*i+j] != 0)
                 friction_l_u = 1000000;
             else
                 friction_l_u = 0.0;
@@ -246,13 +246,13 @@ void ConvexMPC::calc_constraint_bounds(
             constraint_lb_C(row + 1) = 0.0;
             constraint_lb_C(row + 2) = 0.0;
             constraint_lb_C(row + 3) = 0.0;
-            constraint_lb_C(row + 4) = fz_min * contact_state(j);
-            // const double friction_ub = 1000000 * contact_state(j);
-            constraint_ub_C(row) = friction_l_u * contact_state(j);
-            constraint_ub_C(row + 1) = friction_l_u * contact_state(j);
-            constraint_ub_C(row + 2) = friction_l_u * contact_state(j);
-            constraint_ub_C(row + 3) = friction_l_u * contact_state(j);
-            constraint_ub_C(row + 4) = fz_max * contact_state(j);
+            constraint_lb_C(row + 4) = fz_min * contact_state[4*i+j];
+            // const double friction_ub = 1000000 * contact_state[4*i+j];
+            constraint_ub_C(row) = friction_l_u * contact_state[4*i+j];
+            constraint_ub_C(row + 1) = friction_l_u * contact_state[4*i+j];
+            constraint_ub_C(row + 2) = friction_l_u * contact_state[4*i+j];
+            constraint_ub_C(row + 3) = friction_l_u * contact_state[4*i+j];
+            constraint_ub_C(row + 4) = fz_max * contact_state[4*i+j];
             // if (i==1)
             //     cout << contact_state(j) << endl;
         }
@@ -310,7 +310,7 @@ void ConvexMPC::update_solver()
     solver.updateBounds(lb, ub);
 }
 
-VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& foot_positions, VectorXd& contact_state)
+VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& foot_positions, vector<int>& contact_state)
 {
     cur_rpy << x0(0), x0(1), x0(2);
     // cout << foot_positions.col(0).transpose() << endl;

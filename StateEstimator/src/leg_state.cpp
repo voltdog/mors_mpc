@@ -32,8 +32,8 @@ void LegState::set_grf_observer_params(double lamb, double dt, const Eigen::Vect
     this->p = p;
     gm_observer_r1.set_params(lamb, dt, p);
     gm_observer_l1.set_params(lamb, dt, -p);
-    gm_observer_r2.set_params(lamb, dt, -p);
-    gm_observer_l2.set_params(lamb, dt, p);
+    gm_observer_r2.set_params(lamb, dt, p);
+    gm_observer_l2.set_params(lamb, dt, -p);
 }
 
 LegState::~LegState()

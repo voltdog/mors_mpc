@@ -103,7 +103,7 @@ class LCMExchanger
         RobotData getBodyState();
         LegData getLegState();
         RobotData getRobotCmd();
-        void getPhaseSig(Vector4d& phase, Vector4d& phi);
+        void getPhaseSig(Vector4i& phase, Vector4d& phi);
 
         void getEnableData(bool &leg_controller_en, bool &leg_controller_reset,
                         bool &locomotion_en, bool &locomotion_reset,
@@ -145,7 +145,7 @@ class LCMExchanger
         RobotData body_state;
         RobotData body_cmd;
         LegData leg_state;
-        Vector4d phase;
+        Vector4i phase;
         Vector4d phi;
 
         unique_ptr<thread> thFootCmd;

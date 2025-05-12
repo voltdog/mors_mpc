@@ -75,17 +75,18 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
     // Update foot positions just after stance
     for (int i = 0; i < 4; ++i) {
         if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
-            (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE)) {
+            (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE) ||
+            (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)) {
             foot_pos_global_just_stance.row(i) = foot_pos_global[i];
             foot_pos_local_just_stance.row(i) = foot_pos_local[i];
         }
     }
     
     // Compute reference z position
-    double ref_z_pos = compute_ref_z_pos() + ref_body_height;
+    double ref_z_pos = ref_body_height-0.02;//compute_ref_z_pos() + ref_body_height;//
 
     // Compute reference pitch position
-    double ref_pitch_pos = compute_ref_pitch_pos();
+    double ref_pitch_pos = compute_ref_pitch_pos();//0.0;//
 
     // Update reference yaw and position
     ref_yaw_pos += ref_body_yaw_vel_filtered * dt;
@@ -121,11 +122,13 @@ double CommandShaper::compute_ref_pitch_pos() const {
 
     double virtual_a = -(virtual_leg1_pos(Z) - virtual_leg2_pos(Z));
     double virtual_b = std::abs(virtual_leg1_pos(X) - virtual_leg2_pos(X));
-    double virtual_c = std::sqrt(virtual_a * virtual_a + virtual_b * virtual_b);
+    // double virtual_c = std::sqrt(virtual_a * virtual_a + virtual_b * virtual_b);
 
-    if (virtual_c != 0.0) {
-        return std::asin(virtual_a / virtual_c);
-    } else {
-        return 0.0;
-    }
+    // if (virtual_c != 0.0) {
+    //     return std::asin(virtual_a / virtual_c);
+    // } else {
+    //     return 0.0;
+    // }
+    double ref_pitch = std::atan2(virtual_a, virtual_b)-0.02;
+    return ref_pitch;
 }

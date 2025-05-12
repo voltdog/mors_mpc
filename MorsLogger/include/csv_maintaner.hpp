@@ -37,12 +37,13 @@ class CSVMaintainer
         void write_odometry(double time, Odometry& odometry);
         void write_robot_state(double t, RobotData& body_state, LegData& leg_state);
         void write_robot_cmd(double t, RobotData& body_cmd);
-        void write_phase_sig(double t, Vector4d& phase, Vector4d& phi);
+        void write_phase_sig(double t, Vector4i& phase, Vector4d& phi);
 
     private:
         void create_csv(CSVWriter &csv, const vector<string> &head, string &addr);
         void set_vector(VectorXd &data, int size, CSVWriter &csv);
         void set_vector(Vector4d &data, CSVWriter &csv);
+        void set_vector(Vector4i &data, CSVWriter &csv);
         void set_vector(vector<bool> &data, int size, CSVWriter &csv);
         // vector<string> servo_state_head;
 
