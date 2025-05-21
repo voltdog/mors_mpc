@@ -19,16 +19,20 @@ using namespace Eigen;
 class SimpleGaitScheduler {
 public:
     SimpleGaitScheduler();
+    SimpleGaitScheduler(double dt);
 
+    void set_timestep(double dt);
     void set_gait_params(double T_st,
                         double T_sw,
                         const std::vector<double>& phase_offsets,
                         const std::vector<int>& phase_init);
 
     void reset();
+    void reset_mpc_table();
     void step(double t, bool standing, std::vector<int>& leg_state, std::vector<double>& leg_phase);
     void setMpcParams(double dt_mpc, int n_horizon);
-    vector<int> getMpcTable(double t0, bool standing, const std::vector<int>& current_leg_state, vector<double>& current_leg_phase);
+    vector<int> getMpcTable(double phi0, bool standing, const std::vector<int>& current_leg_state, vector<bool> active_legs);
+    double get_phi();
 
 private:
     double T_st_;
@@ -37,7 +41,7 @@ private:
     double duty_factor_;
     double touchdown_detection_threshold_;
     double contact_threshold_;
-    double dt_mpc_;
+    double dt_mpc_, dt;
     int n_horizon_;
 
     int num_legs_;
@@ -46,11 +50,16 @@ private:
     std::vector<double> initial_state_ratio_in_cycle_;
     std::vector<int> next_leg_state_;
 
-    std::vector<int> leg_state_;
+    std::vector<int> leg_state_, pre_leg_state;
     std::vector<int> mpc_leg_state_;
     std::vector<int> desired_leg_state_;
     std::vector<double> normalized_phase_;
-    vector<double> standing_phase;
+    // vector<bool> standing_phase;
+    bool pre_standing;
+    double t_offset, t_start;
+    double stride_freq;
+    double phi, pre_phi;
+    std::vector<double> phi_;
 };
 
 #endif // SIMPLE_GAIT_SCHEDULER_HPP

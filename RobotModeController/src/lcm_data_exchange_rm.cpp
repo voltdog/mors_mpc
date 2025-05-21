@@ -138,9 +138,6 @@ void LCMExchanger::sendEnableData(bool &locomotion_en, bool &locomotion_reset,
     enableMsg.leg_controller_en = leg_controller_en;
     enableMsg.leg_controller_reset = leg_controller_reset;
 
-    enableMsg.action_ctr_en = action_ctr_en;
-    enableMsg.action_ctr_reset = action_ctr_reset;
-
     enable_publisher.publish(enable_channel, &enableMsg);
 }
 

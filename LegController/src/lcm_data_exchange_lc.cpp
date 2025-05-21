@@ -62,8 +62,14 @@ LCMExchanger::LCMExchanger()
     leg_cmd.r2_acc.resize(3);
     leg_cmd.l1_acc.resize(3);
     leg_cmd.l2_acc.resize(3);
-    leg_cmd.kp.resize(3);
-    leg_cmd.kd.resize(3);
+    leg_cmd.r1_kp.resize(3);
+    leg_cmd.l1_kp.resize(3);
+    leg_cmd.r2_kp.resize(3);
+    leg_cmd.l2_kp.resize(3);
+    leg_cmd.r1_kd.resize(3);
+    leg_cmd.l1_kd.resize(3);
+    leg_cmd.r2_kd.resize(3);
+    leg_cmd.l2_kd.resize(3);
     imu_orientation_euler.resize(3);
     servo_pos.resize(12);
     servo_vel.resize(12);
@@ -74,8 +80,14 @@ LCMExchanger::LCMExchanger()
     leg_cmd.l1_grf << 0.0, 0.0, 0.0;
     leg_cmd.r2_grf << 0.0, 0.0, 0.0;
     leg_cmd.l2_grf << 0.0, 0.0, 0.0;
-    leg_cmd.kp.setZero();
-    leg_cmd.kd.setZero();
+    leg_cmd.r1_kp.setZero();
+    leg_cmd.l1_kp.setZero();
+    leg_cmd.r2_kp.setZero();
+    leg_cmd.l2_kp.setZero();
+    leg_cmd.r1_kd.setZero();
+    leg_cmd.l1_kd.setZero();
+    leg_cmd.r2_kd.setZero();
+    leg_cmd.l2_kd.setZero();
     phase_signal << 1, 1, 1, 1;
 
     // double bx = 0.165;
@@ -130,8 +142,15 @@ void LCMExchanger::footCmdHandler(const lcm::ReceiveBuffer* rbuf,
         leg_cmd.r2_acc(i) = msg->r2_acc[i];
         leg_cmd.l2_acc(i) = msg->l2_acc[i];
 
-        leg_cmd.kp(i) = msg->Kp[i];
-        leg_cmd.kd(i) = msg->Kd[i];
+        leg_cmd.r1_kp(i) = msg->r1_kp[i];
+        leg_cmd.l1_kp(i) = msg->l1_kp[i];
+        leg_cmd.r2_kp(i) = msg->r2_kp[i];
+        leg_cmd.l2_kp(i) = msg->l2_kp[i];
+
+        leg_cmd.r1_kd(i) = msg->r1_kd[i];
+        leg_cmd.l1_kd(i) = msg->l1_kd[i];
+        leg_cmd.r2_kd(i) = msg->r2_kd[i];
+        leg_cmd.l2_kd(i) = msg->l2_kd[i];
     }
 }
 
@@ -336,8 +355,15 @@ void LCMExchanger::getLegCmdData(LegData &leg_cmd)
     leg_cmd.r2_acc = this->leg_cmd.r2_acc;
     leg_cmd.l2_acc = this->leg_cmd.l2_acc;
 
-    leg_cmd.kp = this->leg_cmd.kp;
-    leg_cmd.kd = this->leg_cmd.kd;
+    leg_cmd.r1_kp = this->leg_cmd.r1_kp;
+    leg_cmd.l1_kp = this->leg_cmd.l1_kp;
+    leg_cmd.r2_kp = this->leg_cmd.r2_kp;
+    leg_cmd.l2_kp = this->leg_cmd.l2_kp;
+    
+    leg_cmd.r1_kd = this->leg_cmd.r1_kd;
+    leg_cmd.l1_kd = this->leg_cmd.l1_kd;
+    leg_cmd.r2_kd = this->leg_cmd.r2_kd;
+    leg_cmd.l2_kd = this->leg_cmd.l2_kd;
 }
 
 void LCMExchanger::getImuData(VectorXd &orientation_euler)

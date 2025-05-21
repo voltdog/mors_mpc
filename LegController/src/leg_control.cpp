@@ -16,7 +16,10 @@ LegControl::LegControl()
     F.resize(3); tau.resize(3);
     invR.resize(3,3);
 
-    Kp.resize(3,3); Kd.resize(3,3);
+    Kp_r1.resize(3,3); Kd_r1.resize(3,3);
+    Kp_l1.resize(3,3); Kd_l1.resize(3,3);
+    Kp_r2.resize(3,3); Kd_r2.resize(3,3);
+    Kp_l2.resize(3,3); Kd_l2.resize(3,3);
     e_r1.resize(3); de_r1.resize(3); x_ref_r1.resize(3); dx_ref_r1.resize(3); ddx_ref_r1.resize(3); u_r1.resize(3);
     e_l1.resize(3); de_l1.resize(3); x_ref_l1.resize(3); dx_ref_l1.resize(3); ddx_ref_l1.resize(3); u_l1.resize(3);
     e_r2.resize(3); de_r2.resize(3); x_ref_r2.resize(3); dx_ref_r2.resize(3); ddx_ref_r2.resize(3); u_r2.resize(3);
@@ -38,8 +41,10 @@ LegControl::LegControl()
     tau_ref.resize(12);
     tau_ref.setZero();
 
-    Kp.setZero();
-    Kd.setZero();
+    Kp_r1.setZero(); Kd_r1.setZero();
+    Kp_l1.setZero(); Kd_l1.setZero();
+    Kp_r2.setZero(); Kd_r2.setZero();
+    Kp_l2.setZero(); Kd_l2.setZero();
 }
 
 void LegControl::set_leg_params(RobotPhysicalParams &robot)
@@ -53,10 +58,22 @@ void LegControl::set_leg_params(RobotPhysicalParams &robot)
     l2_offset << -robot_params.bx,  robot_params.by, 0;
 }
 
-void LegControl::set_feedback_params(MatrixXd& Kp, MatrixXd& Kd)
+void LegControl::set_feedback_params(MatrixXd& Kp_r1, MatrixXd& Kd_r1, 
+                                    MatrixXd& Kp_l1, MatrixXd& Kd_l1, 
+                                    MatrixXd& Kp_r2, MatrixXd& Kd_r2, 
+                                    MatrixXd& Kp_l2, MatrixXd& Kd_l2)
 {
-    this->Kp = Kp;
-    this->Kd = Kd;
+    this->Kp_r1 = Kp_r1;
+    this->Kd_r1 = Kd_r1;
+
+    this->Kp_l1 = Kp_l1;
+    this->Kd_l1 = Kd_l1;
+
+    this->Kp_r2 = Kp_r2;
+    this->Kd_r2 = Kd_r2;
+
+    this->Kp_l2 = Kp_l2;
+    this->Kd_l2 = Kd_l2;
 }
 
 VectorXd LegControl::cartesian_inverse_dynamics(VectorXd dd_x, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ)
@@ -148,61 +165,61 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     leg_model.joint_space_matrices_L2(theta, d_theta, M_L2, V_L2, G_L2, F_L2);
 
     // feedback control
-    if (phase_signal(R1) == SWING || phase_signal(R1) == LATE)
-    {
+    // if (phase_signal(R1) == SWING || phase_signal(R1) == LATE)
+    // {
         e_r1 = x_ref_r1 - X_R1;
         de_r1 = dx_ref_r1 - dX_R1;
-        u_r1 = Kp * e_r1 + Kd * de_r1;// + ddx_ref_r1;
-        // imp_tau_ref_r1 = J_R1.transpose() * u_r1 - get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1);
-        // grf_tau_ref_r1.setZero();
-    }
-    else
-    {
-        // grf_tau_ref_r1 = J_R1.transpose() * (invR * grf_ref_r1);// + (V_R1 + G_R1);
-        u_r1.setZero();
-    }
+        u_r1 = Kp_r1 * e_r1 + Kd_r1 * de_r1;// + ddx_ref_r1;
+    //     // imp_tau_ref_r1 = J_R1.transpose() * u_r1 - get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1);
+    //     // grf_tau_ref_r1.setZero();
+    // }
+    // else
+    // {
+    //     // grf_tau_ref_r1 = J_R1.transpose() * (invR * grf_ref_r1);// + (V_R1 + G_R1);
+    //     u_r1.setZero();
+    // }
 
-    if (phase_signal(L1) == SWING || phase_signal(L1) == LATE)
-    {
+    // if (phase_signal(L1) == SWING || phase_signal(L1) == LATE)
+    // {
         e_l1 = x_ref_l1 - X_L1;
         de_l1 = dx_ref_l1 - dX_L1;
-        u_l1 = Kp * e_l1 + Kd * de_l1;// + ddx_ref_l1;
-        // imp_tau_ref_l1 = J_L1.transpose() * u_l1 + get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1);
-        // grf_tau_ref_l1.setZero();
-    }
-    else
-    {
-        // grf_tau_ref_l1 = J_L1.transpose() * (invR * grf_ref_l1);// + (V_L1 + G_L1);
-        u_l1.setZero();
-    }
+        u_l1 = Kp_l1 * e_l1 + Kd_l1 * de_l1;// + ddx_ref_l1;
+    //     // imp_tau_ref_l1 = J_L1.transpose() * u_l1 + get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1);
+    //     // grf_tau_ref_l1.setZero();
+    // }
+    // else
+    // {
+    //     // grf_tau_ref_l1 = J_L1.transpose() * (invR * grf_ref_l1);// + (V_L1 + G_L1);
+    //     u_l1.setZero();
+    // }
     
-    if (phase_signal(R2) == SWING || phase_signal(R2) == LATE)
-    {
+    // if (phase_signal(R2) == SWING || phase_signal(R2) == LATE)
+    // {
         e_r2 = x_ref_r2 - X_R2;
         de_r2 = dx_ref_r2 - dX_R2;
-        u_r2 = Kp * e_r2 + Kd * de_r2;// + ddx_ref_r2;
-        // imp_tau_ref_r2 = J_R2.transpose() * u_r2 - get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2);
-        // grf_tau_ref_r2.setZero();
-    }
-    else
-    {
-        // grf_tau_ref_r2 = J_R2.transpose() * (invR * grf_ref_r2);// + (V_R2 + G_R2);
-        u_r2.setZero();
-    }
+        u_r2 = Kp_r2 * e_r2 + Kd_r2 * de_r2;// + ddx_ref_r2;
+    //     // imp_tau_ref_r2 = J_R2.transpose() * u_r2 - get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2);
+    //     // grf_tau_ref_r2.setZero();
+    // }
+    // else
+    // {
+    //     // grf_tau_ref_r2 = J_R2.transpose() * (invR * grf_ref_r2);// + (V_R2 + G_R2);
+    //     u_r2.setZero();
+    // }
 
-    if (phase_signal(L2) == SWING || phase_signal(L2) == LATE)
-    {
+    // if (phase_signal(L2) == SWING || phase_signal(L2) == LATE)
+    // {
         e_l2 = x_ref_l2 - X_L2;
         de_l2 = dx_ref_l2 - dX_L2;
-        u_l2 = Kp * e_l2 + Kd * de_l2;// + ddx_ref_l2;
-        // imp_tau_ref_l2 = J_L2.transpose() * u_l2 + get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2);
-        // grf_tau_ref_l2.setZero();
-    }
-    else
-    {
-        // grf_tau_ref_l2 = J_L2.transpose() * (invR * grf_ref_l2);// + (V_L2 + G_L2) ;
-        u_l2.setZero();
-    }
+        u_l2 = Kp_l2 * e_l2 + Kd_l2 * de_l2;// + ddx_ref_l2;
+    //     // imp_tau_ref_l2 = J_L2.transpose() * u_l2 + get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2);
+    //     // grf_tau_ref_l2.setZero();
+    // }
+    // else
+    // {
+    //     // grf_tau_ref_l2 = J_L2.transpose() * (invR * grf_ref_l2);// + (V_L2 + G_L2) ;
+    //     u_l2.setZero();
+    // }
     
 
     // get desired tau for impedance control

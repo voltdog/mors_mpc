@@ -127,11 +127,14 @@ int main()
     VectorXd p(3);
     // R1
     // double lamb = 100.0;
+    servo_state = lcmExch.getServoStateData();
+    cout << servo_state.pos << endl;
+
     p << 0.032, -0.03, 0.001;
     double lamb = 100.0;
     // p << -0.032, 0.01, -0.001;
     // p.setZero();
-    leg_state_estimator.set_grf_observer_params(lamb, module_dt, p);
+    leg_state_estimator.set_grf_observer_params(lamb, module_dt, p, servo_state.pos);
     leg_state_estimator.set_contact_threshold(contact_threshold);
 
     LowPassFiltering lpf(module_dt);

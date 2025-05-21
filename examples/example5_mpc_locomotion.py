@@ -14,23 +14,24 @@ import ForwardKinematics as fk
 import TrajectoryGenerator  as tg
 import BodyMovingControl as bm
 import yaml
- 
+
 dt = 0.01
- 
-DURATION = 5.07
+
+DURATION = 7.07
 
 GAIT_TYPE = [0.0, 0.5, 0.5, 0.0]
-T_SW = 0.3
-T_ST = 0.3
-STRIDE_HEIGHT = 0.09
+# GAIT_TYPE = [0.0, 0.25, 0.5, 0.75]
+T_SW = 0.2 #0.2
+T_ST = 0.2 #0.4
+STRIDE_HEIGHT = 0.07
 
-LIN_VEL_X = 0.0
+LIN_VEL_X = 0.1
 LIN_VEL_Y = 0.0
 ANG_VEL_Z = 0.0
-POS_Z = 0.23
+POS_Z = 0.21
  
 CONTROL_TYPE_CHANNEL = "CONTROL_TYPE"
-ROBOT_CMD_CHANNEL = "ROBOT_REF"
+ROBOT_CMD_CHANNEL = "ROBOT_CMD"#"ROBOT_REF"#
 GAIT_PARAMS_CHANNEL = "GAIT_PARAMS"
 SERVO_CMD_CHANNEL = "SERVO_CMD"
 
@@ -107,9 +108,9 @@ cmd_msg = robot_cmd_msg()
 cmd_msg.cmd_pose = [0.0]*6
 cmd_msg.cmd_pose[Z] = 0.0
 cmd_msg.cmd_vel = [0.0]*6
+cmd_msg.active_legs = [True, True, True, True]
+cmd_msg.adaptation_type = 0
 lc.publish(ROBOT_CMD_CHANNEL, cmd_msg.encode())
-
-
 
 t = 0.0
 z_idle = POS_Z
@@ -132,14 +133,14 @@ try:
                 0.0, 0.0, 0.0], #orientation
                 2.0)
     
-    time.sleep(1)
+    time.sleep(2)
 
-    gait_prms_msg.standing = False#True#
+    gait_prms_msg.standing = False#True# 
     # gait_prms_msg.t_sw = T_SW
     lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
 
     cmd_pose[Z] = z_idle
-    # cmd_msg.cmd_pose[Z] = z_idle
+    cmd_msg.cmd_pose[Z] = z_idle
                         
     # cmd_msg.cmd_vel = cmd_vel[:]
     # lc.publish(ROBOT_CMD_CHANNEL, cmd_msg.encode())
@@ -152,6 +153,27 @@ try:
     cmd_vel[X] = -LIN_VEL_X
     while t < DURATION:
         start = time.time()
+
+        # if t > 1.15:
+        #     gait_prms_msg.t_sw = 0.15
+        #     gait_prms_msg.t_st = 0.2
+            
+        # if t > 3.0:
+        #     gait_prms_msg.gait_type = [0.0, 0.5, 0.5, 0.0]
+        #     gait_prms_msg.t_st = 0.25
+        #     gait_prms_msg.t_sw = 0.3
+
+        # if t > 6.0:
+        #     gait_prms_msg.gait_type = [0.0, 0.5, 0.5, 0.0]
+        #     gait_prms_msg.t_st = 0.18
+        #     gait_prms_msg.t_sw = 0.22
+
+        # if t > 9.0:
+        #     gait_prms_msg.gait_type = [0.0, 0.5, 0.5, 0.0]
+        #     gait_prms_msg.t_st = 0.3
+        #     gait_prms_msg.t_sw = 0.4
+            
+            # print("hey")
 
         # if cnt % 400 == 0:
         #     cmd_vel[X] = -cmd_vel[X]
@@ -169,6 +191,7 @@ try:
         cmd_msg.cmd_pose = cmd_pose[:]
         cmd_msg.cmd_vel = cmd_vel[:]
         lc.publish(ROBOT_CMD_CHANNEL, cmd_msg.encode())
+        lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
 
         t += dt
         cnt += 1

@@ -14,9 +14,9 @@ using namespace Eigen;
 class CommandShaper {
 public:
     // Constants
-    // static constexpr int NOADAPT = 2;
+    // static constexpr int NOADAPT = 0;
     // static constexpr int HEIGHT_ADAPT = 1;
-    // static constexpr int INCL_ADAPT = 0;
+    // static constexpr int INCL_ADAPT = 1;
 
     // static constexpr int SWING = 0;
     // static constexpr int STANCE = 1;

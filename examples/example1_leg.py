@@ -84,8 +84,16 @@ l2_cur_pos = fk.fkine_L2(angle_lst)
 lc = lcm.LCM()
 msg = foot_cmd_msg()
 
-msg.Kp = leg_kp*4
-msg.Kd = leg_kd*4
+msg.r1_kp = leg_kp
+msg.l1_kp = leg_kp
+msg.r2_kp = leg_kp
+msg.l2_kp = [0.0]*3#leg_kp
+
+msg.r1_kd = leg_kd
+msg.l1_kd = leg_kd
+msg.r2_kd = leg_kd
+msg.l2_kd = [0.0]*3#leg_kd
+
 msg.r1_pos = r1_cur_pos
 msg.r1_vel = [0.0]*12
 msg.l1_pos = l1_cur_pos
@@ -180,8 +188,14 @@ try:
                 break
     print("Almost finish")
 
-    msg.Kp = [0.0]*12
-    msg.Kd = [0.0]*12
+    msg.r1_kp = [0.0]*3
+    msg.l1_kp = [0.0]*3
+    msg.r2_kp = [0.0]*3
+    msg.l2_kp = [0.0]*3
+    msg.r1_kd = [0.0]*3
+    msg.l1_kd = [0.0]*3
+    msg.r2_kd = [0.0]*3
+    msg.l2_kd = [0.0]*3
     msg.r1_pos[0] = l1+0.005+bx
     msg.r1_pos[1] = -d1-d2-d3-by
     msg.r1_pos[2] = -0.14
@@ -220,8 +234,14 @@ except KeyboardInterrupt:
     print("Keyboard Interrupt")
     print("Finishing process...")
 
-    msg.Kp = [0.0]*12
-    msg.Kd = [0.0]*12
+    msg.r1_kp = [0.0]*3
+    msg.l1_kp = [0.0]*3
+    msg.r2_kp = [0.0]*3
+    msg.l2_kp = [0.0]*3
+    msg.r1_kd = [0.0]*3
+    msg.l1_kd = [0.0]*3
+    msg.r2_kd = [0.0]*3
+    msg.l2_kd = [0.0]*3
     msg.r1_pos[0] = l1+0.005+bx
     msg.r1_pos[1] = -d1-d2-d3-by
     msg.r1_pos[2] = -0.14

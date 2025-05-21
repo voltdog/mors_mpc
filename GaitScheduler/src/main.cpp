@@ -21,9 +21,9 @@ using namespace std::chrono;
 // #define STANCE 1
 // #define LATE   2
 
-#define X 0
-#define Y 1
-#define Z 2
+// #define X 0
+// #define Y 1
+// #define Z 2
 
 // current time
 auto now() 
@@ -61,7 +61,7 @@ int main() {
     RobotData robot_cmd, robot_ref;
     LegData leg_state;
     double stride_height; //t_st, t_sw, 
-    vector<double> ref_gait = {M_PI, 0.0, 0.0, M_PI};
+    vector<double> ref_gait = {0.0, 0.5, 0.5, 0.0};
     bool standing;//, pre_standing;
     
     VectorXd phi;
@@ -142,7 +142,7 @@ int main() {
         lcmExch.get_gait_params(t_st, t_sw, ref_gait, standing, stride_height);
         body_state = lcmExch.getBodyState();
         leg_state = lcmExch.getLegState();
-        robot_ref = lcmExch.getRobotRef();
+        robot_ref = lcmExch.getRobotCmd();
 
         // control
         // Gait scheduling

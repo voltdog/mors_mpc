@@ -34,7 +34,7 @@ class LegState
         ~LegState();
  
         void set_contact_threshold(double threshold);
-        void set_grf_observer_params(double lamb, double dt, const Eigen::VectorXd& p);
+        void set_grf_observer_params(double lamb, double dt, const Eigen::VectorXd& p, Eigen::VectorXd& cur_theta);
         LegData get_leg_state(VectorXd theta, VectorXd d_theta, VectorXd tau);
         
     private:

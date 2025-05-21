@@ -1,10 +1,10 @@
 # swing trajectory generator
-# interleave_x: [0.0, 0.0, 0.0, 0.0]
-interleave_x: [-0.01, -0.01, 0.01, 0.01]
+interleave_x: [0.0, 0.0, 0.0, 0.0]
+# interleave_x: [-0.01, -0.01, 0.01, 0.01]
 # interleave_y: [0.095, 0.095, 0.095, 0.095]
 interleave_y: [0.09, 0.09, 0.09, 0.09]
 dz_near_ground: -0.3
 
 # foot step planner
-k1_fsp: 0.02 # capture point constant
+k1_fsp: 0.03 # capture point constant
 k2_fsp: 0.17 #0.0 # centrifugal term contant

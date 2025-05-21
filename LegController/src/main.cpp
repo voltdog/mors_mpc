@@ -102,8 +102,14 @@ int main() {
     VectorXd motor_kp(12);
     VectorXd motor_kd(12);
 
-    MatrixXd Kp(3,3);
-    MatrixXd Kd(3,3);
+    MatrixXd Kp_r1(3,3);
+    MatrixXd Kp_l1(3,3);
+    MatrixXd Kp_r2(3,3);
+    MatrixXd Kp_l2(3,3);
+    MatrixXd Kd_r1(3,3);
+    MatrixXd Kd_l1(3,3);
+    MatrixXd Kd_r2(3,3);
+    MatrixXd Kd_l2(3,3);
 
     Vector4i phase_signal;
 
@@ -112,8 +118,14 @@ int main() {
     motor_kp.setZero(12);
     motor_kd.setZero(12);
 
-    Kp.setZero();
-    Kd.setZero();
+    Kp_r1.setZero();
+    Kd_r1.setZero();
+    Kp_l1.setZero();
+    Kd_l1.setZero();
+    Kp_r2.setZero();
+    Kd_r2.setZero();
+    Kp_l2.setZero();
+    Kd_l2.setZero();
 
     LegControl leg_control;
     leg_control.set_leg_params(robot);
@@ -148,12 +160,27 @@ int main() {
 
             first = true;
             
-            Kp = leg_cmd.kp.array().matrix().asDiagonal();
-            Kd = leg_cmd.kd.array().matrix().asDiagonal();
+            Kp_r1 = leg_cmd.r1_kp.array().matrix().asDiagonal();
+            Kd_r1 = leg_cmd.r1_kd.array().matrix().asDiagonal();
+            Kp_l1 = leg_cmd.l1_kp.array().matrix().asDiagonal();
+            Kd_l1 = leg_cmd.l1_kd.array().matrix().asDiagonal();
+            Kp_r2 = leg_cmd.r2_kp.array().matrix().asDiagonal();
+            Kd_r2 = leg_cmd.r2_kd.array().matrix().asDiagonal();
+            Kp_l2 = leg_cmd.l2_kp.array().matrix().asDiagonal();
+            Kd_l2 = leg_cmd.l2_kd.array().matrix().asDiagonal();
 
-            leg_control.set_feedback_params(Kp, Kd);            
+            leg_control.set_feedback_params(Kp_r1, Kd_r1, Kp_l1, Kd_l1, Kp_r2, Kd_r2, Kp_l2, Kd_l2);            
             ref_tau = leg_control.calculate(leg_cmd, cur_theta, cur_omega, cur_euler, phase_signal);
             ref_tau = vbmath::clip(ref_tau, tau_min, tau_max) * robot.gear_ratio / robot.kt;
+
+            // if (2*M_PI - abs(fmod(cur_theta[2], 2*M_PI) - 0.08) < 0.0)
+            //     ref_tau(2) = 1.5;
+            // if (abs(cur_theta[5] - 0.08) < 0.0 || cur_theta[5] > 0.0)
+            //     ref_tau(5) = -1.5;
+            // if (abs(cur_theta[8] - 0.08) < 0.0 || cur_theta[8] < 0.0)
+            //     ref_tau(8) = 1.5;
+            // if (2*M_PI - abs(fmod(cur_theta[11], 2*M_PI) - 0.08) < 0.0)
+            //     ref_tau(11) = -1.5;
             // cout << leg_cmd.r1_grf << endl;
 
             // auto stop = high_resolution_clock::now();

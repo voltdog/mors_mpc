@@ -219,8 +219,8 @@ void CSVMaintainer::write_leg_cmd(double time, LegData &leg_cmd)
     set_vector(leg_cmd.r2_acc, 3, foot_cmd_csv);
     set_vector(leg_cmd.l2_acc, 3, foot_cmd_csv);
 
-    set_vector(leg_cmd.kp, 3, foot_cmd_csv);
-    set_vector(leg_cmd.kd, 3, foot_cmd_csv);
+    set_vector(leg_cmd.r1_kp, 3, foot_cmd_csv);
+    set_vector(leg_cmd.r1_kd, 3, foot_cmd_csv);
 
     foot_cmd_csv.writeToFile(foot_cmd_addr, true);
 

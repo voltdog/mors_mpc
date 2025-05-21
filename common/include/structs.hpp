@@ -7,6 +7,29 @@
 using namespace std;
 using namespace Eigen;
 
+constexpr int R1 = 0;
+constexpr int L1 = 1;
+constexpr int R2 = 2;
+constexpr int L2 = 3;
+
+constexpr int X = 0;
+constexpr int Y = 1;
+constexpr int Z = 2;
+
+static constexpr int INCL_ADAPT = 0;
+static constexpr int HEIGHT_ADAPT = 1;
+static constexpr int NOADAPT = 2;
+
+static constexpr int SWING = 0;
+static constexpr int STANCE = 1;
+static constexpr int LATE = 2;
+static constexpr int EARLY_CONTACT = 3;
+
+static constexpr int NUM_LEGS = 4;
+
+static constexpr int LEG_CONTROL   = 1;
+static constexpr int SERVO_CONTROL = 2;
+
 struct RobotData
 {
     VectorXd pos;
@@ -39,8 +62,15 @@ struct LegData
 
     vector<bool> contacts;
 
-    VectorXd kp; 
-    VectorXd kd; 
+    VectorXd r1_kp; 
+    VectorXd l1_kp; 
+    VectorXd r2_kp; 
+    VectorXd l2_kp; 
+
+    VectorXd r1_kd; 
+    VectorXd l1_kd; 
+    VectorXd r2_kd; 
+    VectorXd l2_kd; 
 };
 
 struct RobotPhysicalParams

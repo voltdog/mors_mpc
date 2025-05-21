@@ -78,8 +78,14 @@ LCMExchanger::LCMExchanger()
     leg_cmd.r2_acc.resize(3);
     leg_cmd.l1_acc.resize(3);
     leg_cmd.l2_acc.resize(3);
-    leg_cmd.kp.resize(3);
-    leg_cmd.kd.resize(3);
+    leg_cmd.r1_kp.resize(3);
+    leg_cmd.l1_kp.resize(3);
+    leg_cmd.r2_kp.resize(3);
+    leg_cmd.l2_kp.resize(3);
+    leg_cmd.r1_kd.resize(3);
+    leg_cmd.l1_kd.resize(3);
+    leg_cmd.r2_kd.resize(3);
+    leg_cmd.l2_kd.resize(3);
     
     servo_state.pos.resize(12);
     servo_state.vel.resize(12);
@@ -140,8 +146,14 @@ LCMExchanger::LCMExchanger()
     leg_cmd.r2_acc.setZero();
     leg_cmd.l1_acc.setZero();
     leg_cmd.l2_acc.setZero();
-    leg_cmd.kp.setZero();
-    leg_cmd.kd.setZero();
+    leg_cmd.r1_kp.setZero();
+    leg_cmd.r2_kp.setZero();
+    leg_cmd.l1_kp.setZero();
+    leg_cmd.l2_kp.setZero();
+    leg_cmd.r1_kd.setZero();
+    leg_cmd.r2_kd.setZero();
+    leg_cmd.l1_kd.setZero();
+    leg_cmd.l2_kd.setZero();
 
     
     body_state.orientation.resize(3);
@@ -253,8 +265,8 @@ void LCMExchanger::footCmdHandler(const lcm::ReceiveBuffer* rbuf,
         leg_cmd.r2_acc(i) = msg->r2_acc[i];
         leg_cmd.l2_acc(i) = msg->l2_acc[i];
 
-        leg_cmd.kp(i) = msg->Kp[i];
-        leg_cmd.kd(i) = msg->Kd[i];
+        leg_cmd.r1_kp(i) = msg->r1_kp[i];
+        leg_cmd.r1_kd(i) = msg->r1_kd[i];
     }
 }
 
@@ -338,9 +350,6 @@ void LCMExchanger::enableHandler(const lcm::ReceiveBuffer* rbuf,
 
     locomotion_enable = msg->locomotion_en;
     locomotion_reset = msg->locomotion_reset;
-
-    action_ctr_enable = msg->action_ctr_en;
-    action_ctr_reset = msg->action_ctr_reset;
 }
 
 void LCMExchanger::ctrlTypeHandler(const lcm::ReceiveBuffer* rbuf,

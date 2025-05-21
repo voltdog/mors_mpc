@@ -27,7 +27,10 @@ public:
     LegControl();
 
     void set_leg_params(RobotPhysicalParams &robot);
-    void set_feedback_params(MatrixXd& Kp, MatrixXd& Kd);
+    void set_feedback_params(MatrixXd& Kp_r1, MatrixXd& Kd_r1, 
+                            MatrixXd& Kp_l1, MatrixXd& Kd_l1, 
+                            MatrixXd& Kp_r2, MatrixXd& Kd_r2, 
+                            MatrixXd& Kp_l2, MatrixXd& Kd_l2);
 
     // MatrixXd jacobian_R1(double q1, double q2, double q3);
     // MatrixXd jacobian_R2(double q1, double q2, double q3);
@@ -84,7 +87,10 @@ private:
     VectorXd F, tau;
     MatrixXd invR;
 
-    MatrixXd Kp, Kd;
+    MatrixXd Kp_r1, Kd_r1;
+    MatrixXd Kp_l1, Kd_l1;
+    MatrixXd Kp_r2, Kd_r2;
+    MatrixXd Kp_l2, Kd_l2;
     VectorXd e_r1, de_r1, x_ref_r1, dx_ref_r1, ddx_ref_r1, u_r1;
     VectorXd e_l1, de_l1, x_ref_l1, dx_ref_l1, ddx_ref_l1, u_l1;
     VectorXd e_r2, de_r2, x_ref_r2, dx_ref_r2, ddx_ref_r2, u_r2;

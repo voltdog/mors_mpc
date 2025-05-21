@@ -27,13 +27,28 @@ LegState::LegState(RobotPhysicalParams &robot)
     contact.resize(4);
 }
 
-void LegState::set_grf_observer_params(double lamb, double dt, const Eigen::VectorXd& p)
+void LegState::set_grf_observer_params(double lamb, double dt, const Eigen::VectorXd& p, Eigen::VectorXd& cur_theta)
 {
     this->p = p;
-    gm_observer_r1.set_params(lamb, dt, p);
-    gm_observer_l1.set_params(lamb, dt, -p);
-    gm_observer_r2.set_params(lamb, dt, p);
-    gm_observer_l2.set_params(lamb, dt, -p);
+    if (cur_theta(1) < 0.0)
+        gm_observer_r1.set_params(lamb, dt, p);
+    else
+        gm_observer_r1.set_params(lamb, dt, -p);
+
+    if (cur_theta(4) > 0.0)
+        gm_observer_l1.set_params(lamb, dt, -p);
+    else
+        gm_observer_l1.set_params(lamb, dt, p);
+
+    if (cur_theta(7) < 0.0)
+        gm_observer_r2.set_params(lamb, dt, p);
+    else
+        gm_observer_r2.set_params(lamb, dt, -p);
+
+    if (cur_theta(10) > 0.0)
+        gm_observer_l2.set_params(lamb, dt, -p);
+    else
+        gm_observer_l2.set_params(lamb, dt, p);
 }
 
 LegState::~LegState()
