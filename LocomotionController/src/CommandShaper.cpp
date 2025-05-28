@@ -80,10 +80,16 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
         if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
             (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE) ||
             (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)) {
-            foot_pos_global_just_stance.row(i) = foot_pos_global[i];
+            // foot_pos_global_just_stance.row(i) = foot_pos_global[i];
             foot_pos_local_just_stance.row(i) = foot_pos_local[i];
         }
+        if ((phase_signal[i] == STANCE) ||
+            (phase_signal[i] == EARLY_CONTACT)) {
+            foot_pos_global_just_stance.row(i) = foot_pos_global[i];
+        }
+
     }
+
     
     // Compute reference z position
     if (body_adapt_mode == INCL_ADAPT || body_adapt_mode == HEIGHT_ADAPT)

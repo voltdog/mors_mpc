@@ -71,9 +71,8 @@ std::tuple<double, double, double> SwingTrajectoryGenerator::map_xy_swing(double
 
 void SwingTrajectoryGenerator::set_parameters(double t_swing, double dz_near_ground) {
     tf = t_swing;
-    dz_near_ground = dz_near_ground;
+    this->dz_near_ground = dz_near_ground;
     cnt_stride = static_cast<int>(t_swing * sim_freq);
-
 }
 
 void SwingTrajectoryGenerator::set_points(const std::vector<std::array<double, 3>>& start,

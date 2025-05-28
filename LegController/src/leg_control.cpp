@@ -45,6 +45,10 @@ LegControl::LegControl()
     Kp_l1.setZero(); Kd_l1.setZero();
     Kp_r2.setZero(); Kd_r2.setZero();
     Kp_l2.setZero(); Kd_l2.setZero();
+
+    // theta_ref.setZero(12);
+    kin_sch = "x";
+    x_ref.setZero(12);
 }
 
 void LegControl::set_leg_params(RobotPhysicalParams &robot)
@@ -102,7 +106,7 @@ VectorXd LegControl::get_tau_ff(VectorXd dd_x_ref, VectorXd dq, MatrixXd M, Vect
     return tau;
 }
 
-VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal)
+VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal, VectorXd &theta_ref)
 {
     // prepare data
 
@@ -243,6 +247,14 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     tau_ref.segment(3, 3) = tau_ref_l1;
     tau_ref.segment(6, 3) = tau_ref_r2;
     tau_ref.segment(9, 3) = tau_ref_l2;
+
+
+    // inverse kinematics
+    x_ref.segment(0, 3) = x_ref_r1;
+    x_ref.segment(3, 3) = x_ref_l1;
+    x_ref.segment(6, 3) = x_ref_r2;
+    x_ref.segment(9, 3) = x_ref_l2;
+    theta_ref = ikine.calculate(x_ref, kin_sch);
 
     return tau_ref;
 }

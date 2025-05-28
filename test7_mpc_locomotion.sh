@@ -13,7 +13,7 @@
     ./BHI360_IMU/build/bhi360_imu &
     ./StateEstimator/build/state_estimator &
 	
-	sleep 3s
+	sleep 4s
 
 	# robot control
 	# ./RobotModeController/build/robot_mode_controller & 
@@ -25,11 +25,11 @@
 	./LocomotionController/build/locomotionControllerMPC &
 	./LegController/build/leg_controller & 
 
-	python3 ./examples/example5_mpc_locomotion.py &
+	# python3 ./examples/example5_mpc_locomotion.py &
 
 	# data logger
 	./MorsLogger/build/mors_logger &
-	sleep 30s; kill $!; echo "MorsLogger killed" &
+	# sleep 30s; kill $!; echo "MorsLogger killed" &
 
 	wait
 	)

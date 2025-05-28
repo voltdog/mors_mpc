@@ -6,6 +6,7 @@
 #include <vbmath.hpp>
 #include "structs.hpp"
 #include "leg_model.hpp"
+#include "ikine.hpp"
 // #include <lcm/lcm-cpp.hpp>
 // #include "lcm_msgs/mors_msgs/leg_cmd_msg.hpp"
 
@@ -56,7 +57,7 @@ public:
     VectorXd cartesian_inverse_dynamics(VectorXd dd_x, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ);
     VectorXd get_tau_ff(VectorXd dd_x_ref, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ);
 
-    VectorXd calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal);
+    VectorXd calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal, VectorXd &theta_ref);
                         //MatrixXd &leg_pos_ref, MatrixXd &leg_vel_ref, MatrixXd &leg_acc_ref, MatrixXd &leg_grf_ref,
 private:
 
@@ -66,6 +67,7 @@ private:
     // double l_cx_3, l_cz_2;
     // double bx, by;
     // double g;
+    IKineQuadruped ikine;
     LegModel leg_model;
     RobotPhysicalParams robot_params;
 
@@ -107,6 +109,10 @@ private:
     double r11, r12, r13, r21, r22, r23, r31, r32, r33;
 
     double f1, f2, f3;
+
+    // VectorXd theta_ref;
+    string kin_sch;
+    VectorXd x_ref;
 
 };
 

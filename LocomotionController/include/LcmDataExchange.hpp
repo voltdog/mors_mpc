@@ -13,7 +13,7 @@
 #include "mors_msgs/gait_params_msg.hpp"
 #include "mors_msgs/enable_msg.hpp"
 #include "mors_msgs/phase_signal_msg.hpp"
-
+ 
 #include "mors_msgs/foot_cmd_msg.hpp"
 #include "mors_msgs/grf_cmd_msg.hpp"
 

@@ -59,8 +59,6 @@ int main() {
     bool leg_controller_reset = false;
     bool locomotion_en = true;
     bool locomotion_reset = false;
-    bool action_ctr_en = true;
-    bool action_ctr_reset = false;
 
     bool angles_exceeded = false;
     bool emerg_btn_pushed = false;
@@ -82,6 +80,11 @@ int main() {
 
     lcmExch.sendServoCmd(ref_theta, ref_omega, ref_tau, motor_kp, motor_kd);
 
+    // 
+    int action_num = 0;
+    int mode_num = 0;
+    bool on_legs = false;
+
     signal(SIGINT, raiseFlag);
 
     cout << "RobotModeController started" << endl;
@@ -94,8 +97,13 @@ int main() {
         // Put your code here
         // -----------------------------------------------
         
+        // read lcm
         lcmExch.getServoStateData(cur_theta, cur_omega, cur_tau);
 
+        // read ros
+        // ...
+
+        // check for emergency
         for (int i = 0; i < 12; i++)
         {
             if (cur_theta(i) > max_angles[i] || cur_theta(i) < min_angles[i])
@@ -107,16 +115,58 @@ int main() {
 
         if (angles_exceeded == false && emerg_btn_pushed == false)
         {
+            // enable everything
             leg_controller_en = true;
             locomotion_en = true;
-            action_ctr_en = true;
             leg_controller_reset = false;
             locomotion_reset = false;
-            action_ctr_reset = false;
             
             lcmExch.sendEnableData(locomotion_en, locomotion_reset, 
-                                    leg_controller_en, leg_controller_reset,
-                                    action_ctr_en, action_ctr_reset);
+                                    leg_controller_en, leg_controller_reset);
+
+            // // choose working mode
+            // if (action_num != 0)
+            //     // ref_servo_pos, ref_servo_vel, ref_servo_torq, ref_servo_kp, ref_servo_kd = self.action()
+            //     cout << "action: " << action_num << endl;
+            // else
+            // {
+            //     // action_finished = true
+            //     if (on_legs == true)
+            //     {
+            //         switch (mode_num)
+            //         {
+            //             case 0:
+            //                 cout << "mode: locomotion" << endl;
+            //                 // ref_servo_pos, ref_servo_vel, ref_servo_torq, ref_servo_kp, ref_servo_kd = self.locomotion_control()
+            //                 break;
+            //             case 1:
+            //                 cout << "mode: body" << endl;
+            //                 // ref_servo_pos, ref_servo_vel, ref_servo_torq, ref_servo_kp, ref_servo_kd = self.body_control()
+            //                 break;
+            //             case 2:
+            //                 cout << "mode: legs" << endl;
+            //                 // ref_servo_pos, ref_servo_vel, ref_servo_torq, ref_servo_kp, ref_servo_kd = self.ef_control()
+            //                 break;
+            //             case 3:
+            //                 cout << "mode: joints" << endl;
+            //                 // ref_servo_pos, ref_servo_vel, ref_servo_torq, ref_servo_kp, ref_servo_kd = self.joint_control()
+            //                 break;
+            //             default:
+            //                 cout << "mode: do_nothing" << endl;
+            //                 // ref_servo_pos, ref_servo_vel, ref_servo_torq, ref_servo_kp, ref_servo_kd = self.do_nothing()
+            //                 break;
+            //         }
+            //     }
+            //     else
+            //     {
+            //         if (mode_num == 3)
+            //             // ref_servo_pos, ref_servo_vel, ref_servo_torq, ref_servo_kp, ref_servo_kd = self.joint_control()
+            //             cout << "mode: joints" << endl;
+            //         else
+            //             // ref_servo_pos, ref_servo_vel, ref_servo_torq, ref_servo_kp, ref_servo_kd = self.do_nothing()
+            //             cout << "mode: do_nothing" << endl;
+            //     }
+            // }
         }
         else
         {
@@ -133,12 +183,10 @@ int main() {
             leg_controller_reset = true;
             locomotion_en = false;
             locomotion_reset = true;
-            action_ctr_en = false;
-            action_ctr_reset = true;
 
             lcmExch.sendEnableData(locomotion_en, locomotion_reset, 
-                                    leg_controller_en, leg_controller_reset,
-                                    action_ctr_en, action_ctr_reset);
+                                    leg_controller_en, leg_controller_reset);
+
             cout << "[RobotModeController]: Emergency!" << endl;
             return -1;
         }
@@ -162,12 +210,9 @@ int main() {
     leg_controller_reset = true;
     locomotion_en = false;
     locomotion_reset = true;
-    action_ctr_en = false;
-    action_ctr_reset = true;
 
     lcmExch.sendEnableData(locomotion_en, locomotion_reset, 
-                            leg_controller_en, leg_controller_reset,
-                            action_ctr_en, action_ctr_reset);
+                            leg_controller_en, leg_controller_reset);
     // return 1;
     ref_theta.setZero(12);
     ref_omega.setZero(12);

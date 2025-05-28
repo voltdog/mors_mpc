@@ -47,8 +47,7 @@ class LCMExchanger
 
         void sendServoCmd(VectorXd &position, VectorXd &velocity, VectorXd &torque, VectorXd &kp, VectorXd &kd);
         void sendEnableData(bool &locomotion_en, bool &locomotion_reset,
-                            bool &leg_controller_en, bool &leg_controller_reset, 
-                            bool &action_ctr_en, bool &action_ctr_reset);
+                            bool &leg_controller_en, bool &leg_controller_reset);
 
     private:
         string servo_state_channel, servo_cmd_channel, imu_channel;

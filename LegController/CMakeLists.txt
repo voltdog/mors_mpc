@@ -139,6 +139,7 @@ set(LEG_SOURCES src/main.cpp
             src/leg_control.cpp 
             ../common/src/leg_model.cpp 
             src/lcm_data_exchange_lc.cpp
+            src/ikine.cpp
             ../common/src/system_functions.cpp
 )
 add_executable(leg_controller ${LEG_SOURCES})

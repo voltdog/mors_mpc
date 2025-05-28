@@ -129,8 +129,7 @@ void LCMExchanger::sendServoCmd(VectorXd &position, VectorXd &velocity, VectorXd
 }
 
 void LCMExchanger::sendEnableData(bool &locomotion_en, bool &locomotion_reset,
-                                    bool &leg_controller_en, bool &leg_controller_reset,
-                                    bool &action_ctr_en, bool &action_ctr_reset)
+                                    bool &leg_controller_en, bool &leg_controller_reset)
 {
     enableMsg.locomotion_en = locomotion_en;
     enableMsg.locomotion_reset = locomotion_reset;
@@ -153,11 +152,9 @@ void LCMExchanger::getServoStateData(VectorXd &position, VectorXd &velocity, Vec
     torque = servo_torq;
 }
 
-
-
 LCMExchanger::~LCMExchanger()
 {
     bool en = false;
     bool reset = true;
-    sendEnableData(en, reset, en, reset, en, reset);
+    sendEnableData(en, reset, en, reset);
 }

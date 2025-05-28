@@ -218,6 +218,7 @@ int main() {
     // init command shaper
     int adaptation_type = 0;
     CommandShaper cmd_shaper(module_dt, 1.0);
+    MatrixXd R_body_for_vel(3,3);
     cmd_shaper.set_body_adaptation_mode(adaptation_type);
 
     // swing controller
@@ -272,10 +273,8 @@ int main() {
 
     // gait transition
     GaitTransition gait_transition;
-    gait_transition.set_gait_params(t_st, t_sw, phase_offsets);
+    gait_transition.set_gait_params(t_st, t_sw, phase_offsets, stride_height);
     gait_transition.set_transition_duration(1.0);
-    
-
     
     // int mpc_it = 0;
 
@@ -309,8 +308,8 @@ int main() {
             // gait_scheduler.reset_mpc_table();
             // gait transition
             
-            gait_transition.set_gait_params(t_st, t_sw, phase_offsets);
-            gait_transition.make_transition(t, t_st, t_sw, phase_offsets);
+            gait_transition.set_gait_params(t_st, t_sw, phase_offsets, stride_height);
+            gait_transition.make_transition(t, t_st, t_sw, phase_offsets, stride_height);
             // cout << t_sw << " " << t_st << endl;
 
             // scheduling
@@ -331,6 +330,13 @@ int main() {
             // calc foot pos global
             for (int i = 0; i < 4; i++)
                 foot_pos_global[i] = foot_pos_local[i] + robot_state.pos;
+
+            // transform ref velocity to local coordinate system
+            
+            R_body_for_vel << cos(robot_state.orientation(Z)), -sin(robot_state.orientation(Z)), 0,
+                              sin(robot_state.orientation(Z)),  cos(robot_state.orientation(Z)), 0,
+                              0, 0, 1;
+            robot_cmd.lin_vel = R_body_for_vel * robot_cmd.lin_vel;
 
             // step command shaper
             cmd_shaper.set_body_adaptation_mode(adaptation_type);
@@ -411,12 +417,12 @@ int main() {
             ref_body_vel << x_ref(9), x_ref(10), x_ref(11);
             base_pos << robot_state.pos(X), robot_state.pos(Y), robot_state.pos(Z);
             base_lin_vel << robot_state.lin_vel(X), robot_state.lin_vel(Y), robot_state.lin_vel(Z);
-
+ 
             swing_controller.set_gait_params(t_sw, t_st, stride_height);
             auto [p_ref, dp_ref, ddp_ref] = swing_controller.step(phase_signal,
                                                                     leg_phi,
-                                                                    // x_ref(5),
-                                                                    robot_cmd.pos(Z),
+                                                                    x_ref(5),
+                                                                    // robot_cmd.pos(Z),
                                                                     x_ref(8),
                                                                     ref_body_vel,
                                                                     base_pos, 

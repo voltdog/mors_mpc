@@ -128,7 +128,7 @@ int main()
     // R1
     // double lamb = 100.0;
     servo_state = lcmExch.getServoStateData();
-    cout << servo_state.pos << endl;
+    // cout << servo_state.pos << endl;
 
     p << 0.032, -0.03, 0.001;
     double lamb = 100.0;

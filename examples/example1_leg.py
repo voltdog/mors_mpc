@@ -87,12 +87,12 @@ msg = foot_cmd_msg()
 msg.r1_kp = leg_kp
 msg.l1_kp = leg_kp
 msg.r2_kp = leg_kp
-msg.l2_kp = [0.0]*3#leg_kp
+msg.l2_kp = leg_kp
 
 msg.r1_kd = leg_kd
 msg.l1_kd = leg_kd
 msg.r2_kd = leg_kd
-msg.l2_kd = [0.0]*3#leg_kd
+msg.l2_kd = leg_kd
 
 msg.r1_pos = r1_cur_pos
 msg.r1_vel = [0.0]*12
@@ -107,11 +107,12 @@ lc.publish(LEG_CMD_CHANNEL, msg.encode())
 t = 0.0
 t_switch = 2.0
 
-freq = 1*2*np.pi#12.56#6.0#
+freq = 2*2*np.pi#12.56#6.0#
 ampl = 0.04
 
 
 r1_end_pos = [-ampl*np.cos(freq*(t_switch + np.pi/2))+l1+bx, -d1-d2-d3-by, ampl*np.sin(freq*(t_switch + np.pi/2))-0.15]
+# r1_end_pos = [l1+bx, -d1-d2-d3-by, -0.15]
 l1_end_pos = [-ampl*np.cos(freq*t_switch)+l1+bx,  d1+d2+d3+by, ampl*np.sin(freq*(t_switch))-0.15]
 r2_end_pos = [-ampl*np.cos(freq*t_switch)-l1-bx, -d1-d2-d3-by, ampl*np.sin(freq*(t_switch))-0.15]
 l2_end_pos = [-ampl*np.cos(freq*(t_switch + np.pi/2))-l1-bx,  d1+d2+d3+by, ampl*np.sin(freq*(t_switch + np.pi/2))-0.15]
@@ -212,21 +213,21 @@ try:
         time.sleep(0.01)
     print("Set zero leg command")
 
-    for i in range(10):
-        lc = lcm.LCM()
-        srv_cmd_msg = servo_cmd_msg()
-        srv_cmd_msg.velocity = [0.0]*12
-        srv_cmd_msg.kp = [0.0]*12
-        srv_cmd_msg.kd = [0.6]*12
-        lc.publish(SERVO_CMD_CHANNEL, srv_cmd_msg.encode())
+    # for i in range(10):
+    #     lc = lcm.LCM()
+    #     srv_cmd_msg = servo_cmd_msg()
+    #     srv_cmd_msg.velocity = [0.0]*12
+    #     srv_cmd_msg.kp = [0.0]*12
+    #     srv_cmd_msg.kd = [0.6]*12
+    #     lc.publish(SERVO_CMD_CHANNEL, srv_cmd_msg.encode())
 
     print("Set zero servo command")
 
     for i in range(10):
         time.sleep(0.15)
 
-    srv_cmd_msg.kd = [0.0]*12
-    lc.publish(SERVO_CMD_CHANNEL, srv_cmd_msg.encode())
+    # srv_cmd_msg.kd = [0.0]*12
+    # lc.publish(SERVO_CMD_CHANNEL, srv_cmd_msg.encode())
 
     print("Example1 finished")
         

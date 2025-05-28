@@ -23,9 +23,9 @@ GAIT_TYPE = [0.0, 0.5, 0.5, 0.0]
 # GAIT_TYPE = [0.0, 0.25, 0.5, 0.75]
 T_SW = 0.2 #0.2
 T_ST = 0.2 #0.4
-STRIDE_HEIGHT = 0.07
+STRIDE_HEIGHT = 0.1
 
-LIN_VEL_X = 0.1
+LIN_VEL_X = 0.15
 LIN_VEL_Y = 0.0
 ANG_VEL_Z = 0.0
 POS_Z = 0.21
@@ -154,9 +154,10 @@ try:
     while t < DURATION:
         start = time.time()
 
-        # if t > 1.15:
-        #     gait_prms_msg.t_sw = 0.15
-        #     gait_prms_msg.t_st = 0.2
+        # if t > 3.15:
+            # gait_prms_msg.t_sw = 0.15
+            # gait_prms_msg.t_st = 0.2
+            # gait_prms_msg.stride_height = 0.04
             
         # if t > 3.0:
         #     gait_prms_msg.gait_type = [0.0, 0.5, 0.5, 0.0]
