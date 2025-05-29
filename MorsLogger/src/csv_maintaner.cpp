@@ -61,7 +61,7 @@ void CSVMaintainer::init()
 
     const vector<string> foot_cmd_head = {"time", 
         "r1_pos/0", "r1_pos/1", "r1_pos/2", 
-        "ref_l1_pos/0", "ref_l1_pos/1", "ref_l1_pos/2", 
+        "l1_pos/0", "l1_pos/1", "l1_pos/2", 
         "r2_pos/0", "r2_pos/1", "r2_pos/2", 
         "l2_pos/0", "l2_pos/1", "l2_pos/2", 
         "r1_vel/0", "r1_vel/1", "r1_vel/2", 

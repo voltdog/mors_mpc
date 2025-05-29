@@ -1,9 +1,9 @@
 # BEST FOR 100 Hz
 horizon: 12
-friction: 0.5
+friction: 0.3
 f_min: 5.0 #-90.0
 f_max: 80.0 #90.0
-Q: [8.0, 8.0, 10.0, # orientation
+Q: [20.0, 20.0, 20.0, # orientation
     40.0, 40.0, 200.0, # position
     0.01, 0.01, 0.2, # angular velocity
     1.0, 1.0, 0.2, 0.0] # linear velocity
