@@ -129,8 +129,17 @@ l2_cur_pos = fk.fkine_L2(angle_lst)
 
 lc = lcm.LCM()
 msg = foot_cmd_msg()
-msg.Kp = leg_kp*4
-msg.Kd = leg_kd*4
+
+msg.r1_kp = [0.0]*3 #leg_kp
+msg.l1_kp = leg_kp
+msg.r2_kp = [0.0]*3 #leg_kp
+msg.l2_kp = [0.0]*3 # leg_kp
+
+msg.r1_kd = [0.0]*3 #leg_kd
+msg.l1_kd = leg_kd
+msg.r2_kd = [0.0]*3 #leg_kd
+msg.l2_kd = [0.0]*3 #leg_kd
+
 msg.r1_pos = r1_cur_pos
 msg.r1_vel = [0.0]*12
 msg.l1_pos = l1_cur_pos
@@ -176,7 +185,7 @@ l2_traj, _ = tg.create_multiple_trajectory(l2_cur_pos, l2_end_pos, t_switch, dt)
 it = 0
 
 upper_limit = -0.22
-lower_limit = -0.07
+lower_limit = -0.06
 offset = 0.002
 z = l1_end_pos[Z]
 dz = offset/dt
@@ -184,7 +193,7 @@ down = False
 
 print("Example1 started")
 try:
-    while(t < 9.2):
+    while(t < 30.0):
         start = time.time()
         if t < t_switch and it < len(l2_traj[X]):
             msg.r1_pos = [r1_traj[X][it], r1_traj[Y][it], r1_traj[Z][it]]
@@ -243,8 +252,16 @@ try:
                 break
 
 
-    msg.Kp = [0.0]*12
-    msg.Kd = [0.0]*12
+    msg.r1_kp = [0.0]*3 #leg_kp
+    msg.l1_kp = leg_kp
+    msg.r2_kp = [0.0]*3 #leg_kp
+    msg.l2_kp = [0.0]*3 # leg_kp
+
+    msg.r1_kd = [0.0]*3 #leg_kd
+    msg.l1_kd = leg_kd
+    msg.r2_kd = [0.0]*3 #leg_kd
+    msg.l2_kd = [0.0]*3 #leg_kd
+
     msg.r1_pos[0] = l1+0.005+bx
     msg.r1_pos[1] = -d1-d2-d3-by
     msg.r1_pos[2] = -0.14
@@ -278,8 +295,16 @@ except KeyboardInterrupt:
     print("Finishing process...")
     msg.imp_mode = [False]*4
     msg.grf_mode = [False]*4
-    msg.Kp = [0.0]*12
-    msg.Kd = [0.0]*12
+    msg.r1_kp = [0.0]*3 #leg_kp
+    msg.l1_kp = leg_kp
+    msg.r2_kp = [0.0]*3 #leg_kp
+    msg.l2_kp = [0.0]*3 # leg_kp
+
+    msg.r1_kd = [0.0]*3 #leg_kd
+    msg.l1_kd = leg_kd
+    msg.r2_kd = [0.0]*3 #leg_kd
+    msg.l2_kd = [0.0]*3 #leg_kd
+
     msg.r1_pos[0] = l1+0.005+bx
     msg.r1_pos[1] = -d1-d2-d3-by
     msg.r1_pos[2] = -0.14

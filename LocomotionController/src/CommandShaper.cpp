@@ -16,6 +16,7 @@ CommandShaper::CommandShaper(double dt, double c_freq)
     foot_pos_global_just_stance.setZero();
     foot_pos_local_just_stance.resize(4,3);
     foot_pos_local_just_stance.setZero();
+    R_body_for_vel.resize(3,3);
     x_ref.resize(13);
     x_ref.setZero();
     ref_yaw_pos = 0.0;
@@ -34,9 +35,12 @@ CommandShaper::CommandShaper(double dt, double c_freq)
 
     // Initialize foot positions in local frame
     double ref_z_pos = 0.0;
-    double ref_body_height = 0.21;
+    double ref_body_height = 0.23;
     for (int i = 0; i < 4; ++i) {
         foot_pos_local_just_stance(i, Z) = ref_z_pos - ref_body_height;
+    }
+    for (int i = 0; i < 4; ++i) {
+        foot_pos_global_just_stance(i, Z) = -0.038;
     }
 
     // Initialize reference vector
@@ -47,9 +51,12 @@ CommandShaper::CommandShaper(double dt, double c_freq)
              -9.81; // gravity
 
     ref_body_vel_filtered.resize(3);
+    ref_body_vel_directed.resize(3);
 
     ref_z_pos = 0.0;
     ref_pitch_pos = 0.0;
+
+    test_cnt = 0;
 }
 
 // Destructor
@@ -68,45 +75,96 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
                                     const std::vector<Eigen::Vector3d>& foot_pos_local,
                                     const Eigen::Vector3d& ref_body_vel,
                                     double ref_body_yaw_vel,
-                                    double ref_body_height) {
+                                    const double ref_body_height,
+                                    const RobotData& robot_state) { 
+    ref_body_yaw_vel_filtered = lpf_yaw_vel.update(ref_body_yaw_vel); 
+    ref_yaw_pos += ref_body_yaw_vel_filtered * dt;
+    // if (test_cnt < 20)
+    // {
+    //     cout << ref_yaw_pos << " | " << ref_body_yaw_vel_filtered << " | " << ref_body_yaw_vel << " | " << robot_state.orientation(2) << endl;
+    //     test_cnt++;
+    // }
+    
+    // R_body_for_vel << cos(ref_yaw_pos), -sin(ref_yaw_pos), 0,
+    //                   sin(ref_yaw_pos),  cos(ref_yaw_pos), 0,
+    //                   0, 0, 1;
+    // ref_body_vel_directed = R_body_for_vel * ref_body_vel; //
+
     // Apply low-pass filters to reference velocities
     ref_body_vel_filtered(X) = lpf_x_vel.update(ref_body_vel(X));
     ref_body_vel_filtered(Y) = lpf_y_vel.update(ref_body_vel(Y));
     ref_body_vel_filtered(Z) = lpf_z_vel.update(ref_body_vel(Z));
-    double ref_body_yaw_vel_filtered = lpf_yaw_vel.update(ref_body_yaw_vel);
+    
 
     // Update foot positions just after stance
     for (int i = 0; i < 4; ++i) {
         if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
             (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE) ||
+            // ((i == 0 || i == 1) && phase_signal[i] == LATE) ||
             (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)) {
             // foot_pos_global_just_stance.row(i) = foot_pos_global[i];
             foot_pos_local_just_stance.row(i) = foot_pos_local[i];
-        }
-        if ((phase_signal[i] == STANCE) ||
-            (phase_signal[i] == EARLY_CONTACT)) {
             foot_pos_global_just_stance.row(i) = foot_pos_global[i];
         }
+        // if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
+        //     (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE) ||
+        //     (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)
+        //     ) 
+        // {
+        //     foot_pos_global_just_stance.row(i) = foot_pos_global[i];
+        // }
 
     }
 
     
     // Compute reference z position
     if (body_adapt_mode == INCL_ADAPT || body_adapt_mode == HEIGHT_ADAPT)
-        ref_z_pos = compute_ref_z_pos() + ref_body_height;//
+        ref_z_pos = compute_ref_z_pos() + ref_body_height;// + 0.044;//
     else
-        ref_z_pos = ref_body_height-0.02;
+        ref_z_pos = ref_body_height-0.044;
 
     // Compute reference pitch position
     if (body_adapt_mode == INCL_ADAPT)
-        ref_pitch_pos = compute_ref_pitch_pos();//0.0;//
+        ref_pitch_pos = compute_ref_pitch_pos();//0.0;// 
     else
         ref_pitch_pos = 0.0;
 
-    // Update reference yaw and position
-    ref_yaw_pos += ref_body_yaw_vel_filtered * dt;
+    // Update reference position
     ref_x_pos += ref_body_vel_filtered(X) * dt;
     ref_y_pos += ref_body_vel_filtered(Y) * dt;
+    // cout << robot_state.pos(Z) << endl;
+
+    // Check position error
+    double e_x_threshold = 0.12;
+    double e_y_threshold = 0.2;
+    double e_yaw_threshold = 0.2;
+    double body_height_threshold = 0.01;
+    double e_x = ref_x_pos - robot_state.pos(X);
+    double e_y = ref_y_pos - robot_state.pos(Y);
+    double e_yaw = ref_yaw_pos - robot_state.orientation(2);
+    if (abs(e_x) > e_x_threshold)
+    {
+        ref_x_pos = robot_state.pos(X);
+        cout << "More than X_threshold. New X ref pos: " << ref_x_pos << endl;
+    }
+    if (abs(e_y) > e_y_threshold)
+    {
+        ref_y_pos = robot_state.pos(Y);
+        cout << "More than Y_threshold. New Y ref pos: " << ref_y_pos << endl;
+    }
+    if (abs(e_yaw) > e_yaw_threshold)
+    {
+        ref_yaw_pos = robot_state.orientation(2);
+        cout << "More than YAW_threshold. New YAW ref pos: " << ref_yaw_pos << endl;
+    }
+    if (ref_body_height < body_height_threshold)
+    {
+        ref_x_pos = robot_state.pos(X);
+        ref_y_pos = robot_state.pos(Y);
+        // ref_yaw_pos = robot_state.orientation(2);
+        cout << "New desired X Y: " << ref_x_pos << " " << ref_y_pos << endl;
+    }
+
 
     // Update reference vector
     x_ref << 0.0, ref_pitch_pos, ref_yaw_pos,
@@ -145,5 +203,5 @@ double CommandShaper::compute_ref_pitch_pos() const {
     //     return 0.0;
     // }
     double ref_pitch = std::atan2(virtual_a, virtual_b)-0.02;
-    return ref_pitch;
+    return ref_pitch*0.9;
 }

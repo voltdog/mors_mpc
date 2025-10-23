@@ -13,6 +13,7 @@ ConvexMPC::ConvexMPC()
     Bd.resize(13, 12);
     // solver_inited = false;
     ref_grf.resize(12);
+    ref_grf_yaw_aligned.resize(12);
     R_body.resize(3,3);
     R_body.setZero();
 }
@@ -84,22 +85,27 @@ void ConvexMPC::calc_AB_matrices(VectorXd& body_rpy, MatrixXd& foot_positions,
     // calculate A
     cos_yaw = cos(body_rpy(2));
     sin_yaw = sin(body_rpy(2));
-    cos_pitch = cos(body_rpy(1));
-    tan_pitch = tan(body_rpy(1));
+    // cos_pitch = cos(body_rpy(1));
+    // tan_pitch = tan(body_rpy(1));
 
-    R_xyz << cos_yaw / cos_pitch, sin_yaw / cos_pitch, 0, 
-            -sin_yaw,             cos_yaw,             0, 
-             cos_yaw * tan_pitch, sin_yaw * tan_pitch, 1;
+    // R_xyz << cos_yaw / cos_pitch, sin_yaw / cos_pitch, 0, 
+    //         -sin_yaw,             cos_yaw,             0, 
+    //          cos_yaw * tan_pitch, sin_yaw * tan_pitch, 1;
+
+    R_z   << cos_yaw, sin_yaw, 0, 
+             -sin_yaw,  cos_yaw, 0, 
+             0,              0, 1;
 
     A_mat.setZero();
-    A_mat.block<3, 3>(0, 6) = R_xyz;
+    A_mat.block<3, 3>(0, 6) = R_z; //R_xyz; // put R_z
     A_mat.block<3, 3>(3, 9) = Eigen::Matrix3d::Identity();
     A_mat(11, 12) = 1;
 
     // calculate B
     // B (13x(num_legs*3)) contains non_zero elements only in row 6:12.
-    R_body = mors_sys::euler2mat(body_rpy(0), body_rpy(1), body_rpy(2));
-    inv_inertia = R_body * robot_params.I_b.inverse() * R_body.transpose();
+    // R_body = mors_sys::euler2mat(body_rpy(0), body_rpy(1), body_rpy(2));
+    // inv_inertia = R_body * robot_params.I_b.inverse() * R_body.transpose(); // put Rz // first get I_world, than I_inv
+    inv_inertia = (R_z * robot_params.I_b * R_z.transpose()).inverse();
     B_mat.setZero();
     // cout << "---foot_pos0---" << endl;
     // cout << foot_positions.col(0) << endl;
@@ -107,6 +113,7 @@ void ConvexMPC::calc_AB_matrices(VectorXd& body_rpy, MatrixXd& foot_positions,
     {
         B_mat.block<3, 3>(6, i * 3) = inv_inertia * mors_sys::skew(foot_positions.col(i)); // r x f torque
         B_mat.block<3, 3>(9, i * 3) = inv_mass * Eigen::Matrix3d::Identity(); // f = ma
+        
     }
 
     // cout << "---A_mat---" << endl;
@@ -270,10 +277,16 @@ void ConvexMPC::init_solver()
     solver.settings()->setWarmStart(true);
     solver.settings()->setPolish(false);
     // solver.settings()->setAdaptiveRhoInterval(25) ;
-    solver.settings()->setAbsoluteTolerance(1e-02);//3);
-    solver.settings()->setRelativeTolerance(1e-02);//3);
+    solver.settings()->setAbsoluteTolerance(1e-01);//3);
+    solver.settings()->setRelativeTolerance(1e-01);//3);
     solver.settings()->setCheckTermination(1);
-    // solver.settings()->setScaledTerimination(1) ;
+    
+    solver.settings()->setAlpha(1.5);
+    solver.settings()->setMaxIteration(300);
+    solver.settings()->setRho(1e-3);
+    solver.settings()->setSigma(1e-6);
+    solver.settings()->setScaledTerimination(1e-6);
+
     // set the initial data of the QP solver
     solver.data()->setNumberOfVariables(Ac.cols());
     solver.data()->setNumberOfConstraints(Ac.rows());
@@ -328,6 +341,13 @@ VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& fo
     solver.solveProblem();// != OsqpEigen::ErrorExitFlag::NoError;
     VectorXd qp_solution = solver.getSolution();
 
-    ref_grf =  -qp_solution.head<12>();
+    ref_grf_yaw_aligned = -qp_solution.head<12>();
+
+    // R_body = mors_sys::euler2mat(cur_rpy(0), cur_rpy(1), cur_rpy(2));
+    for (int i = 0; i < num_legs; i++)
+    {
+        ref_grf.segment(i * 3, 3) = R_z * ref_grf_yaw_aligned.segment(i * 3, 3);
+    }
+
     return ref_grf;
 }   

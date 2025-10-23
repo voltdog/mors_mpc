@@ -55,7 +55,7 @@ try:
 except:
     raise RuntimeError("Cannot find imp_config.yaml")
 leg_kp = config["Kp"]
-leg_kd = config["Kd"]
+leg_kd = config["Kd"] 
 
 print("Getting data from encoders...")
 raw_angle_lst = [[],[],[],[],[],[],[],[],[],[],[],[]]
@@ -84,15 +84,15 @@ l2_cur_pos = fk.fkine_L2(angle_lst)
 lc = lcm.LCM()
 msg = foot_cmd_msg()
 
-msg.r1_kp = leg_kp
+msg.r1_kp = leg_kp #[0.0]*3 #
 msg.l1_kp = leg_kp
-msg.r2_kp = leg_kp
-msg.l2_kp = leg_kp
+msg.r2_kp = leg_kp #[0.0]*3 #
+msg.l2_kp = leg_kp #[0.0]*3 # 
 
-msg.r1_kd = leg_kd
+msg.r1_kd = leg_kd #[0.0]*3 #
 msg.l1_kd = leg_kd
-msg.r2_kd = leg_kd
-msg.l2_kd = leg_kd
+msg.r2_kd = leg_kd #[0.0]*3 #leg_kd #
+msg.l2_kd = leg_kd #[0.0]*3 #
 
 msg.r1_pos = r1_cur_pos
 msg.r1_vel = [0.0]*12
@@ -107,7 +107,7 @@ lc.publish(LEG_CMD_CHANNEL, msg.encode())
 t = 0.0
 t_switch = 2.0
 
-freq = 2*2*np.pi#12.56#6.0#
+freq = 1*2*np.pi#12.56#6.0#
 ampl = 0.04
 
 
@@ -138,7 +138,7 @@ lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
 print("Example1 started")
 try:
-    while(t < 18.0):
+    while(t < 50.0):
         start = time.time()
         if t < t_switch and it < len(l2_traj[X]):
             msg.r1_pos = [r1_traj[X][it], r1_traj[Y][it], r1_traj[Z][it]]
@@ -147,34 +147,34 @@ try:
             msg.l2_pos = [l2_traj[X][it], l2_traj[Y][it], l2_traj[Z][it]]
 
             it += 1
-        else:
-            msg.r1_pos[X] = -ampl*np.cos(freq*(t + np.pi/2))+l1+bx
-            msg.r1_vel[X] = ampl*freq*np.sin(freq*(t + np.pi/2))
-            msg.r1_acc[X] = ampl*freq*freq*np.cos(freq*(t + np.pi/2))
-            msg.r1_pos[Z] = ampl*np.sin(freq*(t + np.pi/2))-0.15
-            msg.r1_vel[Z] = ampl*freq*np.cos(freq*(t + np.pi/2))
-            msg.r1_acc[Z] = -ampl*freq*freq*np.sin(freq*(t + np.pi/2))
+        # else:
+        #     msg.r1_pos[X] = -ampl*np.cos(freq*(t + np.pi/2))+l1+bx
+        #     msg.r1_vel[X] = ampl*freq*np.sin(freq*(t + np.pi/2))
+        #     msg.r1_acc[X] = ampl*freq*freq*np.cos(freq*(t + np.pi/2))
+        #     msg.r1_pos[Z] = ampl*np.sin(freq*(t + np.pi/2))-0.15
+        #     msg.r1_vel[Z] = ampl*freq*np.cos(freq*(t + np.pi/2))
+        #     msg.r1_acc[Z] = -ampl*freq*freq*np.sin(freq*(t + np.pi/2))
 
-            msg.l1_pos[X] = -ampl*np.cos(freq*t)+l1+bx
-            msg.l1_vel[X] = ampl*freq*np.sin(freq*t)
-            msg.l1_acc[X] = ampl*freq*freq*np.cos(freq*t)
-            msg.l1_pos[Z] = ampl*np.sin(freq*(t))-0.15
-            msg.l1_vel[Z] = ampl*freq*np.cos(freq*(t))
-            msg.l1_acc[Z] = -ampl*freq*freq*np.sin(freq*(t))
+        #     msg.l1_pos[X] = -ampl*np.cos(freq*t)+l1+bx
+        #     msg.l1_vel[X] = ampl*freq*np.sin(freq*t)
+        #     msg.l1_acc[X] = ampl*freq*freq*np.cos(freq*t)
+        #     msg.l1_pos[Z] = ampl*np.sin(freq*(t))-0.15
+        #     msg.l1_vel[Z] = ampl*freq*np.cos(freq*(t))
+        #     msg.l1_acc[Z] = -ampl*freq*freq*np.sin(freq*(t))
 
-            msg.r2_pos[X] = -ampl*np.cos(freq*t)-l1-bx
-            msg.r2_vel[X] = ampl*freq*np.sin(freq*t)
-            msg.r2_acc[X] = ampl*freq*freq*np.cos(freq*t)
-            msg.r2_pos[Z] = ampl*np.sin(freq*(t))-0.15
-            msg.r2_vel[Z] = ampl*freq*np.cos(freq*(t))
-            msg.r2_acc[Z] = -ampl*freq*freq*np.sin(freq*(t))
+        #     msg.r2_pos[X] = -ampl*np.cos(freq*t)-l1-bx
+        #     msg.r2_vel[X] = ampl*freq*np.sin(freq*t)
+        #     msg.r2_acc[X] = ampl*freq*freq*np.cos(freq*t)
+        #     msg.r2_pos[Z] = ampl*np.sin(freq*(t))-0.15
+        #     msg.r2_vel[Z] = ampl*freq*np.cos(freq*(t))
+        #     msg.r2_acc[Z] = -ampl*freq*freq*np.sin(freq*(t))
 
-            msg.l2_pos[X] = -ampl*np.cos(freq*(t + np.pi/2))-l1-bx
-            msg.l2_vel[X] = ampl*freq*np.sin(freq*(t + np.pi/2))
-            msg.l2_acc[X] = ampl*freq*freq*np.cos(freq*(t + np.pi/2))
-            msg.l2_pos[Z] = ampl*np.sin(freq*(t + np.pi/2))-0.15
-            msg.l2_vel[Z] = ampl*freq*np.cos(freq*(t + np.pi/2))
-            msg.l2_acc[Z] = -ampl*freq*freq*np.sin(freq*(t + np.pi/2))
+        #     msg.l2_pos[X] = -ampl*np.cos(freq*(t + np.pi/2))-l1-bx
+        #     msg.l2_vel[X] = ampl*freq*np.sin(freq*(t + np.pi/2))
+        #     msg.l2_acc[X] = ampl*freq*freq*np.cos(freq*(t + np.pi/2))
+        #     msg.l2_pos[Z] = ampl*np.sin(freq*(t + np.pi/2))-0.15
+        #     msg.l2_vel[Z] = ampl*freq*np.cos(freq*(t + np.pi/2))
+        #     msg.l2_acc[Z] = -ampl*freq*freq*np.sin(freq*(t + np.pi/2))
 
         # print(f"t: {t:.2f} | Kp: {msg.Kp[0]:.2f} | Kd: {msg.Kd[0]:.2f}")
         # print(f"t: {t:.2f} | {msg.r1_pos[X]:.3f} | {msg.r1_vel[X]}")

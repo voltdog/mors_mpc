@@ -13,7 +13,7 @@ import ForwardKinematics as fk
 import TrajectoryGenerator  as tg
 
 dt = 0.005
-
+ 
 GRF_CMD_CHANNEL = "GRF_CMD"
 SERVO_STATE_CHANNEL = "SERVO_STATE"
 SERVO_CMD_CHANNEL = "SERVO_CMD"
@@ -57,10 +57,10 @@ try:
     while(t < 30.0):
         start = time.time()
 
-        msg.r1_grf[Z] = -20.0
-        msg.l1_grf[Z] = -20.0
-        msg.r2_grf[Z] = -20.0
-        msg.l2_grf[Z] = -20.0
+        msg.r1_grf[Z] = -0.0
+        msg.l1_grf[Z] = -10.0
+        msg.r2_grf[Z] = -0.0
+        msg.l2_grf[Z] = -0.0
 
         # print(f"t: {t:.2f} | Kp: {msg.Kp[0]:.2f} | Kd: {msg.Kd[0]:.2f}")
         # print(f"t: {t:.2f} | {msg.r1_pos[X]:.3f} | {msg.r1_vel[X]}")

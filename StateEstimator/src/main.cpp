@@ -70,7 +70,7 @@ void init_vectors(RobotData &robot_state, LegData &leg_state)
 
 int main() 
 {
-    cout << "StateEstimator starting..." << endl;
+    cout << "[StateEstimator]: starting..." << endl;
     // load config
     string config_address = mors_sys::GetEnv("CONFIGPATH");
     string robot_config_address = config_address + "/robot_config.yaml";
@@ -130,9 +130,10 @@ int main()
     servo_state = lcmExch.getServoStateData();
     // cout << servo_state.pos << endl;
 
-    p << 0.032, -0.03, 0.001;
+    // p << 0.032, -0.03, 0.001;
+    p << 0.032, -0.01, 0.001; // for m leg configuration
     double lamb = 100.0;
-    // p << -0.032, 0.01, -0.001;
+    // p << -0.032, 0.01, -0.001; // for x leg configuration
     // p.setZero();
     leg_state_estimator.set_grf_observer_params(lamb, module_dt, p, servo_state.pos);
     leg_state_estimator.set_contact_threshold(contact_threshold);
@@ -141,23 +142,30 @@ int main()
     init_vectors(robot_state, leg_state);
 
     MatrixXd R_body(3,3);
-    VectorXd rpy_rate(3);
-    MatrixXd rpy_rate_cross(3,3);
+    VectorXd ang_vel_body(3), ang_vel_world(3);
+    MatrixXd ang_vel_body_cross(3,3);
 
     VectorXd P_body_cam(3);
     P_body_cam << CAMERA_OFFSET_X, CAMERA_OFFSET_Y, CAMERA_OFFSET_Z;
 
     VectorXd body_pos(3);
-    VectorXd offset(3);
-    offset.setZero();
-    bool first = true;
+    VectorXd pos_offset(3);
+    pos_offset.setZero();
+    double yaw_offset;
+    yaw_offset = 0;
+    bool first_pos = true;
+    bool first_yaw = true;
+
+    Matrix3d R_z;
+
+    double cos_yaw, sin_yaw;
 
     // yaw variables
     // double yaw_tmp = 0.0;
     // double pre_yaw = 0.0;
     // double yaw = 0.0;
     
-    cout << "StateEstimator started" << endl;
+    cout << "[StateEstimator]: started" << endl;
 
     double t = 0.0;
     while(true)
@@ -174,23 +182,36 @@ int main()
 
         // do smth
         // orientation data fusion
-        data_fusioned.orientation = sensor_fusion.update_orientation(imu_data.orientation_euler, odometry.orientation); //odometry.orientation;//
+        data_fusioned.orientation = sensor_fusion.update_orientation(imu_data.orientation_euler, imu_data.orientation_euler); // imu_data.orientation_euler;////odometry.orientation;//
         // fused orientation filtering
         robot_state.orientation = lpf.update_orientation(data_fusioned.orientation); //odometry.orientation;//
+        if (first_yaw)
+        {
+            yaw_offset = data_fusioned.orientation(2);
+            first_yaw = false;
+        }
+        robot_state.orientation(2) -= yaw_offset;
+        // cout << imu_data.orientation_euler(2) << " | " << robot_state.orientation(2) << endl;
         // convert odometry.ang_vel to rpy_rate
         R_body = mors_sys::euler2mat(robot_state.orientation(0), robot_state.orientation(1), robot_state.orientation(2));
-        rpy_rate = imu_data.ang_vel;//odometry.ang_vel; //R_body * 
-        // angular velocity fusion
-        data_fusioned.ang_vel = odometry.ang_vel; //imu_data.ang_vel; //sensor_fusion.update_rpy_rate(imu_data.ang_vel, rpy_rate); //rpy_rate;// 
-        // fused rpy rate filtering
-        robot_state.ang_vel = lpf.update_rpy_rate(data_fusioned.ang_vel);
-        // convert position from camera frame to body frame
-        body_pos = odometry.position + R_body * P_body_cam  - offset;
+        ang_vel_body = imu_data.ang_vel;//odometry.ang_vel; //R_body * 
+        // from body to world angular velocity
+        // cos_yaw = cos(ang_vel_body(2));
+        // sin_yaw = sin(ang_vel_body(2));
+        // R_z  << cos_yaw,  sin_yaw, 0, 
+        //        -sin_yaw,  cos_yaw, 0, 
+        //         0,              0, 1;
+        // ang_vel_world = R_z * ang_vel_body; //odometry.ang_vel; //sensor_fusion.update_rpy_rate(imu_data.ang_vel, rpy_rate); //rpy_rate;// 
 
-        if (first)
+        // fused rpy rate filtering
+        robot_state.ang_vel = lpf.update_rpy_rate(ang_vel_body);//ang_vel_world);
+        // convert position from camera frame to body frame
+        body_pos = odometry.position + R_body * P_body_cam  - pos_offset;
+
+        if (first_pos)
         {
-            offset = body_pos;
-            first = false;
+            pos_offset = body_pos;
+            first_pos = false;
         }
         // position and linear velocity low pass filtering
         robot_state.pos = lpf.update_position(body_pos);
@@ -199,10 +220,10 @@ int main()
         // rpy_rate_cross << 0,                     -robot_state.ang_vel(Z), robot_state.ang_vel(Y),
         //                  robot_state.ang_vel(Z), 0,                     -robot_state.ang_vel(X),
         //                 -robot_state.ang_vel(Y), robot_state.ang_vel(X), 0;
-        rpy_rate_cross << 0,         -rpy_rate(Z),  rpy_rate(Y),
-                         rpy_rate(Z), 0,           -rpy_rate(X),
-                        -rpy_rate(Y), rpy_rate(X),  0;
-        robot_state.lin_vel =  (lpf.update_lin_vel(odometry.lin_vel) + (rpy_rate_cross) * R_body * P_body_cam);
+        ang_vel_body_cross <<   0,              -ang_vel_body(Z),  ang_vel_body(Y),
+                                ang_vel_body(Z), 0,               -ang_vel_body(X),
+                               -ang_vel_body(Y), ang_vel_body(X),  0;
+        robot_state.lin_vel =  lpf.update_lin_vel(odometry.lin_vel) + (ang_vel_body_cross) * R_body *  P_body_cam;// - (rpy_rate_cross) * body_pos;//
         // cout << robot_state.ang_vel.cross(P_body_cam) << endl;
 
         // get leg states

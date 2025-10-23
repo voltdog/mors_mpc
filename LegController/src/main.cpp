@@ -23,32 +23,14 @@ using namespace std::chrono;
 #define MOTOR_KD1 0.4
 #define MOTOR_KD2 0.4
 
-// #define MOTOR_KP0 0.0
-// #define MOTOR_KP1 0.0
-// #define MOTOR_KP2 0.0
-
-// #define MOTOR_KD0 0.0
-// #define MOTOR_KD1 0.0
-// #define MOTOR_KD2 0.0
-
 // current time
 auto now() 
 {
   return std::chrono::steady_clock::now(); 
 }
 
-// std::string GetEnv( const std::string & var ) {
-//     const char * val = std::getenv( var.c_str() );
-//     if ( val == nullptr ) { // invalid to assign nullptr to std::string
-//         return "";
-//     }
-//     else {
-//         return val;
-//     }
-// }
-
 int main() {
-    cout << "Leg Controller starting..." << endl;
+    cout << "[Leg Controller]: Starting..." << endl;
     // load config
     string config_address = mors_sys::GetEnv("CONFIGPATH");
     string robot_config_address = config_address + "/robot_config.yaml";
@@ -97,7 +79,6 @@ int main() {
     lcmExch.start_exchanger();
     bool enable = false;
     bool reset = true;
-    // int control_type = 0;
 
     LegData leg_cmd;
 
@@ -117,6 +98,8 @@ int main() {
     VectorXd ref_tau(12);
     VectorXd motor_kp(12);
     VectorXd motor_kd(12);
+    VectorXd motor_kp_ref(3);
+    VectorXd motor_kd_ref(3);
 
     MatrixXd Kp_r1(3,3);
     MatrixXd Kp_l1(3,3);
@@ -134,19 +117,12 @@ int main() {
 
     motor_kp.setZero(12);
     motor_kd.setZero(12);
-    // motor_kp.setConstant(MOTOR_KP);
-    // motor_kd.setConstant(MOTOR_KD);
-    // for (int i = 0; i < 3; i++)
-    // {
-        // motor_kp(i) = MOTOR_KP;
-        // motor_kd(i) = MOTOR_KD;
-    // }
-    motor_kp(0) = MOTOR_KP0;
-    motor_kp(1) = MOTOR_KP1;
-    motor_kp(2) = MOTOR_KP2;
-    motor_kd(0) = MOTOR_KD0;
-    motor_kd(1) = MOTOR_KD1;
-    motor_kd(2) = MOTOR_KD2;
+    motor_kp_ref(0) = MOTOR_KP0;
+    motor_kp_ref(1) = MOTOR_KP1;
+    motor_kp_ref(2) = MOTOR_KP2;
+    motor_kd_ref(0) = MOTOR_KD0;
+    motor_kd_ref(1) = MOTOR_KD1;
+    motor_kd_ref(2) = MOTOR_KD2;
 
     Kp_r1.setZero();
     Kd_r1.setZero();
@@ -157,14 +133,16 @@ int main() {
     Kp_l2.setZero();
     Kd_l2.setZero();
 
+    std::this_thread::sleep_for(10ms);
+    lcmExch.getServoStateData(cur_theta, cur_omega, cur_tau);
+
     LegControl leg_control;
-    leg_control.set_leg_params(robot);
-                                
+    leg_control.set_leg_params(robot, cur_theta);    
 
     bool first = true;
 
 
-    cout << "Leg Controller started" << endl;
+    cout << "[Leg Controller]: Started" << endl;
 
     while(true)
     {
@@ -176,19 +154,12 @@ int main() {
         
         lcmExch.getLegCmdData(leg_cmd);
         lcmExch.getImuData(cur_euler);
-        // cur_euler << 0.0, 0.0, 0.0;
         lcmExch.getServoStateData(cur_theta, cur_omega, cur_tau);
         lcmExch.getEnableData(enable, reset);
-        // control_type = lcmExch.getCtrlTypeData();
         phase_signal = lcmExch.getPhaseSignal();
         
-        // cout << "control_type: " << control_type << endl;
-        // enable = true;
-        // control_type = LEG_CONTROL;
-        if (enable == true)// && control_type == LEG_CONTROL)
+        if (enable == true)
         {
-            // auto start_alg = high_resolution_clock::now();
-
             first = true;
             
             Kp_r1 = leg_cmd.r1_kp.array().matrix().asDiagonal();
@@ -201,112 +172,55 @@ int main() {
             Kd_l2 = leg_cmd.l2_kd.array().matrix().asDiagonal();
 
             leg_control.set_feedback_params(Kp_r1, Kd_r1, Kp_l1, Kd_l1, Kp_r2, Kd_r2, Kp_l2, Kd_l2);            
-            ref_tau = leg_control.calculate(leg_cmd, cur_theta, cur_omega, cur_euler, phase_signal, ref_theta);
+            ref_tau = leg_control.calculate(leg_cmd, cur_theta, cur_omega, cur_euler, phase_signal, ref_theta, ref_omega);
             ref_tau = vbmath::clip(ref_tau, tau_min, tau_max) * robot.gear_ratio / robot.kt;
 
-            if (abs(cur_theta[2]) - 0.3 < 0.0 || cur_theta[2] < 0.0)
+            for (int i = 0; i < 3; i++)
             {
-                ref_tau(2) = 20.5;
-                // cout << "otstoi" << endl;
-            }
+                if (leg_cmd.r1_kp(i) >= 0.01)
+                {
+                    motor_kp(i) = motor_kp_ref(i);
+                    motor_kd(i) = motor_kd_ref(i);
+                }
+                else
+                {
+                    motor_kp(i) = 0;
+                    motor_kd(i) = 0;
+                }
 
-            // ref_tau.setZero();
-            // cout << cur_theta[2] << endl;
-            // if (abs(cur_theta[5] - 0.08) < 0.0 || cur_theta[5] > 0.0)
-            //     ref_tau(5) = -0.5;
-            // if (abs(cur_theta[8] - 0.08) < 0.0 || cur_theta[8] > 0.0)
-            //     ref_tau(8) = -0.5;
-            // if (abs(cur_theta[11] - 0.08) < 0.0 || cur_theta[11] < 0.0)
-            //     ref_tau(11) = 0.5;
+                if (leg_cmd.l1_kp(i) >= 0.01)
+                {
+                    motor_kp(i+3) = motor_kp_ref(i);
+                    motor_kd(i+3) = motor_kd_ref(i);
+                }
+                else
+                {
+                    motor_kp(i+3) = 0;
+                    motor_kd(i+3) = 0;
+                }
 
-            // cout << leg_cmd.r1_grf << endl;
+                if (leg_cmd.r2_kp(i) >= 0.01)
+                {
+                    motor_kp(i+6) = motor_kp_ref(i);
+                    motor_kd(i+6) = motor_kd_ref(i);
+                }
+                else
+                {
+                    motor_kp(i+6) = 0;
+                    motor_kd(i+6) = 0;
+                }
 
-            // auto stop = high_resolution_clock::now();
-            // auto duration = duration_cast<microseconds>(stop - start_alg);
-            // cout << duration.count() << endl;
-
-            // for (int i = 0; i < 3; i++)
-            // {
-            //     motor_kp(i) = MOTOR_KP;
-            //     motor_kd(i) = MOTOR_KD;
-            // }
-
-            if (leg_cmd.r1_kp(0) >= 0.1)
-            {
-                motor_kp(0) = MOTOR_KP0;
-                motor_kp(1) = MOTOR_KP1;
-                motor_kp(2) = MOTOR_KP2;
-                motor_kd(0) = MOTOR_KD0;
-                motor_kd(1) = MOTOR_KD1;
-                motor_kd(2) = MOTOR_KD2;
+                if (leg_cmd.l2_kp(i) >= 0.01)
+                {
+                    motor_kp(i+9) = motor_kp_ref(i);
+                    motor_kd(i+9) = motor_kd_ref(i);
+                }
+                else
+                {
+                    motor_kp(i+9) = 0;
+                    motor_kd(i+9) = 0;
+                }
             }
-            else
-            {
-                motor_kp(0) = 0;
-                motor_kp(1) = 0;
-                motor_kp(2) = 0;
-                motor_kd(0) = 0;
-                motor_kd(1) = 0;
-                motor_kd(2) = 0;
-            }
-
-            if (leg_cmd.l1_kp(0) >= 0.1)
-            {
-                motor_kp(3) = MOTOR_KP0;
-                motor_kp(4) = MOTOR_KP1;
-                motor_kp(5) = MOTOR_KP2;
-                motor_kd(3) = MOTOR_KD0;
-                motor_kd(4) = MOTOR_KD1;
-                motor_kd(5) = MOTOR_KD2;
-            }
-            else
-            {
-                motor_kp(3) = 0;
-                motor_kp(4) = 0;
-                motor_kp(5) = 0;
-                motor_kd(3) = 0;
-                motor_kd(4) = 0;
-                motor_kd(5) = 0;
-            }
-
-            if (leg_cmd.r2_kp(0) >= 0.1)
-            {
-                motor_kp(6) = MOTOR_KP0;
-                motor_kp(7) = MOTOR_KP1;
-                motor_kp(8) = MOTOR_KP2;
-                motor_kd(6) = MOTOR_KD0;
-                motor_kd(7) = MOTOR_KD1;
-                motor_kd(8) = MOTOR_KD2;
-            }
-            else
-            {
-                motor_kp(6) = 0;
-                motor_kp(7) = 0;
-                motor_kp(8) = 0;
-                motor_kd(6) = 0;
-                motor_kd(7) = 0;
-                motor_kd(8) = 0;
-            }
-
-            if (leg_cmd.l2_kp(0) >= 1.0)
-            {
-                motor_kp(9) = MOTOR_KP0;
-                motor_kp(10) = MOTOR_KP1;
-                motor_kp(11) = MOTOR_KP2;
-                motor_kd(9) = MOTOR_KD0;
-                motor_kd(10) = MOTOR_KD1;
-                motor_kd(11) = MOTOR_KD2;
-            }
-            else
-            {
-                motor_kp(9) = 0;
-                motor_kp(10) = 0;
-                motor_kp(11) = 0;
-                motor_kd(9) = 0;
-                motor_kd(10) = 0;
-                motor_kd(11) = 0;
-            }
-
 
             lcmExch.sendServoCmd(ref_theta, ref_omega, ref_tau, motor_kp, motor_kd);
 

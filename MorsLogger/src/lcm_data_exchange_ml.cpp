@@ -49,7 +49,7 @@ LCMExchanger::LCMExchanger()
     control_type_channel = channel_config["control_type"].as<string>();
     odometry_channel = channel_config["odometry"].as<string>();
     robot_state_channel = channel_config["robot_state"].as<string>();
-    robot_cmd_channel = channel_config["robot_cmd"].as<string>();
+    robot_cmd_channel = channel_config["robot_ref"].as<string>();
     phase_sig_channel = channel_config["gait_phase"].as<string>();
 
     // gear_ratio = GEAR_RATIO;

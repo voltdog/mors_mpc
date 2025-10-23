@@ -11,9 +11,9 @@ foot_cmd: "FOOT_CMD"
 grf_cmd: "GRF_CMD"
 
 robot_cmd: "ROBOT_CMD"
+robot_ref: "ROBOT_REF"
 robot_state: "ROBOT_STATE"
 
 gait_phase: "GAIT_PHASE"
 gait_params: "GAIT_PARAMS"
 
-robot_ref: "ROBOT_REF"

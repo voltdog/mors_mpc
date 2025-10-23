@@ -17,15 +17,15 @@ import yaml
 
 dt = 0.01
 
-DURATION = 7.07
+DURATION = 20.07
 
 GAIT_TYPE = [0.0, 0.5, 0.5, 0.0]
 # GAIT_TYPE = [0.0, 0.25, 0.5, 0.75]
-T_SW = 0.2 #0.2
-T_ST = 0.2 #0.4
-STRIDE_HEIGHT = 0.1
+T_SW = 0.21 #0.2
+T_ST = 0.3 #0.4
+STRIDE_HEIGHT = 0.08
 
-LIN_VEL_X = 0.15
+LIN_VEL_X = 0.0
 LIN_VEL_Y = 0.0
 ANG_VEL_Z = 0.0
 POS_Z = 0.21
@@ -150,37 +150,35 @@ try:
     time.sleep(2)
 
     cnt = 0
-    cmd_vel[X] = -LIN_VEL_X
+    cmd_vel[X] = LIN_VEL_X
     while t < DURATION:
         start = time.time()
 
-        # if t > 3.15:
-            # gait_prms_msg.t_sw = 0.15
-            # gait_prms_msg.t_st = 0.2
-            # gait_prms_msg.stride_height = 0.04
-            
-        # if t > 3.0:
-        #     gait_prms_msg.gait_type = [0.0, 0.5, 0.5, 0.0]
-        #     gait_prms_msg.t_st = 0.25
-        #     gait_prms_msg.t_sw = 0.3
-
-        # if t > 6.0:
-        #     gait_prms_msg.gait_type = [0.0, 0.5, 0.5, 0.0]
-        #     gait_prms_msg.t_st = 0.18
-        #     gait_prms_msg.t_sw = 0.22
-
+        # # pronk
+        # if t > 4.0:
+        #     gait_prms_msg.gait_type = [0.0, 0.0, 0.0, 0.0]
+        #     gait_prms_msg.t_st = 0.2
+        #     gait_prms_msg.t_sw = 0.21
+        #     gait_prms_msg.stride_height = 0.05
+        # # bound
         # if t > 9.0:
+        #     gait_prms_msg.gait_type = [0.0, 0.1, 0.45, 0.55]
+        #     gait_prms_msg.t_st = 0.4
+        #     gait_prms_msg.t_sw = 0.21
+        #     gait_prms_msg.stride_height = 0.07
+        # # pace
+        # if t > 14.0:
+        #     gait_prms_msg.gait_type = [0.0, 0.44, 0.12, 0.56]
+        #     gait_prms_msg.t_st = 0.45
+        #     gait_prms_msg.t_sw = 0.21
+        #     gait_prms_msg.stride_height = 0.05
+        # # trot
+        # if t > 19.0:
         #     gait_prms_msg.gait_type = [0.0, 0.5, 0.5, 0.0]
         #     gait_prms_msg.t_st = 0.3
-        #     gait_prms_msg.t_sw = 0.4
-            
-            # print("hey")
+        #     gait_prms_msg.t_sw = 0.21
+        #     gait_prms_msg.stride_height = 0.06
 
-        # if cnt % 400 == 0:
-        #     cmd_vel[X] = -cmd_vel[X]
-        #     gait_prms_msg.standing = not gait_prms_msg.standing
-        #     # gait_prms_msg.t_sw = 0.0
-        #     lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
 
         cmd_vel[X] = LIN_VEL_X
         # cmd_pose[X] += cmd_vel[X] * dt

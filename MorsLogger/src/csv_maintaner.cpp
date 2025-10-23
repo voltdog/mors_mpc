@@ -20,6 +20,7 @@ void CSVMaintainer::init()
     auto folder_postfix = oss.str();
     log_folder = "/home/user/mors_logs/log_" + folder_postfix + "/";
     filesystem::create_directories(log_folder);
+    cout << "[MORS Logger]: folder addr: " << log_folder << endl;
 
     // define log file addresses
     servo_state_addr = log_folder + "servo_state.csv";

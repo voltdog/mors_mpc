@@ -25,10 +25,10 @@ using namespace Eigen;
 // #define IMU_ANG_VEL_CF 30.0
 // #define IMU_ACC_CF 200.0
 
-#define ORIENTATION_CF 24.0
-#define RPY_RATE_CF 24.0
+#define ORIENTATION_CF 100.0 //24.0
+#define RPY_RATE_CF 100.0 //24.0
 #define POSITION_CF 200.0 //24.0
-#define LIN_VEL_CF 24.0
+#define LIN_VEL_CF 100.0 //24.0
 
 class LowPassFiltering
 {

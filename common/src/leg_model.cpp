@@ -351,7 +351,7 @@ void LegModel::joint_space_matrices_R1(VectorXd theta, VectorXd d_theta, MatrixX
     G << g1, g2, g3;
 
     // Vector F (friction)
-    double k_visc = 0.1;
+    double k_visc = 0.2;
     double k_kul = 0.0;
     f1 = k_visc * dq1 + k_kul * vbmath::sign(dq1);
     f2 = k_visc * dq2 + k_kul * vbmath::sign(dq2);
@@ -421,7 +421,7 @@ void LegModel::joint_space_matrices_R2(VectorXd theta, VectorXd d_theta, MatrixX
     G << g1, g2, g3;
 
     // Vector F (friction)
-    double k_visc = 0.1;
+    double k_visc = 0.2;
     double k_kul = 0.0;
     f1 = k_visc * dq1 + k_kul * vbmath::sign(dq1);
     f2 = k_visc * dq2 + k_kul * vbmath::sign(dq2);
@@ -492,7 +492,7 @@ void LegModel::joint_space_matrices_L1(VectorXd theta, VectorXd d_theta, MatrixX
     G << g1, g2, g3;
 
     // Vector F (friction)
-    double k_visc = -0.1;
+    double k_visc = -0.2;
     double k_kul = 0.0;
     f1 = k_visc * dq1 + k_kul * vbmath::sign(dq1);
     f2 = k_visc * dq2 + k_kul * vbmath::sign(dq2);
@@ -564,7 +564,7 @@ void LegModel::joint_space_matrices_L2(VectorXd theta, VectorXd d_theta, MatrixX
     G << g1, g2, g3;
 
     // Vector F (friction)
-    double k_visc = -0.1;
+    double k_visc = -0.2;
     double k_kul = 0.0;
     f1 = k_visc * dq1 + k_kul * vbmath::sign(dq1);
     f2 = k_visc * dq2 + k_kul * vbmath::sign(dq2);

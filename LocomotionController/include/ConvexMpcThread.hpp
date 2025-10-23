@@ -44,8 +44,9 @@ private:
 
     RobotData robot_state;
     LegData leg_state;
-    VectorXd x_ref;
-    MatrixXd R_body;
+    VectorXd x_ref, des_state;
+    VectorXd rpy_rate, com_vel_body_frame;
+    MatrixXd R_body, R_z;
     bool en;
     bool standing;
     std::vector<int> phase_signal;
@@ -61,6 +62,9 @@ private:
     vector<bool> active_legs;
 
     RobotPhysicalParams robot;
+
+    double cos_yaw, sin_yaw;
+    double pre_yaw;
 };
 
 #endif //_convex_mpc_thread_hpp_

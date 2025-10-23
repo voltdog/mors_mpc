@@ -21,6 +21,7 @@ LCMExchanger::LCMExchanger()
 
     YAML::Node channel_config = YAML::LoadFile(config_address);//"/home/user/mors_mpc_control/config/channels.yaml");
     robot_cmd_channel = channel_config["robot_cmd"].as<string>();
+    robot_ref_channel = channel_config["robot_ref"].as<string>();
     robot_state_channel = channel_config["robot_state"].as<string>();
     enable_channel = channel_config["enable"].as<string>();
     gait_params_channel = channel_config["gait_params"].as<string>();
@@ -211,7 +212,7 @@ void LCMExchanger::get_gait_params(double& t_st, double& t_sw, vector<double>& g
     standing = this->standing;
     stride_height= this->stride_height;
 }
-
+ 
 bool LCMExchanger::get_enable()
 {
     return enable;
@@ -280,6 +281,23 @@ void LCMExchanger::sendPhaseSig(vector<int>& phase, vector<double>& phi, double 
     // }
     phaseSigMsg.t = t;
     phase_sig_publisher.publish(phase_signal_channel, &phaseSigMsg);
+}
+
+void LCMExchanger::sendRobotRef(RobotData& robot_cmd, vector<bool> &active_legs, int8_t adaptation_type)
+{
+    robotRefMsg.adaptation_type = adaptation_type;
+    for (int i = 0; i < 4; i++)
+    {
+        robotRefMsg.active_legs[i] = active_legs[i];
+    }
+    for (int i = 0; i < 3; i++)
+    {
+        robotRefMsg.cmd_vel[i] = robot_cmd.lin_vel[i];
+        robotRefMsg.cmd_vel[i+3] = robot_cmd.ang_vel[i];
+        robotRefMsg.cmd_pose[i] = robot_cmd.pos[i];
+        robotRefMsg.cmd_pose[i+3] = robot_cmd.orientation[i];
+    }
+    robot_ref_publisher.publish(robot_ref_channel, &robotRefMsg);
 }
 
 LCMExchanger::~LCMExchanger()

@@ -27,7 +27,7 @@ class LegControl{
 public:
     LegControl();
 
-    void set_leg_params(RobotPhysicalParams &robot);
+    void set_leg_params(RobotPhysicalParams &robot, VectorXd &theta);
     void set_feedback_params(MatrixXd& Kp_r1, MatrixXd& Kd_r1, 
                             MatrixXd& Kp_l1, MatrixXd& Kd_l1, 
                             MatrixXd& Kp_r2, MatrixXd& Kd_r2, 
@@ -57,7 +57,7 @@ public:
     VectorXd cartesian_inverse_dynamics(VectorXd dd_x, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ);
     VectorXd get_tau_ff(VectorXd dd_x_ref, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ);
 
-    VectorXd calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal, VectorXd &theta_ref);
+    VectorXd calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref);
                         //MatrixXd &leg_pos_ref, MatrixXd &leg_vel_ref, MatrixXd &leg_acc_ref, MatrixXd &leg_grf_ref,
 private:
 

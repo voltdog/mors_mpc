@@ -42,8 +42,12 @@ ConvexMPCThread::ConvexMPCThread()
     leg_state.l1_kd.resize(3);
     leg_state.r2_kd.resize(3);
     leg_state.l2_kd.resize(3);
+    rpy_rate.resize(3);
+    com_vel_body_frame.resize(3);
     x_ref.resize(13);
+    des_state.resize(13);
     R_body.resize(3,3);
+    R_z.resize(3,3);
     en = false;
     standing = true;
     phase_signal.resize(4);
@@ -73,28 +77,58 @@ void ConvexMPCThread::callback()
 
         if (en == true) {
             // form x0 vector
+            // попробовать rpy_rate, как main у swing контроллера
+            cos_yaw = cos(robot_state.orientation(Z));
+            sin_yaw = sin(robot_state.orientation(Z));
+            R_z   << cos_yaw, -sin_yaw, 0, 
+                    sin_yaw,  cos_yaw, 0,  
+                    0,              0, 1;
+            rpy_rate = R_z * robot_state.ang_vel; //
+            // com_vel_body_frame = R_body.transpose() * robot_state.lin_vel;
             x0 <<   robot_state.orientation(X),
                     robot_state.orientation(Y),
                     robot_state.orientation(Z),
+                    // ((x_ref(8) == 0.0) ? (robot_state.orientation(Z) - x_ref(2)) : (robot_state.orientation(Z) - pre_yaw)),
                     robot_state.pos(X),
                     robot_state.pos(Y),
                     robot_state.pos(Z),
-                    robot_state.ang_vel(X),
-                    robot_state.ang_vel(Y),
-                    robot_state.ang_vel(Z),
-                    robot_state.lin_vel(X),
-                    robot_state.lin_vel(Y),
-                    robot_state.lin_vel(Z),
+                    rpy_rate(X), // robot_state.ang_vel(X), // 
+                    rpy_rate(Y), //robot_state.ang_vel(Y),
+                    rpy_rate(Z), //robot_state.ang_vel(Z),
+                    robot_state.lin_vel(X), //com_vel_body_frame(X), //
+                    robot_state.lin_vel(Y), //com_vel_body_frame(Y), //
+                    robot_state.lin_vel(Z), //com_vel_body_frame(Z), //
                     -robot.g;
+
+            // des_state << x_ref(0),
+            //             x_ref(1),
+            //             // x_ref(2),
+            //             ((x_ref(8) == 0.0) ? (0.0) : (robot_state.orientation(Z) - pre_yaw)) + module_dt * x_ref(8),
+            //             x_ref(3),
+            //             x_ref(4),
+            //             x_ref(5),
+            //             x_ref(6),
+            //             x_ref(7),
+            //             x_ref(8),
+            //             x_ref(9),
+            //             x_ref(10),
+            //             x_ref(11),
+            //             x_ref(12),
             // form foot_positions vector
             // std::cout << "R_body: " << R_body.rows() << "x" << R_body.cols() << std::endl;
             // std::cout << "r1_pos: " << leg_state.r1_pos.rows() << "x" << leg_state.r1_pos.cols() << std::endl;
             assert(leg_state.r1_pos.rows() == 3);
 
-            foot_positions.col(0) = R_body * leg_state.r1_pos;
-            foot_positions.col(1) = R_body * leg_state.l1_pos;
-            foot_positions.col(2) = R_body * leg_state.r2_pos;
-            foot_positions.col(3) = R_body * leg_state.l2_pos;
+            // cos_yaw = cos(robot_state.orientation(Z));
+            // sin_yaw = sin(robot_state.orientation(Z));
+            // R_z   << cos_yaw, -sin_yaw, 0, 
+            //         sin_yaw,  cos_yaw, 0,  
+            //         0,              0, 1;
+
+            foot_positions.col(0) = R_z * leg_state.r1_pos; //R_body
+            foot_positions.col(1) = R_z * leg_state.l1_pos; // R_z
+            foot_positions.col(2) = R_z * leg_state.r2_pos;
+            foot_positions.col(3) = R_z * leg_state.l2_pos;
 
             // predict future contact states
             // cout << "1" << endl;
@@ -125,6 +159,8 @@ void ConvexMPCThread::callback()
 
             // solve mpc problem
             ref_grf = mpc.get_contact_forces(x0, x_ref, foot_positions, gait_table);
+
+            pre_yaw = robot_state.orientation(Z);
         }
         // Wait until spinning time
         while(true)

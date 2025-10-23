@@ -71,7 +71,7 @@ void quaternionToEuler(float qx, float qy, float qz, float qw, float& roll, floa
 
 int main(int argc, char * argv[]) try
 {
-    cout << "RealsenseCamera starting..." << endl;
+    cout << "[RealsenseCamera]: starting..." << endl;
     float roll, pitch, yaw;
 
     // Get config address
@@ -121,7 +121,7 @@ int main(int argc, char * argv[]) try
 
     // bool first = true;
 
-    cout << "RealsenseCamera started" << endl;
+    cout << "[RealsenseCamera]: started" << endl;
 
     // Main loop
     while (true)
@@ -187,7 +187,7 @@ int main(int argc, char * argv[]) try
 }
 catch (const rs2::error & e)
 {
-    std::cerr << "RealSense error calling " << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    " << e.what() << std::endl;
+    std::cerr << "[RealsenseCamera]: error calling " << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    " << e.what() << std::endl;
     return EXIT_FAILURE;
 }
 catch (const std::exception& e)

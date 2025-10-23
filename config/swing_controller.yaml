@@ -1,13 +1,14 @@
 # swing trajectory generator
 interleave_x: [0.0, 0.0, 0.0, 0.0]
 # interleave_x: [-0.01, -0.01, 0.01, 0.01]
+# interleave_y: [0.1, 0.1, 0.1, 0.1]
 # interleave_y: [0.095, 0.095, 0.095, 0.095]
-interleave_y: [0.09, 0.09, 0.09, 0.09]
-# interleave_y: [0.08, 0.08, 0.08, 0.08]
+# interleave_y: [0.09, 0.09, 0.09, 0.09] # trot bouncing pace
+interleave_y: [0.08, 0.08, 0.08, 0.08]
 # interleave_y: [0.07, 0.07, 0.07, 0.07]
-# interleave_y: [0.06, 0.06, 0.06, 0.06]
-dz_near_ground: -0.7
+# interleave_y: [0.06, 0.06, 0.06, 0.06] 
+dz_near_ground: -0.3
 
 # foot step planner
 k1_fsp: 0.03 # capture point constant
-k2_fsp: 0.17 #0.0 # centrifugal term contant
+k2_fsp: 0.17 #0.0 # centrifugal term constant

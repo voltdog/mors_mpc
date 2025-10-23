@@ -67,7 +67,7 @@ private:
 
     Matrix3d inv_inertia, inv_mass;
 
-    Matrix3d R_xyz;
+    Matrix3d R_xyz, R_z;
     MatrixXd R_body;
     MatrixXd Ac_dense;
 
@@ -80,8 +80,9 @@ private:
     VectorXd q;
     Sparse_Matrix Ac;
     VectorXd lb, ub;
+    MatrixXd foot_positions_world;
 
-    VectorXd ref_grf;
+    VectorXd ref_grf_yaw_aligned, ref_grf;
     // bool solver_inited;
     int it_Xref;
     double friction_l_u;

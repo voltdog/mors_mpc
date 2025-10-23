@@ -69,6 +69,7 @@ class LegState
         VectorXd f_hat_r1, f_hat_l1, f_hat_r2, f_hat_l2;
         VectorXd tau_r1, tau_l1, tau_r2, tau_l2;
         VectorXd dq_r1, dq_l1, dq_r2, dq_l2;
+        VectorXd f_hat_l1_idyn;
 
         vector<bool> contact;
         Eigen::VectorXd p;

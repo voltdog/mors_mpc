@@ -7,7 +7,7 @@ LowPassFiltering::LowPassFiltering(float dt)
         lpf_orientation[i].reconfigureFilter(dt, ORIENTATION_CF);
         lpf_rpy_rate[i].reconfigureFilter(dt, RPY_RATE_CF);
         lpf_pos[i].reconfigureFilter(dt, POSITION_CF);
-        lpf_lin_vel[i].reconfigureFilter(dt, LIN_VEL_CF);
+        lpf_lin_vel[i].reconfigureFilter(dt, LIN_VEL_CF); 
     }
     orientation_filt.resize(3);
     orientation_filt.setZero();

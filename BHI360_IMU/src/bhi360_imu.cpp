@@ -43,11 +43,22 @@ void quaternionToEuler(float w, float x, float y, float z, float& roll, float& p
     } else {
         pitch = asin(sinp);
     }
-
+    
     // Yaw (вращение вокруг оси Z)
     double siny_cosp = 2 * (w * z + x * y);
     double cosy_cosp = 1 - 2 * (y * y + z * z);
     yaw = atan2(siny_cosp, cosy_cosp);
+}
+
+void quat_to_rpy(float w, float x, float y, float z, float& roll, float& pitch, float& yaw)
+{
+  //from my MATLAB implementation
+
+  //edge case!
+  double as = min(double(-2.0 * (x*z - w*y)), 0.99999);
+  yaw = atan2(2.0 * (x*y + w*z), w*w + x*x - y*y - z*z);
+  pitch = asin(as);
+  roll = atan2(2.0 * (y*z + w*x), w*w - x*x - y*y + z*z);
 }
 
 int open_imu_hid()
@@ -64,37 +75,37 @@ int open_imu_hid()
 	struct hid_device_info *imu_info;
 	imu_info = hid_enumerate(0xCafe, 0x4004);
 
-	cout << "First interface path is " << imu_info->path << endl;
+	// cout << "First interface path is " << imu_info->path << endl;
 
 	acc_handle = hid_open_path(imu_info->path);
 	if (!acc_handle) {
-		cout << "Unable to open IMU!" << endl;
+		cout << "[BHI360_IMU]: Unable to open IMU!" << endl;
 		hid_exit();
  		return 1;
 	}
 	
 	//hid_set_nonblocking(acc_handle, 1);
 
-	cout << "IMU interface is opened successfully!" << endl;
+	cout << "[BHI360_IMU]: IMU interface is opened successfully!" << endl;
 
 	// Read the Manufacturer String
 	res = hid_get_manufacturer_string(acc_handle, wstr, MAX_STR);
-	wcout << "Manufacturer String: " << wstr << endl;
+	// wcout << "Manufacturer String: " << wstr << endl;
 
 	// Read the Product String
 	res = hid_get_product_string(acc_handle, wstr, MAX_STR);
-	wcout << "Product String: " << wstr << endl;
+	// wcout << "Product String: " << wstr << endl;
 
 	// Read the Serial Number String
 	res = hid_get_serial_number_string(acc_handle, wstr, MAX_STR);
-	wcout << "Serial Number String: " << wstr[0] << wstr << endl;
+	// wcout << "Serial Number String: " << wstr[0] << wstr << endl;
 	
 	return 0;
 }
 
 int main(int argc, char **argv)
 {
-	cout << "BHI360_IMU starting..." << endl;
+	cout << "[BHI360_IMU]: starting..." << endl;
 	string imu_channel = IMU_CHANNEL;
 	YAML::Node config = YAML::LoadFile("/home/user/mors_experiments/config/channels.yaml");
 	imu_channel = config["imu_data"].as<string>();
@@ -115,7 +126,7 @@ int main(int argc, char **argv)
 
 	int count = 0;
 
-	cout << "BHI360_IMU started" << endl;
+	cout << "[BHI360_IMU]: started" << endl;
 	while (true)
 	{
 		uint8_t buffer[64];
@@ -158,6 +169,7 @@ int main(int argc, char **argv)
 				imu_msg.orientation_quaternion[W] = quat_w * 1.0f / 16384.0f;
 
 				quaternionToEuler(imu_msg.orientation_quaternion[W], imu_msg.orientation_quaternion[X], imu_msg.orientation_quaternion[Y], imu_msg.orientation_quaternion[Z], roll, pitch, yaw);
+                quat_to_rpy(imu_msg.orientation_quaternion[W], imu_msg.orientation_quaternion[X], imu_msg.orientation_quaternion[Y], imu_msg.orientation_quaternion[Z], roll, pitch, yaw);
 
 				if (first)
 				{
@@ -180,7 +192,7 @@ int main(int argc, char **argv)
 		
 		if( !device_present )
 		{
-			cout << "USB error!" << endl;
+			cout << "[BHI360_IMU]: USB error!" << endl;
 			return 0;
 		}
 

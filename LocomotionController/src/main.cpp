@@ -333,10 +333,11 @@ int main() {
 
             // transform ref velocity to local coordinate system
             
-            R_body_for_vel << cos(robot_state.orientation(Z)), -sin(robot_state.orientation(Z)), 0,
-                              sin(robot_state.orientation(Z)),  cos(robot_state.orientation(Z)), 0,
+            R_body_for_vel << cos(x_ref(2)), -sin(x_ref(2)), 0,
+                              sin(x_ref(2)),  cos(x_ref(2)), 0,
                               0, 0, 1;
-            robot_cmd.lin_vel = R_body_for_vel * robot_cmd.lin_vel;
+            VectorXd cmd_loc_lin_vel = robot_cmd.lin_vel;
+            robot_cmd.lin_vel = R_body_for_vel * cmd_loc_lin_vel;
 
             // step command shaper
             cmd_shaper.set_body_adaptation_mode(adaptation_type);
@@ -344,46 +345,13 @@ int main() {
                                 foot_pos_global, 
                                 foot_pos_local, 
                                 robot_cmd.lin_vel, 
-                                robot_cmd.ang_vel[Z], 
-                                robot_cmd.pos[Z]);
+                                robot_cmd.ang_vel(Z), 
+                                robot_cmd.pos(Z),
+                                robot_state);
             R_body = mors_sys::euler2mat(robot_state.orientation(X), robot_state.orientation(Y), robot_state.orientation(Z));
             // ------------------
             // STANCE CONTROLLER
             // ------------------
-            // if (static_cast<int>(module_freq/mpc_freq) == mpc_it)
-            // {
-            //     mpc_it = 0;
-
-            //     // form x0 vector
-            //     x0 <<   robot_state.orientation(X),
-            //             robot_state.orientation(Y),
-            //             robot_state.orientation(Z),
-            //             robot_state.pos(X),
-            //             robot_state.pos(Y),
-            //             robot_state.pos(Z),
-            //             robot_state.ang_vel(X),
-            //             robot_state.ang_vel(Y),
-            //             robot_state.ang_vel(Z),
-            //             robot_state.lin_vel(X),
-            //             robot_state.lin_vel(Y),
-            //             robot_state.lin_vel(Z),
-            //             -robot.g;
-
-            //     // form foot_positions vector
-                
-            //     foot_positions.col(0) = R_body * leg_state.r1_pos;
-            //     foot_positions.col(1) = R_body * leg_state.l1_pos;
-            //     foot_positions.col(2) = R_body * leg_state.r2_pos;
-            //     foot_positions.col(3) = R_body * leg_state.l2_pos;
-
-            //     // predict future contact states
-            //     gait_table = gait_scheduler.getMpcTable(t, standing, phase_signal, leg_phi);
-
-            //     // solve mpc problem
-            //     grf_cmd = mpc_thread.get_contact_forces(x0, x_ref, foot_positions, gait_table);
-            // }
-            // mpc_it += 1;
-            // cout << "1" << endl;
             phi0 = gait_scheduler.get_phi();
             mpc_thread.set_gait_params(t_st, t_sw, phase_offsets, phase_init);
             mpc_thread.set_observation_data(robot_state, 
@@ -400,9 +368,9 @@ int main() {
             // ------------------
             // SWING CONTROLLER
             // ------------------
-            inv_R_body = R_body.inverse();
+            // inv_R_body = ;
             v << robot_state.ang_vel(X), robot_state.ang_vel(Y), robot_state.ang_vel(Z);
-            base_rpy_rate = inv_R_body * v;
+            base_rpy_rate = R_body.transpose() * v; // << robot_state.ang_vel(X), robot_state.ang_vel(Y), robot_state.ang_vel(Z); //= 
 
             foot_pos_local[0] = R_body * leg_state.r1_pos;
             foot_pos_local[1] = R_body * leg_state.l1_pos;
@@ -412,7 +380,7 @@ int main() {
             // calc foot pos global
             for (int i = 0; i < 4; i++)
                 foot_pos_global[i] = foot_pos_local[i] + robot_state.pos;
-
+ 
             // convert data to swing controller format
             ref_body_vel << x_ref(9), x_ref(10), x_ref(11);
             base_pos << robot_state.pos(X), robot_state.pos(Y), robot_state.pos(Z);
@@ -508,9 +476,37 @@ int main() {
                 leg_cmd.l2_kp.setZero();
                 leg_cmd.l2_kd.setZero();
             }
+
+            if ((phase_signal[R1] == STANCE || phase_signal[R1] == EARLY_CONTACT) && leg_state.contacts[R1] == false)
+            {
+                leg_cmd.l1_grf(X) = 0.0;
+                leg_cmd.l1_grf(Y) = 0.0;
+            }
+            if ((phase_signal[L1] == STANCE || phase_signal[L1] == EARLY_CONTACT) && leg_state.contacts[L1] == false)
+            {
+                leg_cmd.l1_grf(X) = 0.0;
+                leg_cmd.l1_grf(Y) = 0.0;
+            }
+            if ((phase_signal[R2] == STANCE || phase_signal[R2] == EARLY_CONTACT) && leg_state.contacts[R2] == false)
+            {
+                leg_cmd.l1_grf(X) = 0.0;
+                leg_cmd.l1_grf(Y) = 0.0;
+            }
+            if ((phase_signal[L2] == STANCE || phase_signal[L2] == EARLY_CONTACT) && leg_state.contacts[L2] == false)
+            {
+                leg_cmd.l1_grf(X) = 0.0;
+                leg_cmd.l1_grf(Y) = 0.0;
+            }
+
+            robot_ref.orientation = x_ref.segment(0, 3);
+            robot_ref.pos = x_ref.segment(3, 3);
+            robot_ref.ang_vel = x_ref.segment(6, 3);
+            robot_ref.lin_vel = x_ref.segment(9, 3);
+
             // ------------------
             // SEND LCM
             // ------------------
+            lcmExch.sendRobotRef(robot_ref, active_legs, (int8_t)adaptation_type);
             lcmExch.sendLegCmd(leg_cmd);
             lcmExch.sendPhaseSig(phase_signal, leg_phi, t);
             // lcmExch.sendPhaseSig(desired_leg_state, leg_phi, t);

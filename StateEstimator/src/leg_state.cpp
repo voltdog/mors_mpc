@@ -60,7 +60,7 @@ void LegState::set_contact_threshold(double threshold)
 {
     this->threshold = threshold;
 }
-
+ 
 LegData LegState::get_leg_state(VectorXd theta, VectorXd d_theta, VectorXd tau)
 {
     calc_jacobians(theta, d_theta);
@@ -85,7 +85,7 @@ LegData LegState::get_leg_state(VectorXd theta, VectorXd d_theta, VectorXd tau)
     leg_data.r2_acc = ddX_R2;
     leg_data.l2_acc = ddX_L2;
 
-    leg_data.r1_grf = f_hat_r1;
+    leg_data.r1_grf = f_hat_r1;//f_hat_l1_idyn;//
     leg_data.l1_grf = f_hat_l1;
     leg_data.r2_grf = f_hat_r2;
     leg_data.l2_grf = f_hat_l2;
@@ -166,7 +166,7 @@ void LegState::calc_grf(VectorXd tau, VectorXd d_theta, VectorXd theta)
     dq_l2 = d_theta.segment(9, 3);
     // inverse dynamics force observer
     // f_hat_r1 = inv_dyn_force_observer(tau_r1, J_R1, G_R1, V_R1);
-    // f_hat_l1 = inv_dyn_force_observer(tau_l1, J_L1, G_L1, V_L1);
+    f_hat_l1_idyn = inv_dyn_force_observer(tau_l1, J_L1, G_L1, V_L1);
     // f_hat_r2 = inv_dyn_force_observer(tau_r2, J_R2, G_R2, V_R2);
     // f_hat_l2 = inv_dyn_force_observer(tau_l2, J_L2, G_L2, V_L2);
     // cout << f_hat_r1 << endl;

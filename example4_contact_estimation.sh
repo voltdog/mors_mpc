@@ -7,7 +7,7 @@
 	# leg control
 	./LegController/build/leg_controller & 
 	# run example
-	python3 ./examples/example6_contact_estimation.py --leg 0 & 
+	python3 ./examples/example6_contact_estimation.py --leg 1 & 
 
 	# data logger
 	./MorsLogger/build/mors_logger &

@@ -59,7 +59,8 @@ int main() {
     CSVMaintainer csv;
     csv.init();
 
-    cout << "MORS Logger started" << endl;
+    cout << "[MORS Logger]: started" << endl;
+    
 
     double t = 0.0;
 

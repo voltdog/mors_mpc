@@ -47,11 +47,11 @@ LegControl::LegControl()
     Kp_l2.setZero(); Kd_l2.setZero();
 
     // theta_ref.setZero(12);
-    kin_sch = "x";
+    kin_sch = "x";//"m";//
     x_ref.setZero(12);
 }
 
-void LegControl::set_leg_params(RobotPhysicalParams &robot)
+void LegControl::set_leg_params(RobotPhysicalParams &robot, VectorXd &theta)
 {
     this->robot_params = robot;
     leg_model.set_leg_params(this->robot_params);
@@ -60,6 +60,14 @@ void LegControl::set_leg_params(RobotPhysicalParams &robot)
     l1_offset <<  robot_params.bx,  robot_params.by, 0;
     r2_offset << -robot_params.bx, -robot_params.by, 0;
     l2_offset << -robot_params.bx,  robot_params.by, 0;
+
+    if (theta(7) > 0.0 && theta(10) < 0.0)
+        kin_sch = "x";
+    else
+        kin_sch = "m";
+
+    cout << "[Leg Controller]: Kinematic scheme: " << kin_sch << endl;
+    // cout << "theta7=" << theta(7) << " | " << "theta(10)=" << theta(10) << endl;
 }
 
 void LegControl::set_feedback_params(MatrixXd& Kp_r1, MatrixXd& Kd_r1, 
@@ -106,7 +114,7 @@ VectorXd LegControl::get_tau_ff(VectorXd dd_x_ref, VectorXd dq, MatrixXd M, Vect
     return tau;
 }
 
-VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal, VectorXd &theta_ref)
+VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref)
 {
     // prepare data
 
@@ -136,8 +144,9 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     d_theta_l2 = d_theta.segment(9, 3);
 
     // get body rotation matrix and its inversion
-    R_body = leg_model.body_rotation_matrix(rpy(0), rpy(1), rpy(2));
-    invR = R_body.inverse();
+    // R_body = leg_model.body_rotation_matrix(0, 0, 0); //rpy(0), rpy(1), rpy(2));
+    // R_body = leg_model.body_rotation_matrix(rpy(0), rpy(1), rpy(2));
+    // invR = R_body.inverse();
 
 
     // calculate Jacobians and its derivatives
@@ -233,10 +242,10 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     imp_tau_ref_l2 = J_L2.transpose() * u_l2 + get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2);
 
     // get desired tau for GRF control
-    grf_tau_ref_r1 = J_R1.transpose() * (invR * grf_ref_r1);
-    grf_tau_ref_l1 = J_L1.transpose() * (invR * grf_ref_l1);
-    grf_tau_ref_r2 = J_R2.transpose() * (invR * grf_ref_r2);
-    grf_tau_ref_l2 = J_L2.transpose() * (invR * grf_ref_l2);
+    grf_tau_ref_r1 = J_R1.transpose() * (grf_ref_r1); //invR * 
+    grf_tau_ref_l1 = J_L1.transpose() * (grf_ref_l1); // R_body.transpose()
+    grf_tau_ref_r2 = J_R2.transpose() * (grf_ref_r2);
+    grf_tau_ref_l2 = J_L2.transpose() * (grf_ref_l2);
 
     tau_ref_r1 = imp_tau_ref_r1 + grf_tau_ref_r1;
     tau_ref_l1 = imp_tau_ref_l1 + grf_tau_ref_l1;
@@ -255,6 +264,12 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     x_ref.segment(6, 3) = x_ref_r2;
     x_ref.segment(9, 3) = x_ref_l2;
     theta_ref = ikine.calculate(x_ref, kin_sch);
+
+    // command velocities
+    d_theta_ref.segment(0, 3) = J_R1.inverse() * dx_ref_r1;
+    d_theta_ref.segment(3, 3) = J_L1.inverse() * dx_ref_l1;
+    d_theta_ref.segment(6, 3) = J_R2.inverse() * dx_ref_r2;
+    d_theta_ref.segment(9, 3) = J_L2.inverse() * dx_ref_l2;
 
     return tau_ref;
 }

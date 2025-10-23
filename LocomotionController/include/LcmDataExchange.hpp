@@ -61,6 +61,7 @@ class LCMExchanger
 
         void sendLegCmd(LegData &leg_data);
         void sendPhaseSig(vector<int>& phase, vector<double>& phi, double t);
+        void sendRobotRef(RobotData& robot_cmd, vector<bool> &active_legs, int8_t adaptation_type);
 
     private:
         void robotCmdThread();
@@ -70,6 +71,7 @@ class LCMExchanger
 
         string robot_cmd_channel, robot_state_channel, gait_params_channel, enable_channel;
         string grf_cmd_channel, foot_cmd_channel, phase_signal_channel;
+        string robot_ref_channel;
 
         lcm::LCM robot_cmd_subscriber;
         lcm::LCM robot_state_subscriber;
@@ -84,10 +86,12 @@ class LCMExchanger
         lcm::LCM grf_cmd_publisher;
         lcm::LCM foot_cmd_publisher;
         lcm::LCM phase_sig_publisher;
+        lcm::LCM robot_ref_publisher;
 
         mors_msgs::grf_cmd_msg grfCmdMsg;
         mors_msgs::foot_cmd_msg footCmdMsg;
         mors_msgs::phase_signal_msg phaseSigMsg;
+        mors_msgs::robot_cmd_msg robotRefMsg;
 
         // VectorXd cmd_vel;
         // VectorXd cmd_pose;

@@ -43,7 +43,8 @@ public:
                          const std::vector<Eigen::Vector3d>& foot_pos_local,
                          const Eigen::Vector3d& ref_body_vel,
                          double ref_body_yaw_vel,
-                         double ref_body_height);
+                         const double ref_body_pos,
+                         const RobotData& robot_state);
 
 private:
     // Parameters
@@ -68,9 +69,12 @@ private:
     double compute_ref_z_pos() const;
     double compute_ref_pitch_pos() const;
 
-    Eigen::VectorXd ref_body_vel_filtered;
+    Eigen::VectorXd ref_body_vel_filtered, ref_body_vel_directed;
+    double ref_body_yaw_vel_filtered;
+    MatrixXd R_body_for_vel;
 
     double ref_z_pos, ref_pitch_pos;
+    int test_cnt;
 };
 
 #endif // COMMAND_SHAPER_HPP
