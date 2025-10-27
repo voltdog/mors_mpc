@@ -33,40 +33,13 @@ public:
                             MatrixXd& Kp_r2, MatrixXd& Kd_r2, 
                             MatrixXd& Kp_l2, MatrixXd& Kd_l2);
 
-    // MatrixXd jacobian_R1(double q1, double q2, double q3);
-    // MatrixXd jacobian_R2(double q1, double q2, double q3);
-    // MatrixXd jacobian_L1(double q1, double q2, double q3);
-    // MatrixXd jacobian_L2(double q1, double q2, double q3);
-
-    // MatrixXd d_jacobian_R1(double q1, double q2, double q3, double dq1, double dq2, double dq3);
-    // MatrixXd d_jacobian_R2(double q1, double q2, double q3, double dq1, double dq2, double dq3);
-    // MatrixXd d_jacobian_L1(double q1, double q2, double q3, double dq1, double dq2, double dq3);
-    // MatrixXd d_jacobian_L2(double q1, double q2, double q3, double dq1, double dq2, double dq3);
-
-    // VectorXd fkine_R1(double q1, double q2, double q3);
-    // VectorXd fkine_R2(double q1, double q2, double q3);
-    // VectorXd fkine_L1(double q1, double q2, double q3);
-    // VectorXd fkine_L2(double q1, double q2, double q3);
-    // MatrixXd body_rotation_matrix(double roll, double pitch, double yaw);
-
-    // void joint_space_matrices_R1(VectorXd theta, VectorXd d_theta, MatrixXd &M, VectorXd &V, VectorXd &G, VectorXd &F);
-    // void joint_space_matrices_R2(VectorXd theta, VectorXd d_theta, MatrixXd &M, VectorXd &V, VectorXd &G, VectorXd &F);
-    // void joint_space_matrices_L1(VectorXd theta, VectorXd d_theta, MatrixXd &M, VectorXd &V, VectorXd &G, VectorXd &F);
-    // void joint_space_matrices_L2(VectorXd theta, VectorXd d_theta, MatrixXd &M, VectorXd &V, VectorXd &G, VectorXd &F);
-
     VectorXd cartesian_inverse_dynamics(VectorXd dd_x, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ);
     VectorXd get_tau_ff(VectorXd dd_x_ref, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ);
 
-    VectorXd calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref);
-                        //MatrixXd &leg_pos_ref, MatrixXd &leg_vel_ref, MatrixXd &leg_acc_ref, MatrixXd &leg_grf_ref,
+    VectorXd calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref);
+
 private:
 
-    // double m1, m2, m3;
-    // double l1, l2, l3;
-    // double d1, d2, d3;
-    // double l_cx_3, l_cz_2;
-    // double bx, by;
-    // double g;
     IKineQuadruped ikine;
     LegModel leg_model;
     RobotPhysicalParams robot_params;
@@ -110,7 +83,6 @@ private:
 
     double f1, f2, f3;
 
-    // VectorXd theta_ref;
     string kin_sch;
     VectorXd x_ref;
 

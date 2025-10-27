@@ -10,6 +10,7 @@ LegControl::LegControl()
     V_R1.resize(3); V_L1.resize(3); V_R2.resize(3); V_L2.resize(3);
     G_R1.resize(3); G_L1.resize(3); G_R2.resize(3); G_L2.resize(3);
     F_R1.resize(3); F_L1.resize(3); F_R2.resize(3); F_L2.resize(3);
+    F_R1.setZero(); F_L1.setZero(); F_R2.setZero(); F_L2.setZero();
 
     invJ.resize(3,3); J_T.resize(3,3); invJ_T.resize(3,3); Mx.resize(3,3);
     Vx.resize(3); Gx.resize(3);
@@ -114,10 +115,9 @@ VectorXd LegControl::get_tau_ff(VectorXd dd_x_ref, VectorXd dq, MatrixXd M, Vect
     return tau;
 }
 
-VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &rpy, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref)
+VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref)
 {
     // prepare data
-
     x_ref_r1 = leg_cmd.r1_pos;
     x_ref_l1 = leg_cmd.l1_pos;
     x_ref_r2 = leg_cmd.r2_pos;
@@ -142,12 +142,6 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     d_theta_l1 = d_theta.segment(3, 3);
     d_theta_r2 = d_theta.segment(6, 3);
     d_theta_l2 = d_theta.segment(9, 3);
-
-    // get body rotation matrix and its inversion
-    // R_body = leg_model.body_rotation_matrix(0, 0, 0); //rpy(0), rpy(1), rpy(2));
-    // R_body = leg_model.body_rotation_matrix(rpy(0), rpy(1), rpy(2));
-    // invR = R_body.inverse();
-
 
     // calculate Jacobians and its derivatives
     J_R1 = leg_model.jacobian_R1(theta(0), theta(1), theta(2));
@@ -178,61 +172,21 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     leg_model.joint_space_matrices_L2(theta, d_theta, M_L2, V_L2, G_L2, F_L2);
 
     // feedback control
-    // if (phase_signal(R1) == SWING || phase_signal(R1) == LATE)
-    // {
-        e_r1 = x_ref_r1 - X_R1;
-        de_r1 = dx_ref_r1 - dX_R1;
-        u_r1 = Kp_r1 * e_r1 + Kd_r1 * de_r1;// + ddx_ref_r1;
-    //     // imp_tau_ref_r1 = J_R1.transpose() * u_r1 - get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1);
-    //     // grf_tau_ref_r1.setZero();
-    // }
-    // else
-    // {
-    //     // grf_tau_ref_r1 = J_R1.transpose() * (invR * grf_ref_r1);// + (V_R1 + G_R1);
-    //     u_r1.setZero();
-    // }
+    e_r1 = x_ref_r1 - X_R1;
+    de_r1 = dx_ref_r1 - dX_R1;
+    u_r1 = Kp_r1 * e_r1 + Kd_r1 * de_r1;// + ddx_ref_r1;
 
-    // if (phase_signal(L1) == SWING || phase_signal(L1) == LATE)
-    // {
-        e_l1 = x_ref_l1 - X_L1;
-        de_l1 = dx_ref_l1 - dX_L1;
-        u_l1 = Kp_l1 * e_l1 + Kd_l1 * de_l1;// + ddx_ref_l1;
-    //     // imp_tau_ref_l1 = J_L1.transpose() * u_l1 + get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1);
-    //     // grf_tau_ref_l1.setZero();
-    // }
-    // else
-    // {
-    //     // grf_tau_ref_l1 = J_L1.transpose() * (invR * grf_ref_l1);// + (V_L1 + G_L1);
-    //     u_l1.setZero();
-    // }
-    
-    // if (phase_signal(R2) == SWING || phase_signal(R2) == LATE)
-    // {
-        e_r2 = x_ref_r2 - X_R2;
-        de_r2 = dx_ref_r2 - dX_R2;
-        u_r2 = Kp_r2 * e_r2 + Kd_r2 * de_r2;// + ddx_ref_r2;
-    //     // imp_tau_ref_r2 = J_R2.transpose() * u_r2 - get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2);
-    //     // grf_tau_ref_r2.setZero();
-    // }
-    // else
-    // {
-    //     // grf_tau_ref_r2 = J_R2.transpose() * (invR * grf_ref_r2);// + (V_R2 + G_R2);
-    //     u_r2.setZero();
-    // }
+    e_l1 = x_ref_l1 - X_L1;
+    de_l1 = dx_ref_l1 - dX_L1;
+    u_l1 = Kp_l1 * e_l1 + Kd_l1 * de_l1;// + ddx_ref_l1;
 
-    // if (phase_signal(L2) == SWING || phase_signal(L2) == LATE)
-    // {
-        e_l2 = x_ref_l2 - X_L2;
-        de_l2 = dx_ref_l2 - dX_L2;
-        u_l2 = Kp_l2 * e_l2 + Kd_l2 * de_l2;// + ddx_ref_l2;
-    //     // imp_tau_ref_l2 = J_L2.transpose() * u_l2 + get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2);
-    //     // grf_tau_ref_l2.setZero();
-    // }
-    // else
-    // {
-    //     // grf_tau_ref_l2 = J_L2.transpose() * (invR * grf_ref_l2);// + (V_L2 + G_L2) ;
-    //     u_l2.setZero();
-    // }
+    e_r2 = x_ref_r2 - X_R2;
+    de_r2 = dx_ref_r2 - dX_R2;
+    u_r2 = Kp_r2 * e_r2 + Kd_r2 * de_r2;// + ddx_ref_r2;
+
+    e_l2 = x_ref_l2 - X_L2;
+    de_l2 = dx_ref_l2 - dX_L2;
+    u_l2 = Kp_l2 * e_l2 + Kd_l2 * de_l2;// + ddx_ref_l2;
     
 
     // get desired tau for impedance control

@@ -100,21 +100,17 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
     for (int i = 0; i < 4; ++i) {
         if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
             (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE) ||
-            // ((i == 0 || i == 1) && phase_signal[i] == LATE) ||
             (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)) {
-            // foot_pos_global_just_stance.row(i) = foot_pos_global[i];
             foot_pos_local_just_stance.row(i) = foot_pos_local[i];
             foot_pos_global_just_stance.row(i) = foot_pos_global[i];
         }
-        // if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
-        //     (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE) ||
-        //     (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)
-        //     ) 
-        // {
-        //     foot_pos_global_just_stance.row(i) = foot_pos_global[i];
-        // }
-
     }
+    // for (int i = 0; i < 4; ++i) {
+    //     if (phase_signal[i] == STANCE) {
+    //         foot_pos_local_just_stance.row(i) = foot_pos_local[i];
+    //         foot_pos_global_just_stance.row(i) = foot_pos_global[i];
+    //     }
+    // }
 
     
     // Compute reference z position

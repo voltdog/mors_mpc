@@ -171,8 +171,8 @@ int main() {
             Kp_l2 = leg_cmd.l2_kp.array().matrix().asDiagonal();
             Kd_l2 = leg_cmd.l2_kd.array().matrix().asDiagonal();
 
-            leg_control.set_feedback_params(Kp_r1, Kd_r1, Kp_l1, Kd_l1, Kp_r2, Kd_r2, Kp_l2, Kd_l2);            
-            ref_tau = leg_control.calculate(leg_cmd, cur_theta, cur_omega, cur_euler, phase_signal, ref_theta, ref_omega);
+            leg_control.set_feedback_params(Kp_r1, Kd_r1, Kp_l1, Kd_l1, Kp_r2, Kd_r2, Kp_l2, Kd_l2);
+            ref_tau = leg_control.calculate(leg_cmd, cur_theta, cur_omega, phase_signal, ref_theta, ref_omega);
             ref_tau = vbmath::clip(ref_tau, tau_min, tau_max) * robot.gear_ratio / robot.kt;
 
             for (int i = 0; i < 3; i++)
