@@ -51,9 +51,9 @@ SwingController::step(const std::vector<int>& phase_signal,
                                                                ref_body_height, t_st);
             for (int j = 0; j < 3; ++j) p_finish[i][j] = p_finish_i[j];
 
-            double max_rise_z = step_planner[i].get_hip_location()[Z] + ref_body_height - 0.03;
+            double max_rise_z = step_planner[i].get_hip_location()[Z]  + ref_body_height - 0.05; //
             double p_rise_z = p_start[i][Z] + ref_stride_height;
-            p_rise_z = std::min(p_rise_z, max_rise_z);
+            p_rise_z = std::min(p_rise_z, max_rise_z); 
 
             p_rise[i] = {{
                 p_start[i][X] + 0.5 * (p_finish[i][X] - p_start[i][X]),
@@ -75,7 +75,7 @@ SwingController::step(const std::vector<int>& phase_signal,
     swing_traj_gen.set_points(p_start, p_rise, p_finish, d_p_start);
     auto [x_ref_global, d_p_ref, dd_p_ref] = swing_traj_gen.step(it_swing, cnt, phase_signal);
 
-    Eigen::Matrix3d inv_R_body = R_body.inverse();
+    Eigen::Matrix3d inv_R_body = R_body.transpose();
 
     std::vector<Eigen::Vector3d> x_ref_local(4), dx_ref(4), ddx_ref(4);
     for (int i = 0; i < 4; ++i) {

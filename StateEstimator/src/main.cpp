@@ -206,11 +206,11 @@ int main()
         // fused rpy rate filtering
         robot_state.ang_vel = lpf.update_rpy_rate(ang_vel_body);//ang_vel_world);
         // convert position from camera frame to body frame
-        body_pos = odometry.position + R_body * P_body_cam  - pos_offset;
+        body_pos = odometry.position + R_body * P_body_cam  - pos_offset ;
 
         if (first_pos)
         {
-            pos_offset = body_pos;
+            pos_offset = body_pos - Eigen::Vector3d(0.0, 0.0, 0.044);
             first_pos = false;
         }
         // position and linear velocity low pass filtering

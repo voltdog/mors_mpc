@@ -15,13 +15,13 @@ using namespace Eigen;
 using namespace YAML;
 using namespace std::chrono;
 
-#define MOTOR_KP0 20.0
-#define MOTOR_KP1 16.0
-#define MOTOR_KP2 16.0
+#define MOTOR_KP0 20.0//6.0//
+#define MOTOR_KP1 20.0//6.0//16.0//
+#define MOTOR_KP2 20.0//6.0//
 
-#define MOTOR_KD0 0.4
-#define MOTOR_KD1 0.4
-#define MOTOR_KD2 0.4
+#define MOTOR_KD0 0.4//0.2//0.1//0.4//
+#define MOTOR_KD1 0.6//0.2//0.1//0.4//
+#define MOTOR_KD2 0.6//0.2//0.1//
 
 // current time
 auto now() 

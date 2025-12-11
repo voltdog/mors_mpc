@@ -97,33 +97,33 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
     
 
     // Update foot positions just after stance
-    for (int i = 0; i < 4; ++i) {
-        if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
-            (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE) ||
-            (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)) {
-            foot_pos_local_just_stance.row(i) = foot_pos_local[i];
-            foot_pos_global_just_stance.row(i) = foot_pos_global[i];
-        }
-    }
     // for (int i = 0; i < 4; ++i) {
-    //     if (phase_signal[i] == STANCE) {
+    //     if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
+    //         (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE) ||
+    //         (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)) {
     //         foot_pos_local_just_stance.row(i) = foot_pos_local[i];
     //         foot_pos_global_just_stance.row(i) = foot_pos_global[i];
     //     }
     // }
+    for (int i = 0; i < 4; ++i) {
+        if (phase_signal[i] == STANCE) {
+            foot_pos_local_just_stance.row(i) = foot_pos_local[i];
+            foot_pos_global_just_stance.row(i) = foot_pos_global[i];
+        }
+    }
 
     
     // Compute reference z position
-    if (body_adapt_mode == INCL_ADAPT || body_adapt_mode == HEIGHT_ADAPT)
+    // if (body_adapt_mode == INCL_ADAPT || body_adapt_mode == HEIGHT_ADAPT)
         ref_z_pos = compute_ref_z_pos() + ref_body_height;// + 0.044;//
-    else
-        ref_z_pos = ref_body_height-0.044;
+    // else
+        // ref_z_pos = ref_body_height;//-0.044;
 
     // Compute reference pitch position
-    if (body_adapt_mode == INCL_ADAPT)
+    // if (body_adapt_mode == INCL_ADAPT)
         ref_pitch_pos = compute_ref_pitch_pos();//0.0;// 
-    else
-        ref_pitch_pos = 0.0;
+    // else
+        // ref_pitch_pos = 0.0;
 
     // Update reference position
     ref_x_pos += ref_body_vel_filtered(X) * dt;

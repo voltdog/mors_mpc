@@ -34,10 +34,10 @@ Eigen::Vector3d FootStepPlanner::step(const Eigen::Vector3d& body_pos,
 
     Eigen::Vector3d twisting_speed_cmd(0.0, 0.0, body_yaw_vel_cmd);
 
-    Eigen::Vector3d p_hip = body_pos + R_body * p0_b;
+    Eigen::Vector3d p_hip = (body_pos - Eigen::Vector3d(0.0, 0.0, h)) + R_body * p0_b;
 
     Eigen::Vector3d p_cross_omega = p0_b.cross(body_ang_vel);
-    p_cross_omega.z() = 0.0;
+    p_cross_omega.z() = 0.0; 
 
     Eigen::Vector3d dp_hip = body_lin_vel + p_cross_omega;
     Eigen::Vector3d dp_hip_cmd = body_lin_vel_cmd + p0_b.cross(twisting_speed_cmd);
@@ -49,8 +49,8 @@ Eigen::Vector3d FootStepPlanner::step(const Eigen::Vector3d& body_pos,
     Eigen::Vector3d capture_point = k1 * (dp_hip - dp_hip_cmd);
     Eigen::Vector3d centrifugal_term = k2 * dp_hip.cross(twisting_speed_cmd);
 
-    Eigen::Vector3d p_ef_cmd = hip_location + raibert_heuristic + capture_point + centrifugal_term
-                               - Eigen::Vector3d(0.0, 0.0, h + 0.02);
+    Eigen::Vector3d p_ef_cmd = hip_location + raibert_heuristic + capture_point + centrifugal_term;
+                            //    - Eigen::Vector3d(0.0, 0.0, h+0.035);
 
     return p_ef_cmd;
 }

@@ -205,7 +205,10 @@ int main() {
 
     VectorXd phi;
     vector<double> phi_cur;
-    vector<int> phase_signal;
+    vector<int> phase_signal, pre_phase_signal;
+    
+    phase_signal.resize(4);
+    pre_phase_signal.resize(4);
     phi.resize(4);
     phi.setZero();
     std::vector<Eigen::Vector3d> foot_pos_local(4);
@@ -234,6 +237,8 @@ int main() {
                                     k1_fsp, 
                                     k2_fsp);
     std::vector<Eigen::Vector3d> p_ref(4), dp_ref(4), ddp_ref(4);
+    std::vector<Eigen::Vector3d> p_ref_stance(4), dp_ref_stance(4);
+    std::vector<Eigen::Vector3d> p_ref_stance0(4);
     Vector3d ref_body_vel;
     Vector3d base_pos;
     Vector3d base_lin_vel;
@@ -365,6 +370,43 @@ int main() {
                                         active_legs);
             grf_cmd = mpc_thread.get_ref_grf();
 
+            dp_ref_stance[R1] = -robot_cmd.lin_vel;
+            dp_ref_stance[L1] = -robot_cmd.lin_vel;
+            dp_ref_stance[R2] = -robot_cmd.lin_vel;
+            dp_ref_stance[L2] = -robot_cmd.lin_vel;
+
+            if (phase_signal[R1] == STANCE && pre_phase_signal[R1] != STANCE) {
+                p_ref_stance[R1] = leg_state.r1_pos;
+                cout << "---------" << endl;
+            }
+            if (phase_signal[L1] == STANCE && pre_phase_signal[L1] != STANCE)
+                p_ref_stance[L1] = leg_state.l1_pos;
+            if (phase_signal[R2] == STANCE && pre_phase_signal[R2] != STANCE)
+                p_ref_stance[R2] = leg_state.r2_pos;
+            if (phase_signal[L2] == STANCE && pre_phase_signal[L2] != STANCE)
+                p_ref_stance[L2] = leg_state.l2_pos;
+                
+            // cout << phase_signal[R1] << endl;
+            if (phase_signal[R1] == STANCE && pre_phase_signal[R1] == STANCE)
+                p_ref_stance[R1] += dp_ref_stance[R1]*module_dt;
+            if (phase_signal[L1] == STANCE && pre_phase_signal[L1] == STANCE)
+                p_ref_stance[L1] += dp_ref_stance[L1]*module_dt;
+            if (phase_signal[R2] == STANCE && pre_phase_signal[R2] == STANCE)
+                p_ref_stance[R2] += dp_ref_stance[R2]*module_dt;
+            if (phase_signal[L2] == STANCE && pre_phase_signal[L2] == STANCE)
+                p_ref_stance[L2] += dp_ref_stance[L2]*module_dt;
+
+            // cout << p_ref_stance[R1](X) << endl;
+
+            pre_phase_signal[R1] = phase_signal[R1];
+            pre_phase_signal[L1] = phase_signal[L1];
+            pre_phase_signal[R2] = phase_signal[R2];
+            pre_phase_signal[L2] = phase_signal[L2];
+
+            // cout << "Yo" << endl;
+
+            // p_ref_stance(R1)
+
             // ------------------
             // SWING CONTROLLER
             // ------------------
@@ -389,8 +431,9 @@ int main() {
             swing_controller.set_gait_params(t_sw, t_st, stride_height);
             auto [p_ref, dp_ref, ddp_ref] = swing_controller.step(phase_signal,
                                                                     leg_phi,
-                                                                    x_ref(5),
-                                                                    // robot_cmd.pos(Z),
+                                                                    // x_ref(5),
+                                                                    // robot_cmd.pos(Z), 
+                                                                    base_pos(Z),
                                                                     x_ref(8),
                                                                     ref_body_vel,
                                                                     base_pos, 

@@ -70,7 +70,7 @@
 # BEST FOR 100 Hz TROT PACE BOUNDING 8 cm OBSTACLE kin_sch=x
 horizon: 14
 friction: 0.3
-f_min: 0.0 #-90.0
+f_min: 5.0 #-90.0
 f_max: 80.0 #90.0
 Q: [8.0, 8.0, 12.0, # orientation
     40.0, 40.0, 400.0, # position
