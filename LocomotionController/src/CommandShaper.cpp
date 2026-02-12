@@ -106,7 +106,7 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
     //     }
     // }
     for (int i = 0; i < 4; ++i) {
-        if (phase_signal[i] == STANCE) {
+        if (phase_signal[i] == STANCE || phase_signal[i] == EARLY_CONTACT) {
             foot_pos_local_just_stance.row(i) = foot_pos_local[i];
             foot_pos_global_just_stance.row(i) = foot_pos_global[i];
         }

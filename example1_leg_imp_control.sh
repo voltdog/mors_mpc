@@ -16,7 +16,7 @@
 
 	./LegController/build/leg_controller & 
 	# ./RobotModeController/build/robot_mode_controller & 
-	# ./MorsLogger/build/mors_logger &
+	./MorsLogger/build/mors_logger &
 	python3 ./examples/example1_leg.py 
 	wait
 	# fg

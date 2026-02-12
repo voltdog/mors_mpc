@@ -172,21 +172,21 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     leg_model.joint_space_matrices_L2(theta, d_theta, M_L2, V_L2, G_L2, F_L2);
 
     // feedback control
-    e_r1 = x_ref_r1 - X_R1;
-    de_r1 = dx_ref_r1 - dX_R1;
-    u_r1 = Kp_r1 * e_r1 + Kd_r1 * de_r1;// + ddx_ref_r1;
+    // e_r1 = x_ref_r1 - X_R1;
+    // de_r1 = dx_ref_r1 - dX_R1;
+    // u_r1 = Kp_r1 * e_r1 + Kd_r1 * de_r1;// + ddx_ref_r1;
 
-    e_l1 = x_ref_l1 - X_L1;
-    de_l1 = dx_ref_l1 - dX_L1;
-    u_l1 = Kp_l1 * e_l1 + Kd_l1 * de_l1;// + ddx_ref_l1;
+    // e_l1 = x_ref_l1 - X_L1;
+    // de_l1 = dx_ref_l1 - dX_L1;
+    // u_l1 = Kp_l1 * e_l1 + Kd_l1 * de_l1;// + ddx_ref_l1;
 
-    e_r2 = x_ref_r2 - X_R2;
-    de_r2 = dx_ref_r2 - dX_R2;
-    u_r2 = Kp_r2 * e_r2 + Kd_r2 * de_r2;// + ddx_ref_r2;
+    // e_r2 = x_ref_r2 - X_R2;
+    // de_r2 = dx_ref_r2 - dX_R2;
+    // u_r2 = Kp_r2 * e_r2 + Kd_r2 * de_r2;// + ddx_ref_r2;
 
-    e_l2 = x_ref_l2 - X_L2;
-    de_l2 = dx_ref_l2 - dX_L2;
-    u_l2 = Kp_l2 * e_l2 + Kd_l2 * de_l2;// + ddx_ref_l2;
+    // e_l2 = x_ref_l2 - X_L2;
+    // de_l2 = dx_ref_l2 - dX_L2;
+    // u_l2 = Kp_l2 * e_l2 + Kd_l2 * de_l2;// + ddx_ref_l2;
     
 
     // get desired tau for impedance control
@@ -224,7 +224,9 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     d_theta_ref.segment(3, 3) = J_L1.inverse() * dx_ref_l1;
     d_theta_ref.segment(6, 3) = J_R2.inverse() * dx_ref_r2;
     d_theta_ref.segment(9, 3) = J_L2.inverse() * dx_ref_l2;
-    d_theta_ref.setZero();
+    // d_theta_ref.setZero();
+
+
 
     return tau_ref;
 }

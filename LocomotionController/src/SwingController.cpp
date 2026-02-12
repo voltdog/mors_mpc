@@ -71,6 +71,7 @@ SwingController::step(const std::vector<int>& phase_signal,
         }
     }
 
+
     swing_traj_gen.set_parameters(t_sw, dz_near_ground);
     swing_traj_gen.set_points(p_start, p_rise, p_finish, d_p_start);
     auto [x_ref_global, d_p_ref, dd_p_ref] = swing_traj_gen.step(it_swing, cnt, phase_signal);

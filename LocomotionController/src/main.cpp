@@ -99,12 +99,16 @@ int main() {
     // leg control params
     string imp_config_address = config_address + "/imp_config.yaml";
     YAML::Node imp_config = YAML::LoadFile(imp_config_address);
-    VectorXd leg_kp(3);
-    VectorXd leg_kd(3);
+    VectorXd leg_kp_swing(3);
+    VectorXd leg_kd_swing(3);
+    VectorXd leg_kp_stance(3);
+    VectorXd leg_kd_stance(3);
     for (int i=0; i<3; i++)
     {
-        leg_kp[i] = imp_config["Kp"][i].as<double>();
-        leg_kd[i] = imp_config["Kd"][i].as<double>();
+        leg_kp_swing[i] = imp_config["Kp_swing"][i].as<double>();
+        leg_kd_swing[i] = imp_config["Kd_swing"][i].as<double>();
+        leg_kp_stance[i] = imp_config["Kp_stance"][i].as<double>();
+        leg_kd_stance[i] = imp_config["Kd_stance"][i].as<double>();
     }
 
     // timesteps duration
@@ -190,6 +194,7 @@ int main() {
     double t_st = 0.3;
     std::vector<double> phase_offsets = {0.0, 0.0, 0.0, 0.0};
     bool standing = true;
+    bool pre_standing = true;
     std::vector<int> phase_init = {STANCE, STANCE, STANCE, STANCE};
     double stride_height = 0.06;
 
@@ -370,38 +375,39 @@ int main() {
                                         active_legs);
             grf_cmd = mpc_thread.get_ref_grf();
 
-            dp_ref_stance[R1] = -robot_cmd.lin_vel;
-            dp_ref_stance[L1] = -robot_cmd.lin_vel;
-            dp_ref_stance[R2] = -robot_cmd.lin_vel;
-            dp_ref_stance[L2] = -robot_cmd.lin_vel;
+            // cout << standing << endl;
+            if (standing == false) {
+                dp_ref_stance[R1] = -robot_cmd.lin_vel;
+                dp_ref_stance[L1] = -robot_cmd.lin_vel;
+                dp_ref_stance[R2] = -robot_cmd.lin_vel;
+                dp_ref_stance[L2] = -robot_cmd.lin_vel;
 
-            if (phase_signal[R1] == STANCE && pre_phase_signal[R1] != STANCE) {
-                p_ref_stance[R1] = leg_state.r1_pos;
-                cout << "---------" << endl;
+                if ((phase_signal[R1] == STANCE && pre_phase_signal[R1] != STANCE) || (standing == false && pre_standing == true))
+                    p_ref_stance[R1] = leg_state.r1_pos;
+                if ((phase_signal[L1] == STANCE && pre_phase_signal[L1] != STANCE) || (standing == false && pre_standing == true))
+                    p_ref_stance[L1] = leg_state.l1_pos;
+                if ((phase_signal[R2] == STANCE && pre_phase_signal[R2] != STANCE) || (standing == false && pre_standing == true))
+                    p_ref_stance[R2] = leg_state.r2_pos;
+                if ((phase_signal[L2] == STANCE && pre_phase_signal[L2] != STANCE) || (standing == false && pre_standing == true))
+                    p_ref_stance[L2] = leg_state.l2_pos;
+                    
+                // cout << phase_signal[R1] << endl;
+                if (phase_signal[R1] == STANCE && pre_phase_signal[R1] == STANCE)
+                    p_ref_stance[R1] += dp_ref_stance[R1]*module_dt;
+                if (phase_signal[L1] == STANCE && pre_phase_signal[L1] == STANCE)
+                    p_ref_stance[L1] += dp_ref_stance[L1]*module_dt;
+                if (phase_signal[R2] == STANCE && pre_phase_signal[R2] == STANCE)
+                    p_ref_stance[R2] += dp_ref_stance[R2]*module_dt;
+                if (phase_signal[L2] == STANCE && pre_phase_signal[L2] == STANCE)
+                    p_ref_stance[L2] += dp_ref_stance[L2]*module_dt;
             }
-            if (phase_signal[L1] == STANCE && pre_phase_signal[L1] != STANCE)
-                p_ref_stance[L1] = leg_state.l1_pos;
-            if (phase_signal[R2] == STANCE && pre_phase_signal[R2] != STANCE)
-                p_ref_stance[R2] = leg_state.r2_pos;
-            if (phase_signal[L2] == STANCE && pre_phase_signal[L2] != STANCE)
-                p_ref_stance[L2] = leg_state.l2_pos;
-                
-            // cout << phase_signal[R1] << endl;
-            if (phase_signal[R1] == STANCE && pre_phase_signal[R1] == STANCE)
-                p_ref_stance[R1] += dp_ref_stance[R1]*module_dt;
-            if (phase_signal[L1] == STANCE && pre_phase_signal[L1] == STANCE)
-                p_ref_stance[L1] += dp_ref_stance[L1]*module_dt;
-            if (phase_signal[R2] == STANCE && pre_phase_signal[R2] == STANCE)
-                p_ref_stance[R2] += dp_ref_stance[R2]*module_dt;
-            if (phase_signal[L2] == STANCE && pre_phase_signal[L2] == STANCE)
-                p_ref_stance[L2] += dp_ref_stance[L2]*module_dt;
-
-            // cout << p_ref_stance[R1](X) << endl;
+                // cout << p_ref_stance[R1](X) << endl;
 
             pre_phase_signal[R1] = phase_signal[R1];
             pre_phase_signal[L1] = phase_signal[L1];
             pre_phase_signal[R2] = phase_signal[R2];
             pre_phase_signal[L2] = phase_signal[L2];
+            pre_standing = standing;
 
             // cout << "Yo" << endl;
 
@@ -463,62 +469,108 @@ int main() {
             else
                 leg_cmd.l2_grf = grf_cmd.segment(9, 3);
             // convert desired leg pos, vel and acc
-            leg_cmd.r1_pos = p_ref[R1];
-            leg_cmd.l1_pos = p_ref[L1];
-            leg_cmd.r2_pos = p_ref[R2];
-            leg_cmd.l2_pos = p_ref[L2];
-            leg_cmd.r1_vel = dp_ref[R1];
-            leg_cmd.l1_vel = dp_ref[L1];
-            leg_cmd.r2_vel = dp_ref[R2];
-            leg_cmd.l2_vel = dp_ref[L2];
-            leg_cmd.r1_acc = ddp_ref[R1];
-            leg_cmd.l1_acc = ddp_ref[L1];
-            leg_cmd.r2_acc = ddp_ref[R2];
-            leg_cmd.l2_acc = ddp_ref[L2];
+            
+            // leg_cmd.r1_pos = p_ref[R1];
+            // leg_cmd.l1_pos = p_ref[L1];
+            // leg_cmd.r2_pos = p_ref[R2];
+            // leg_cmd.l2_pos = p_ref[L2];
+            // leg_cmd.r1_vel = dp_ref[R1];
+            // leg_cmd.l1_vel = dp_ref[L1];
+            // leg_cmd.r2_vel = dp_ref[R2];
+            // leg_cmd.l2_vel = dp_ref[L2];
+            // leg_cmd.r1_acc = ddp_ref[R1];
+            // leg_cmd.l1_acc = ddp_ref[L1];
+            // leg_cmd.r2_acc = ddp_ref[R2];
+            // leg_cmd.l2_acc = ddp_ref[L2];
             
             if (phase_signal[R1] == SWING || phase_signal[R1] == LATE_CONTACT)
             {
-                leg_cmd.r1_kp = leg_kp;
-                leg_cmd.r1_kd = leg_kd;
+                leg_cmd.r1_kp = leg_kp_swing;
+                leg_cmd.r1_kd = leg_kd_swing;
+                leg_cmd.r1_pos = p_ref[R1];
+                leg_cmd.r1_vel = dp_ref[R1];
+                leg_cmd.r1_acc = ddp_ref[R1];
             }
             else
             {
-                leg_cmd.r1_kp.setZero();
-                leg_cmd.r1_kd.setZero();
+                // leg_cmd.r1_kp.setZero();
+                // leg_cmd.r1_kd.setZero();
+                leg_cmd.r1_kp = leg_kp_stance;
+                leg_cmd.r1_kd = leg_kd_stance;
+                leg_cmd.r1_pos = p_ref_stance[R1];
+                leg_cmd.r1_vel = dp_ref_stance[R1];
+                leg_cmd.r1_acc.setZero();
             }
 
             if (phase_signal[L1] == SWING || phase_signal[L1] == LATE_CONTACT)
             {
-                leg_cmd.l1_kp = leg_kp;
-                leg_cmd.l1_kd = leg_kd;
+                leg_cmd.l1_kp = leg_kp_swing;
+                leg_cmd.l1_kd = leg_kd_swing;
+                leg_cmd.l1_pos = p_ref[L1];
+                leg_cmd.l1_vel = dp_ref[L1];
+                leg_cmd.l1_acc = ddp_ref[L1];
             }
             else
             {
-                leg_cmd.l1_kp.setZero();
-                leg_cmd.l1_kd.setZero();
+                // leg_cmd.l1_kp.setZero();
+                // leg_cmd.l1_kd.setZero();
+                leg_cmd.l1_kp = leg_kp_stance;
+                leg_cmd.l1_kd = leg_kd_stance;
+                leg_cmd.l1_pos = p_ref_stance[L1];
+                leg_cmd.l1_vel = dp_ref_stance[L1];
+                leg_cmd.l1_acc.setZero();
             }
 
             if (phase_signal[R2] == SWING || phase_signal[R2] == LATE_CONTACT)
             {
-                leg_cmd.r2_kp = leg_kp;
-                leg_cmd.r2_kd = leg_kd;
+                leg_cmd.r2_kp = leg_kp_swing;
+                leg_cmd.r2_kd = leg_kd_swing;
+                leg_cmd.r2_pos = p_ref[R2];
+                leg_cmd.r2_vel = dp_ref[R2];
+                leg_cmd.r2_acc = ddp_ref[R2];
             }
             else
             {
-                leg_cmd.r2_kp.setZero();
-                leg_cmd.r2_kd.setZero();
+                // leg_cmd.r2_kp.setZero();
+                // leg_cmd.r2_kd.setZero();
+                leg_cmd.r2_kp = leg_kp_stance;
+                leg_cmd.r2_kd = leg_kd_stance;
+                leg_cmd.r2_pos = p_ref_stance[R2];
+                leg_cmd.r2_vel = dp_ref_stance[R2];
+                leg_cmd.r2_acc.setZero();
             }
 
             if (phase_signal[L2] == SWING || phase_signal[L2] == LATE_CONTACT)
             {
-                leg_cmd.l2_kp = leg_kp;
-                leg_cmd.l2_kd = leg_kd;
+                leg_cmd.l2_kp = leg_kp_swing;
+                leg_cmd.l2_kd = leg_kd_swing;
+                leg_cmd.l2_pos = p_ref[L2];
+                leg_cmd.l2_vel = dp_ref[L2];
+                leg_cmd.l2_acc = ddp_ref[L2];
             }
             else
             {
-                leg_cmd.l2_kp.setZero();
-                leg_cmd.l2_kd.setZero();
+                // leg_cmd.l2_kp.setZero();
+                // leg_cmd.l2_kd.setZero();
+                leg_cmd.l2_kp = leg_kp_stance;
+                leg_cmd.l2_kd = leg_kd_stance;
+                leg_cmd.l2_pos = p_ref_stance[L2];
+                leg_cmd.l2_vel = dp_ref_stance[L2];
+                leg_cmd.l2_acc.setZero();
             }
+
+            // если нужно сделать kp kd stance не равно нулю, то раскомментить
+            // if (standing == true)
+            // {
+            //     leg_cmd.r1_kp.setZero();
+            //     leg_cmd.r1_kd.setZero();
+            //     leg_cmd.l1_kp.setZero();
+            //     leg_cmd.l1_kd.setZero();
+            //     leg_cmd.r2_kp.setZero();
+            //     leg_cmd.r2_kd.setZero();
+            //     leg_cmd.l2_kp.setZero();
+            //     leg_cmd.l2_kd.setZero();
+            // }
 
             if ((phase_signal[R1] == STANCE || phase_signal[R1] == EARLY_CONTACT) && leg_state.contacts[R1] == false)
             {
