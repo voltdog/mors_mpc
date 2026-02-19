@@ -19,6 +19,7 @@ LCMExchanger::LCMExchanger()
     servo_state_channel = channel_config["servo_state"].as<string>();
     odometry_channel = channel_config["odometry"].as<string>();
     robot_state_channel = channel_config["robot_state"].as<string>();
+    contact_channel = channel_config["contact_state"].as<string>();
 
     imu_data.orientation_euler.resize(3);
     imu_data.orientation_euler.setZero();
@@ -42,6 +43,12 @@ LCMExchanger::LCMExchanger()
     odometry.orientation.setZero();
     odometry.ang_vel.resize(3);
     odometry.ang_vel.setZero();
+
+    contact_states.resize(4);
+    contact_states[0] = false;
+    contact_states[1] = false;
+    contact_states[2] = false;
+    contact_states[3] = false;
 }
 
 void LCMExchanger::start_exchanger()
@@ -49,6 +56,7 @@ void LCMExchanger::start_exchanger()
     thImu = make_unique<thread> (&LCMExchanger::imuThread, this);
     thServoState = make_unique<thread> (&LCMExchanger::servoStateThread, this);
     thOdometry = make_unique<thread> (&LCMExchanger::odometryThread, this);
+    thContact = make_unique<thread> (&LCMExchanger::contactThread, this);
 }
 
 
@@ -92,6 +100,28 @@ void LCMExchanger::odometryHandler(const lcm::ReceiveBuffer* rbuf,
     }
 }
 
+
+void LCMExchanger::contactHandler(const lcm::ReceiveBuffer* rbuf,
+    const std::string& chan, 
+    const mors_msgs::contact_sensor_msg* msg)
+{
+    // cout << "I got CONTACT data!" << endl;
+    for (int i=0; i<4; i++)
+    {
+        contact_states[i] = msg->contact_states[i];
+    }
+}
+
+void LCMExchanger::contactThread()
+{
+    contact_subscriber.subscribe(contact_channel, &LCMExchanger::contactHandler, this);
+    while(true)
+    {
+        contact_subscriber.handle();
+        // cout << "contact thread" << endl;
+        // sleep(0.001);
+    }
+}
 
 void LCMExchanger::imuThread()
 {
@@ -139,6 +169,11 @@ ServoData LCMExchanger::getServoStateData()
 Odometry LCMExchanger::getOdometry()
 {
     return odometry;
+}
+
+std::vector<bool> LCMExchanger::getContactData()
+{
+    return contact_states;
 }
 
 void LCMExchanger::sendRobotState(RobotData robot_state, LegData leg_state)

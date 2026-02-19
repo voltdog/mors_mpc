@@ -11,6 +11,7 @@
 #include "mors_msgs/servo_state_msg.hpp"
 #include "mors_msgs/odometry_msg.hpp"
 #include "mors_msgs/robot_state_msg.hpp"
+#include "mors_msgs/contact_sensor_msg.hpp"
 #include "system_functions.hpp"
 #include <yaml-cpp/yaml.h>
 #include "structs.hpp"
@@ -41,36 +42,44 @@ class LCMExchanger
                             const mors_msgs::servo_state_msg* msg);
         void odometryHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
-                            const mors_msgs::odometry_msg* msg);                            
+                            const mors_msgs::odometry_msg* msg);
+        void contactHandler(const lcm::ReceiveBuffer* rbuf,
+                            const std::string& chan,
+                            const mors_msgs::contact_sensor_msg* msg);                            
 
         void imuThread();
         void servoStateThread();
         void odometryThread();
+        void contactThread();
 
         ImuData getImuData();
         ServoData getServoStateData();
         Odometry getOdometry();
+        std::vector<bool> getContactData();
 
         void sendRobotState(RobotData robot_state, LegData leg_state);
         void sendServoFiltered(ServoData servo_filtered);
 
     private:
         string servo_state_channel, imu_channel, odometry_channel;
-        string robot_state_channel;
+        string robot_state_channel, contact_channel;
 
         lcm::LCM servo_state_subscriber;
         lcm::LCM imu_subscriber;
         lcm::LCM odometry_subscriber;
+        lcm::LCM contact_subscriber;
         lcm::LCM robot_state_publisher;
         lcm::LCM servo_filtered_publisher;
 
         ImuData imu_data;
         ServoData servo_state;
         Odometry odometry;
+        std::vector<bool> contact_states;
 
         unique_ptr<thread> thImu;
         unique_ptr<thread> thServoState;
         unique_ptr<thread> thOdometry;
+        unique_ptr<thread> thContact;
 
         mors_msgs::robot_state_msg rs_msg;
         mors_msgs::servo_state_msg servo_filtered_msg;

@@ -115,15 +115,15 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
     
     // Compute reference z position
     // if (body_adapt_mode == INCL_ADAPT || body_adapt_mode == HEIGHT_ADAPT)
-        ref_z_pos = compute_ref_z_pos() + ref_body_height;// + 0.044;//
+        // ref_z_pos = compute_ref_z_pos() + ref_body_height;// + 0.044;//
     // else
-        // ref_z_pos = ref_body_height;//-0.044;
+        ref_z_pos = ref_body_height;//-0.044;
 
     // Compute reference pitch position
     // if (body_adapt_mode == INCL_ADAPT)
-        ref_pitch_pos = compute_ref_pitch_pos();//0.0;// 
+        // ref_pitch_pos = compute_ref_pitch_pos();//0.0;// 
     // else
-        // ref_pitch_pos = 0.0;
+        ref_pitch_pos = 0.0;
 
     // Update reference position
     ref_x_pos += ref_body_vel_filtered(X) * dt;
@@ -131,35 +131,35 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
     // cout << robot_state.pos(Z) << endl;
 
     // Check position error
-    double e_x_threshold = 0.12;
-    double e_y_threshold = 0.2;
-    double e_yaw_threshold = 0.2;
-    double body_height_threshold = 0.01;
-    double e_x = ref_x_pos - robot_state.pos(X);
-    double e_y = ref_y_pos - robot_state.pos(Y);
-    double e_yaw = ref_yaw_pos - robot_state.orientation(2);
-    if (abs(e_x) > e_x_threshold)
-    {
-        ref_x_pos = robot_state.pos(X);
-        cout << "More than X_threshold. New X ref pos: " << ref_x_pos << endl;
-    }
-    if (abs(e_y) > e_y_threshold)
-    {
-        ref_y_pos = robot_state.pos(Y);
-        cout << "More than Y_threshold. New Y ref pos: " << ref_y_pos << endl;
-    }
-    if (abs(e_yaw) > e_yaw_threshold)
-    {
-        ref_yaw_pos = robot_state.orientation(2);
-        cout << "More than YAW_threshold. New YAW ref pos: " << ref_yaw_pos << endl;
-    }
-    if (ref_body_height < body_height_threshold)
-    {
-        ref_x_pos = robot_state.pos(X);
-        ref_y_pos = robot_state.pos(Y);
+    // double e_x_threshold = 0.12;
+    // double e_y_threshold = 0.2;
+    // double e_yaw_threshold = 0.2;
+    // double body_height_threshold = 0.01;
+    // double e_x = ref_x_pos - robot_state.pos(X);
+    // double e_y = ref_y_pos - robot_state.pos(Y);
+    // double e_yaw = ref_yaw_pos - robot_state.orientation(2);
+    // if (abs(e_x) > e_x_threshold)
+    // {
+        // ref_x_pos = robot_state.pos(X);
+    //     cout << "More than X_threshold. New X ref pos: " << ref_x_pos << endl;
+    // }
+    // if (abs(e_y) > e_y_threshold)
+    // {
+        // ref_y_pos = robot_state.pos(Y);
+    //     cout << "More than Y_threshold. New Y ref pos: " << ref_y_pos << endl;
+    // }
+    // if (abs(e_yaw) > e_yaw_threshold)
+    // {
         // ref_yaw_pos = robot_state.orientation(2);
-        cout << "New desired X Y: " << ref_x_pos << " " << ref_y_pos << endl;
-    }
+    //     cout << "More than YAW_threshold. New YAW ref pos: " << ref_yaw_pos << endl;
+    // }
+    // if (ref_body_height < body_height_threshold)
+    // {
+        // ref_x_pos = robot_state.pos(X);
+        // ref_y_pos = robot_state.pos(Y);
+    //     // ref_yaw_pos = robot_state.orientation(2);
+    //     cout << "New desired X Y: " << ref_x_pos << " " << ref_y_pos << endl;
+    // }
 
 
     // Update reference vector

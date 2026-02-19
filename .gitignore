@@ -1,6 +1,12 @@
 .vscode/
+.mpc_venv/
 build/
+install/
+log/
 __pycache__/
+ros_ws/build/
+ros_ws/install/
+ros_ws/log/
 ros_ws/
 
 *.csv

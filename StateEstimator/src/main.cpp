@@ -8,9 +8,9 @@ using namespace Eigen;
 using namespace YAML;
 using namespace std::chrono;
 
-#define CAMERA_OFFSET_X (0.26045)
-#define CAMERA_OFFSET_Y (0.01675)
-#define CAMERA_OFFSET_Z (-0.01)
+// #define CAMERA_OFFSET_X (0.26045)
+// #define CAMERA_OFFSET_Y (0.01675)
+// #define CAMERA_OFFSET_Z (-0.01)
 
 // current time
 auto now() 
@@ -101,6 +101,9 @@ int main()
     string state_estimator_config_address = config_address + "/state_estimator.yaml";
     YAML::Node state_estimator_config = YAML::LoadFile(state_estimator_config_address);
     double contact_threshold = state_estimator_config["contact_threshold"].as<double>(); 
+    double camera_offset_x = state_estimator_config["camera_offset_x"].as<double>(); 
+    double camera_offset_y = state_estimator_config["camera_offset_y"].as<double>(); 
+    double camera_offset_z = state_estimator_config["camera_offset_z"].as<double>(); 
 
     auto dt = std::chrono::duration<double>(module_dt);//1ms;
     // cout << module_dt << endl;
@@ -146,7 +149,7 @@ int main()
     MatrixXd ang_vel_body_cross(3,3);
 
     VectorXd P_body_cam(3);
-    P_body_cam << CAMERA_OFFSET_X, CAMERA_OFFSET_Y, CAMERA_OFFSET_Z;
+    P_body_cam << camera_offset_x, camera_offset_y, camera_offset_z;
 
     VectorXd body_pos(3);
     VectorXd pos_offset(3);
@@ -158,7 +161,8 @@ int main()
 
     Matrix3d R_z;
 
-    double cos_yaw, sin_yaw;
+    // double cos_yaw, sin_yaw;
+    std::vector<bool> contact_states(4, false);
 
     // yaw variables
     // double yaw_tmp = 0.0;
@@ -179,6 +183,7 @@ int main()
         servo_state = lcmExch.getServoStateData();
         servo_state.torq *= (0.73/10.0);
         odometry = lcmExch.getOdometry();
+        contact_states = lcmExch.getContactData();
 
         // do smth
         // orientation data fusion
@@ -206,7 +211,7 @@ int main()
         // fused rpy rate filtering
         robot_state.ang_vel = lpf.update_rpy_rate(ang_vel_body);//ang_vel_world);
         // convert position from camera frame to body frame
-        body_pos = odometry.position + R_body * P_body_cam  - pos_offset ;
+        body_pos = odometry.position - pos_offset;// + R_body * P_body_cam  
 
         if (first_pos)
         {
@@ -228,6 +233,8 @@ int main()
 
         // get leg states
         leg_state = leg_state_estimator.get_leg_state(servo_state.pos, servo_state.vel, servo_state.torq);
+        leg_state.contacts = contact_states;
+
 
         
         lcmExch.sendRobotState(robot_state, leg_state);

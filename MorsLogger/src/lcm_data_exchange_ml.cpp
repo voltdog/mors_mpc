@@ -297,6 +297,7 @@ void LCMExchanger::imuHandler(const lcm::ReceiveBuffer* rbuf,
         imu_data.lin_accel(i) = msg->linear_acceleration[i];
     }
     imu_data.orientation_quaternion(3) = msg->orientation_quaternion[3];
+    // cout << "Pitch: " << msg->orientation_euler[1] << endl;
 }
 
 void LCMExchanger::servoStateHandler(const lcm::ReceiveBuffer* rbuf,

@@ -21,11 +21,13 @@
 IKineQuadruped::IKineQuadruped()
 {
     bx = 0.1655;
-    by = 0.066;
+    by = 0.067;
     bz = 0.0;
-    L1 = 0.09585;
+
+    L1 = 0.098;
     L2 = 0.13;
     L3 = 0.1485;
+
     theta_offset.resize(3);
     theta_offset << 0, -M_PI/2, 0;
 

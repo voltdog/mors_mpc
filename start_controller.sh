@@ -1,33 +1,48 @@
+#!/bin/bash
+
 (trap 'kill 0' SIGINT; 
-	echo "Launching Test 5: Body Control via Convex MPC..."
+	echo "Launching Convex MPC Quadruped Controller..."
 
     SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
-    echo "$SCRIPT_DIR"
+    echo "Script Location: $SCRIPT_DIR"
 
 	config_dir="$SCRIPT_DIR/config/"
-	echo "${config_dir}"
+	echo "Config Location: ${config_dir}"
 
     # ros2 controller
     ros2 launch robot_mode_controller bringup.launch.py &
-	
-	# hardware interfaces
-	${SCRIPT_DIR}/RealsenseCamera/build/realsense_camera  &
-    ${SCRIPT_DIR}/BHI360_IMU/build/bhi360_imu &
-    sleep 4s
+
+    # Проверяем аргумент
+    if [ "$1" == "--sim" ]; then
+        echo "-------------- Simulation Mode Activated --------------" 
+        /home/yoggi/mors_mpc/.mpc_venv/bin/python ${SCRIPT_DIR}/Simulator/mors_simulator.py &
+        sleep 4s
+    else
+        # hardware interfaces
+        echo "-------------- Hardware Mode Activated --------------"
+        ${SCRIPT_DIR}/RealsenseCamera/build/realsense_camera  &
+        ${SCRIPT_DIR}/BHI360_IMU/build/bhi360_imu &
+        # in the future add here contact sensors controller
+        # wait before the other controllers start to ensure that the hardware interfaces are up and running
+        sleep 4s
+    fi
+
+    
+    # state estimation
     ${SCRIPT_DIR}/StateEstimator/build/state_estimator &
 
 	# robot control
 	${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC &
 	${SCRIPT_DIR}/LegController/build/leg_controller & 
 
-	# python3 ./examples/example5_mpc_locomotion.py &
+    echo "Robot Controller Started Successfully" &
 
 	# data logger
-	${SCRIPT_DIR}/MorsLogger/build/mors_logger &
-	# sleep 30s; kill $!; echo "MorsLogger killed" &
-
-    # echo "Robot Controller Started Successfully" &
-
+    if [ "$2" == "--log" ]; then
+	    ${SCRIPT_DIR}/MorsLogger/build/mors_logger &
+        sleep 30s; kill $!; echo "MorsLogger killed" &
+    fi
+	
 	wait
 	)
 

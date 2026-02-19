@@ -190,10 +190,14 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     
 
     // get desired tau for impedance control
-    imp_tau_ref_r1 = -get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1); //J_R1.transpose() * u_r1 
-    imp_tau_ref_l1 = get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1); //J_L1.transpose() * u_l1 + 
-    imp_tau_ref_r2 = -get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2); //J_R2.transpose() * u_r2 
-    imp_tau_ref_l2 = get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2); //J_L2.transpose() * u_l2 + 
+    // imp_tau_ref_r1 = -get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1); //J_R1.transpose() * u_r1 
+    // imp_tau_ref_l1 = get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1); //J_L1.transpose() * u_l1 + 
+    // imp_tau_ref_r2 = -get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2); //J_R2.transpose() * u_r2 
+    // imp_tau_ref_l2 = get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2); //J_L2.transpose() * u_l2 + 
+    imp_tau_ref_r1.setZero();// = -get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1); //J_R1.transpose() * u_r1 
+    imp_tau_ref_l1.setZero();// = get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1); //J_L1.transpose() * u_l1 + 
+    imp_tau_ref_r2.setZero();// = -get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2); //J_R2.transpose() * u_r2 
+    imp_tau_ref_l2.setZero();// = get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2); //J_L2.transpose() * u_l2 + 
 
     // get desired tau for GRF control
     grf_tau_ref_r1 = J_R1.transpose() * (grf_ref_r1); //invR * 
@@ -220,11 +224,11 @@ VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_th
     theta_ref = ikine.calculate(x_ref, kin_sch);
 
     // command velocities
-    d_theta_ref.segment(0, 3) = J_R1.inverse() * dx_ref_r1;
-    d_theta_ref.segment(3, 3) = J_L1.inverse() * dx_ref_l1;
-    d_theta_ref.segment(6, 3) = J_R2.inverse() * dx_ref_r2;
-    d_theta_ref.segment(9, 3) = J_L2.inverse() * dx_ref_l2;
-    // d_theta_ref.setZero();
+    // d_theta_ref.segment(0, 3) = J_R1.inverse() * dx_ref_r1;
+    // d_theta_ref.segment(3, 3) = J_L1.inverse() * dx_ref_l1;
+    // d_theta_ref.segment(6, 3) = J_R2.inverse() * dx_ref_r2;
+    // d_theta_ref.segment(9, 3) = J_L2.inverse() * dx_ref_l2;
+    d_theta_ref.setZero();
 
 
 

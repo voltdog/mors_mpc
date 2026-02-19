@@ -1,56 +1,11 @@
-# BEST FOR 100 Hz PACE kin_sch=x
-# horizon: 12
-# friction: 0.3
-# f_min: 5.0 #-90.0
-# f_max: 80.0 #90.0
-# Q: [8.0, 10.0, 12.0, # orientation
-#     40.0, 40.0, 200.0, # position
-#     0.01, 0.01, 0.2, # angular velocity
-#     1.0, 1.0, 0.2, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-
-# Q_gain: 0.4e1
-# R_gain: 10e-4
-
-# robot_height: 0.24
-
-# BEST FOR 100 Hz BOUNCING kin_sch=x
-# horizon: 12
-# friction: 0.3
-# f_min: 5.0 #-90.0
-# f_max: 80.0 #90.0
-# Q: [20.0, 20.0, 20.0, # orientation
-#     40.0, 40.0, 200.0, # position
-#     0.01, 0.01, 0.2, # angular velocity
-#     1.0, 1.0, 0.2, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-
-# Q_gain: 0.4e1
-# R_gain: 10e-4
-
-# robot_height: 0.24
-
-# # BEST FOR 100 Hz TROT 7 cm OBSTACLE kin_sch=m
-# horizon: 12
+# # HARDWARE
+# # BEST FOR 100 Hz TROT PACE BOUNDING 8 cm OBSTACLE kin_sch=x
+# horizon: 14
 # friction: 0.3
 # f_min: 5.0 #-90.0
 # f_max: 80.0 #90.0
 # Q: [8.0, 8.0, 12.0, # orientation
-#     40.0, 20.0, 200.0, # position
+#     40.0, 40.0, 400.0, # position
 #     0.01, 0.01, 0.2, # angular velocity
 #     1.0, 1.0, 0.2, 0.0] # linear velocity
 # # Q: [20.0, 20.0, 3.0, # orientation
@@ -63,16 +18,17 @@
 #     1.0, 1.0, 1.0]  # linear velocity
 
 # Q_gain: 0.4e1
-# R_gain: 5e-4
+# R_gain: 7e-4
 
-# robot_height: 0.22
+# robot_height: 0.23
 
+# SIMULATION
 # BEST FOR 100 Hz TROT PACE BOUNDING 8 cm OBSTACLE kin_sch=x
 horizon: 14
 friction: 0.3
 f_min: 5.0 #-90.0
 f_max: 80.0 #90.0
-Q: [8.0, 8.0, 12.0, # orientation
+Q: [20.0, 20.0, 40.0, # orientation
     40.0, 40.0, 400.0, # position
     0.01, 0.01, 0.2, # angular velocity
     1.0, 1.0, 0.2, 0.0] # linear velocity
@@ -85,171 +41,7 @@ R: [1.0, 1.0, 1.0,  # orientation
     1.0, 1.0, 1.0,  # angular velocity
     1.0, 1.0, 1.0]  # linear velocity
 
-Q_gain: 0.4e1
+Q_gain: 1e3
 R_gain: 7e-4
 
-robot_height: 0.23
-
-# the BEST
-# f_min: 5.0 #-90.0
-# f_max: 80.0 #90.0
-# Q: [8.0, 8.0, 10.0, # orientation
-#     20.0, 20.0, 30.0, # position
-#     0.01, 0.01, 0.2, # angular velocity
-#     1.0, 1.0, 0.2, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-
-# Q_gain: 0.4e1
-# R_gain: 1e-4
-
-# robot_height: 0.23
-
-# horizon: 12
-# friction: 0.3
-# f_min: 5.0 #-90.0
-# f_max: 80.0 #90.0
-# Q: [8.0, 8.0, 10.0, # orientation
-#     20.0, 20.0, 50.0, # position
-#     0.01, 0.01, 0.2, # angular velocity
-#     0.7, 0.7, 0.2, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-
-# Q_gain: 1e1
-# R_gain: 1e-4
-
-# good for cpg gait generator
-# horizon: 12
-# friction: 0.7
-# f_min: 2.0 #-90.0
-# f_max: 90.0 #90.0
-# Q: [6.0, 6.0, 5.0, # orientation
-#     30.0, 26.0, 200.0, # position
-#     0.0, 0.0, 0.3, # angular velocity
-#     1.5, 2.0, 0.05, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-
-# Q_gain: 1e3
-# R_gain: 1.0
-
-# very best (for stairs)
-# horizon: 12
-# friction: 0.7
-# f_min: 2.0 #-90.0
-# f_max: 90.0 #90.0
-# Q: [6.0, 6.0, 5.0, # orientation
-#     30.0, 26.0, 140.0, # position
-#     0.0, 0.0, 0.3, # angular velocity
-#     1.5, 2.0, 0.05, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-
-# Q_gain: 9.1e2
-# R_gain: 5.0e-1
-# best
-# horizon: 12
-# friction: 0.7
-# f_min: 0.0 #-90.0
-# f_max: 90.0 #90.0
-# Q: [6.0, 6.0, 5.0, # orientation
-#     30.0, 26.0, 70.0, # position
-#     0.0, 0.0, 0.3, # angular velocity
-#     1.5, 2.0, 0.05, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-# Q_gain: 9.0e2
-# R_gain: 1.0e-1
-# much better
-# horizon: 12
-# friction: 0.45
-# f_min: 0.0 #-90.0
-# f_max: 90.0 #90.0
-# Q: [6.0, 10.0, 3.0, # orientation
-#     35.0, 25.0, 250.0, # position
-#     0.0, 0.0, 0.8, # angular velocity
-#     0.7, 0.8, 0.05, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-
-# Q_gain: 2.6e1
-# R_gain: 0.3e-2
-
-#better
-# horizon: 12
-# friction: 0.45
-# f_min: 0.0 #-90.0
-# f_max: 90.0 #90.0
-# Q: [6.0, 10.0, 3.0, # orientation
-#     35.0, 20.0, 250.0, # position
-#     0.0, 0.0, 0.8, # angular velocity
-#     0.7, 0.7, 0.05, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-
-# Q_gain: 2.5e1
-# R_gain: 0.3e-2
-
-#good
-# horizon: 12
-# friction: 0.45
-# f_min: 0.0 #-90.0
-# f_max: 90.0 #90.0
-# Q: [6.0, 10.0, 3.0, # orientation
-#     35.0, 20.0, 250.0, # position
-#     0.0, 0.0, 0.8, # angular velocity
-#     0.3, 0.3, 0.05, 0.0] # linear velocity
-# # Q: [20.0, 20.0, 3.0, # orientation
-# #     100.0, 50.0, 1000.0, # position
-# #     0.0, 0.0, 0.8, # angular velocity
-# #     0.2, 0.2, 0.05, 0.0] # linear velocity
-# R: [1.0, 1.0, 1.0,  # orientation
-#     1.0, 1.0, 1.0,  # position
-#     1.0, 1.0, 1.0,  # angular velocity
-#     1.0, 1.0, 1.0]  # linear velocity
-
-# Q_gain: 2.5e1
-# R_gain: 0.2e-2
+robot_height: 0.2

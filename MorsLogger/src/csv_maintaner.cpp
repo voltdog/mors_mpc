@@ -18,7 +18,8 @@ void CSVMaintainer::init()
     std::ostringstream oss;
     oss << std::put_time(&tm, "%y%m%d_%H%M%S");//"%d-%m-%Y %H-%M-%S");
     auto folder_postfix = oss.str();
-    log_folder = "/home/user/mors_logs/log_" + folder_postfix + "/";
+    string user = mors_sys::GetEnv("USER");
+    log_folder = "/home/" + user + "/mors_logs/log_" + folder_postfix + "/";
     filesystem::create_directories(log_folder);
     cout << "[MORS Logger]: folder addr: " << log_folder << endl;
 
@@ -353,17 +354,33 @@ void CSVMaintainer::set_vector(vector<bool> &data, int size, CSVWriter &csv)
 void CSVMaintainer::set_vector(VectorXd &data, int size, CSVWriter &csv)
 {
     for (int i=0; i<size; i++)
-        csv << data(i);
+    {
+        if (std::abs(data(i)) < 2e-5)
+            csv << 0.0;
+        else
+            csv << data(i);
+    }
 }
 
 void CSVMaintainer::set_vector(Vector4d &data, CSVWriter &csv)
 {
     for (int i=0; i<4; i++)
-        csv << data(i);
+    {
+        if (std::abs(data(i)) < 2e-5)
+            csv << 0.0;
+        else
+            csv << data(i);
+    }
+        
 }
 
 void CSVMaintainer::set_vector(Vector4i &data, CSVWriter &csv)
 {
     for (int i=0; i<4; i++)
-        csv << data(i);
+    {
+        if (std::abs(data(i)) < 2e-5)
+            csv << 0.0;
+        else
+            csv << data(i);
+    }
 }

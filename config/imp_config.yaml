@@ -20,9 +20,19 @@
 # working
 # Kd_swing: [0.4, 0.6, 0.6]
 # Kp_swing: [20.0, 20.0, 20.0]
+
+# HARDWARE
 # for experiments
-Kd_swing: [2.0, 2.0, 2.0]
-Kp_swing: [28.0, 28.0, 28.0]
+# Kd_swing: [2.0, 2.0, 2.0]
+# Kp_swing: [28.0, 28.0, 28.0]
+
+# Kd_stance: [0.0, 0.0, 0.0]
+# Kp_stance: [0.0, 0.0, 0.0]
+
+# SIMULATION
+# for experiments
+Kd_swing: [0.01, 0.01, 0.01]
+Kp_swing: [20, 20.0, 20.0]
 
 Kd_stance: [0.0, 0.0, 0.0]
 Kp_stance: [0.0, 0.0, 0.0]
