@@ -127,13 +127,13 @@ void CSVMaintainer::init()
     
     // write headers to files
     create_csv(servo_state_csv, servo_state_head, servo_state_addr);
-    create_csv(servo_state_filt_csv, servo_state_filt_head, servo_state_filt_addr);
+    // create_csv(servo_state_filt_csv, servo_state_filt_head, servo_state_filt_addr);
     create_csv(servo_cmd_csv, servo_cmd_head, servo_cmd_addr);
     create_csv(imu_data_csv, imu_data_head, imu_data_addr);
     create_csv(foot_cmd_csv, foot_cmd_head, foot_cmd_addr);
     create_csv(grf_cmd_csv, grf_cmd_head, grf_cmd_addr);
-    create_csv(enable_csv, enable_head, enable_addr);
-    create_csv(control_type_csv, control_type_head, control_type_addr);
+    // create_csv(enable_csv, enable_head, enable_addr);
+    // create_csv(control_type_csv, control_type_head, control_type_addr);
     create_csv(odometry_csv, odometry_head, odometry_addr);
     create_csv(robot_state_csv, robot_state_head, robot_state_addr);
     create_csv(robot_cmd_csv, robot_cmd_head, robot_cmd_addr);
@@ -355,7 +355,7 @@ void CSVMaintainer::set_vector(VectorXd &data, int size, CSVWriter &csv)
 {
     for (int i=0; i<size; i++)
     {
-        if (std::abs(data(i)) < 2e-5)
+        if (std::abs(data(i)) < 1e-4)
             csv << 0.0;
         else
             csv << data(i);
@@ -366,7 +366,7 @@ void CSVMaintainer::set_vector(Vector4d &data, CSVWriter &csv)
 {
     for (int i=0; i<4; i++)
     {
-        if (std::abs(data(i)) < 2e-5)
+        if (std::abs(data(i)) < 1e-4)
             csv << 0.0;
         else
             csv << data(i);
@@ -378,7 +378,7 @@ void CSVMaintainer::set_vector(Vector4i &data, CSVWriter &csv)
 {
     for (int i=0; i<4; i++)
     {
-        if (std::abs(data(i)) < 2e-5)
+        if (std::abs(data(i)) < 1e-4)
             csv << 0.0;
         else
             csv << data(i);

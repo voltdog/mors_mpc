@@ -56,7 +56,10 @@ class MorsMujocoEnv():
         self.model = mujoco.MjModel.from_xml_path(xml_path)
         self.data = mujoco.MjData(self.model)
         self.model.opt.timestep = self._time_step
-        self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
+        self.viewer = mujoco.viewer.launch_passive(self.model, 
+                                                   self.data,
+                                                   show_left_ui=False,
+                                                   show_right_ui=False)
         self.data.qpos[7:7+NUM_MOTORS] = init_motor_angles[:]
         mujoco.mj_forward(self.model, self.data)
 
@@ -139,9 +142,12 @@ class MorsMujocoEnv():
 
     def get_base_orientation_euler(self):
         quat = self.get_base_orientation()
-        quat[0] *= -1
-        quat[2] *= -1
-        return Rotation.from_quat(quat).as_euler('zyx', degrees=False)
+        # quat[0] *= -1
+        # quat[2] *= -1
+        euler = Rotation.from_quat(quat).as_euler('xyz', degrees=False)
+        euler_correct = np.array([euler[2], -euler[1], -euler[0]])
+
+        return euler_correct.copy()
 
     def get_base_lin_vel(self):
         return self.data.qvel[0:3].copy()
@@ -150,7 +156,15 @@ class MorsMujocoEnv():
         return self.data.sensor('accelerometer').data.copy()
 
     def get_base_ang_vel(self):
-        return self.data.qvel[3:6].copy()
+        ang_vel = self.data.qvel[3:6].copy()
+        # ang_vel[2] *= -1  # correct yaw direction
+
+        # quat = self.get_base_orientation()
+        # R_world_to_base = quat2mat(quat)
+        # ang_vel_base = R_world_to_base @ ang_vel_world
+
+        # return ang_vel_base.copy()
+        return ang_vel.copy()
     
     def get_contact_flags(self):
         """

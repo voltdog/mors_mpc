@@ -43,8 +43,8 @@
         mass="3.748"
         fullinertia="0.012838176 0.056852389 0.064034355 -0.000006851 0.000156493 -0.000095392"
       />
-      <geom type="box" size="0.1059 0.102 0.044" name="body_visual" rgba="0.7 0.7 0.8 1" />
-      <!-- <geom type="mesh" mesh="body" name="body_visual" rgba="0.7 0.7 0.8 1" margin="0.001"/> -->
+      <!-- <geom type="box" size="0.1059 0.102 0.044" name="body_visual" rgba="0.7 0.7 0.8 1" /> -->
+      <geom type="mesh" mesh="body" name="body_visual" rgba="0.7 0.7 0.8 1" margin="0.001"/>
 
       <!-- Four legs: R1, L1, R2, L2 -->
       <!-- Abad attach positions from XACRO: abad_attach_x=0.1035, abad_attach_y=0.066 -->
@@ -79,7 +79,7 @@
                 mass="0.018" 
                 fullinertia="1.4e-6 1.4e-6 1.4e-6 0.0 0.0 0.0"
               />
-              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1"/>
+              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" condim="6"/>
             </body>
           </body>
         </body>
@@ -116,7 +116,7 @@
                 mass="0.018" 
                 fullinertia="1.4e-6 1.4e-6 1.4e-6 0.0 0.0 0.0"
               />
-              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1"/>
+              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" condim="6"/>
             </body>
           </body>
         </body>
@@ -153,7 +153,7 @@
                 mass="0.018" 
                 fullinertia="1.4e-6 1.4e-6 1.4e-6 0.0 0.0 0.0"
               />
-              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1"/>
+              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" condim="6"/>
             </body>
           </body>
         </body>
@@ -190,7 +190,7 @@
                 mass="0.018" 
                 fullinertia="1.4e-6 1.4e-6 1.4e-6 0.0 0.0 0.0"
               />
-              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1"/>
+              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" condim="6"/>
             </body>
           </body>
         </body>
