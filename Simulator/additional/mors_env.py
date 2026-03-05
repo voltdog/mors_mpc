@@ -224,17 +224,54 @@ class MorsMujocoEnv():
             
         return foot_pos
     
-    def get_local_foot_positions(self):
+    def get_local_foot_positions(self, yaw_real):
         foot_body_names = ["ef_R1", "ef_L1", "ef_R2", "ef_L2"]
         foot_pos = [0]*4
+
         base_pos = np.array(self.get_base_position())
-        R_base = quat2mat(self.get_base_orientation())
+        base_euler = self.get_base_orientation_euler()
+        euler_correct = np.array([base_euler[0], base_euler[1], yaw_real])
+
+        R_base = Rotation.from_euler('xyz', euler_correct).as_matrix()
 
         for leg_index in range(4):
             foot_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, foot_body_names[leg_index])
-            foot_pos[leg_index] = R_base @ (self.data.body(foot_body_id).xpos.copy() - base_pos)
+            foot_pos[leg_index] = R_base.T @ (self.data.body(foot_body_id).xpos.copy() - base_pos)
             
         return foot_pos
+
+    def get_global_foot_velocities(self):
+        foot_body_names = ["ef_R1", "ef_L1", "ef_R2", "ef_L2"]
+        foot_vel = [0]*4
+
+        for leg_index in range(4):
+            foot_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, foot_body_names[leg_index])
+            foot_vel[leg_index] = self.data.body(foot_body_id).cvel[:3].copy()
+            
+        return foot_vel
+    
+    def get_local_foot_velocities(self, yaw_real):
+        foot_body_names = ["ef_R1", "ef_L1", "ef_R2", "ef_L2"]
+        foot_vel_global = [0]*4
+        foot_vel_local = [0]*4
+        foot_pos_global = self.get_global_foot_positions()
+
+        base_vel = self.get_base_lin_vel()
+        base_euler = self.get_base_orientation_euler()
+        euler_correct = np.array([base_euler[0], base_euler[1], yaw_real])
+        R_base = Rotation.from_euler('xyz', euler_correct).as_matrix()
+
+        omega = self.get_base_ang_vel()
+        
+
+        for leg_index in range(4):
+            foot_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, foot_body_names[leg_index])
+            foot_vel_global[leg_index] = self.data.body(foot_body_id).cvel[:3].copy()
+
+            v_coriolis = np.cross(omega, foot_pos_global[leg_index])
+            foot_vel_local[leg_index] = R_base.T @ ((foot_vel_global[leg_index] - base_vel) - v_coriolis)
+        
+        return foot_vel_local
 
     # ==========================================================
     # EXTERNAL DISTURBANCES

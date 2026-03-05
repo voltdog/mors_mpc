@@ -215,7 +215,7 @@ int main()
 
         if (first_pos)
         {
-            pos_offset = body_pos - Eigen::Vector3d(0.0, 0.0, 0.044);
+            pos_offset = body_pos - Eigen::Vector3d(0.0, 0.0, 0.038);// 0.044);
             first_pos = false;
         }
         // position and linear velocity low pass filtering

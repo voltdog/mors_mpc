@@ -31,8 +31,8 @@
 
 # SIMULATION
 # for experiments
-Kd_swing: [0.01, 0.01, 0.01]
-Kp_swing: [20, 20.0, 20.0]
+Kd_swing: [0.3, 0.3, 0.3]
+Kp_swing: [20.0, 20.0, 20.0]
 
-Kd_stance: [0.0, 0.0, 0.0]
+Kd_stance: [0.1, 0.1, 0.1]
 Kp_stance: [0.0, 0.0, 0.0]

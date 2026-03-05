@@ -3,7 +3,7 @@
 #include <chrono>
 #include <thread>
 #include <Eigen/Dense>
-#include "CommandShaper.hpp"
+#include "ReferenceGenerator.hpp"
 #include "ContactStateFSM.hpp"
 #include "ConvexMpcThread.hpp"
 #include "SwingController.hpp"
@@ -223,18 +223,18 @@ int main() {
 
     // init contact state fsm
     ContactStateFSM contact_fsm(start_td_detecting);
-    // init command shaper
+    // init reference generator
     int adaptation_type = 0;
-    CommandShaper cmd_shaper(module_dt, 1.0);
+    ReferenceGenerator ref_generator(module_dt, 1.0);
     MatrixXd R_body_for_vel(3,3);
-    cmd_shaper.set_body_adaptation_mode(adaptation_type);
+    ref_generator.set_body_adaptation_mode(adaptation_type);
 
     // swing controller
     VectorXd base_rpy_rate(3);
     VectorXd v(3);
     SwingController swing_controller(module_dt, 
                                     robot.bx, 
-                                    robot.by, 
+                                    robot.by,  
                                     robot.l1,
                                     interleave_x, // сделать правильное чтение данных из конфига
                                     interleave_y,
@@ -328,7 +328,7 @@ int main() {
             phase_signal = contact_fsm.step(leg_state.contacts, leg_phi, desired_leg_state);
 
             // ------------------
-            // COMMAND SHAPER
+            // REFERENCE GENERATOR
             // ------------------
             // calc foot pos local
             R_body = mors_sys::euler2mat(robot_state.orientation(X), robot_state.orientation(Y), 0.0);//robot_state.orientation(Z));
@@ -349,13 +349,13 @@ int main() {
             VectorXd cmd_loc_lin_vel = robot_cmd.lin_vel;
             robot_cmd.lin_vel = R_body_for_vel * cmd_loc_lin_vel;
 
-            // step command shaper
-            cmd_shaper.set_body_adaptation_mode(adaptation_type);
-            x_ref = cmd_shaper.step(phase_signal, 
-                                foot_pos_global, 
-                                foot_pos_local, 
-                                robot_cmd.lin_vel, 
-                                robot_cmd.ang_vel(Z), 
+            // step reference generator
+            ref_generator.set_body_adaptation_mode(adaptation_type);
+            x_ref = ref_generator.step(phase_signal,
+                                foot_pos_global,
+                                foot_pos_local,
+                                robot_cmd.lin_vel,
+                                robot_cmd.ang_vel(Z),
                                 robot_cmd.pos(Z),
                                 robot_state);
             R_body = mors_sys::euler2mat(robot_state.orientation(X), robot_state.orientation(Y), robot_state.orientation(Z));
@@ -382,13 +382,13 @@ int main() {
                 dp_ref_stance[R2] = -robot_cmd.lin_vel;
                 dp_ref_stance[L2] = -robot_cmd.lin_vel;
 
-                if ((phase_signal[R1] == STANCE && pre_phase_signal[R1] != STANCE) || (standing == false && pre_standing == true))
+                if ((phase_signal[R1] == STANCE && pre_phase_signal[R1] != STANCE) || (standing == false && pre_standing == true) || (phase_signal[R1] == EARLY_CONTACT && pre_phase_signal[R1] == SWING))
                     p_ref_stance[R1] = leg_state.r1_pos;
-                if ((phase_signal[L1] == STANCE && pre_phase_signal[L1] != STANCE) || (standing == false && pre_standing == true))
+                if ((phase_signal[L1] == STANCE && pre_phase_signal[L1] != STANCE) || (standing == false && pre_standing == true) || (phase_signal[L1] == EARLY_CONTACT && pre_phase_signal[L1] == SWING))
                     p_ref_stance[L1] = leg_state.l1_pos;
-                if ((phase_signal[R2] == STANCE && pre_phase_signal[R2] != STANCE) || (standing == false && pre_standing == true))
+                if ((phase_signal[R2] == STANCE && pre_phase_signal[R2] != STANCE) || (standing == false && pre_standing == true) || (phase_signal[R2] == EARLY_CONTACT && pre_phase_signal[R2] == SWING))
                     p_ref_stance[R2] = leg_state.r2_pos;
-                if ((phase_signal[L2] == STANCE && pre_phase_signal[L2] != STANCE) || (standing == false && pre_standing == true))
+                if ((phase_signal[L2] == STANCE && pre_phase_signal[L2] != STANCE) || (standing == false && pre_standing == true) || (phase_signal[L2] == EARLY_CONTACT && pre_phase_signal[L2] == SWING))
                     p_ref_stance[L2] = leg_state.l2_pos;
                     
                 // cout << phase_signal[R1] << endl;
@@ -438,15 +438,16 @@ int main() {
             auto [p_ref, dp_ref, ddp_ref] = swing_controller.step(phase_signal,
                                                                     leg_phi,
                                                                     // x_ref(5),
-                                                                    // robot_cmd.pos(Z), 
-                                                                    base_pos(Z),
+                                                                    robot_cmd.pos(Z), 
+                                                                    // base_pos(Z),
                                                                     x_ref(8),
                                                                     ref_body_vel,
                                                                     base_pos, 
                                                                     base_lin_vel,
                                                                     base_rpy_rate,
                                                                     R_body,
-                                                                    foot_pos_global);
+                                                                    foot_pos_local);
+                                                                    // foot_pos_global);
 
             // convert grf_cmd to convinient format
             if (active_legs[R1] == false)//phase_signal[R1] == SWING)

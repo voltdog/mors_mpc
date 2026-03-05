@@ -25,6 +25,8 @@ LCMExchanger::LCMExchanger()
         return;
     if(!robot_state_subscriber.good())
         return;
+    if(!robot_state_check_subscriber.good())
+        return;
     if(!robot_cmd_subscriber.good())
         return;
     if(!phase_sig_subscriber.good())
@@ -49,6 +51,7 @@ LCMExchanger::LCMExchanger()
     control_type_channel = channel_config["control_type"].as<string>();
     odometry_channel = channel_config["odometry"].as<string>();
     robot_state_channel = channel_config["robot_state"].as<string>();
+    robot_state_check_channel = "ROBOT_STATE_CHECK";
     robot_cmd_channel = channel_config["robot_ref"].as<string>();
     phase_sig_channel = channel_config["gait_phase"].as<string>();
 
@@ -201,6 +204,51 @@ LCMExchanger::LCMExchanger()
     leg_state.l2_acc.setZero();
     leg_state.contacts = {false, false, false, false};
 
+    body_state_check.orientation.resize(3);
+    body_state_check.ang_vel.resize(3);
+    body_state_check.pos.resize(3);
+    body_state_check.lin_vel.resize(3);
+    body_state_check.orientation.setZero();
+    body_state_check.ang_vel.setZero();
+    body_state_check.pos.setZero();
+    body_state_check.lin_vel.setZero();
+
+    leg_state_check.r1_grf.resize(3);
+    leg_state_check.r2_grf.resize(3);
+    leg_state_check.l1_grf.resize(3);
+    leg_state_check.l2_grf.resize(3);
+    leg_state_check.r1_pos.resize(3);
+    leg_state_check.r2_pos.resize(3);
+    leg_state_check.l1_pos.resize(3);
+    leg_state_check.l2_pos.resize(3);
+    leg_state_check.r1_vel.resize(3);
+    leg_state_check.r2_vel.resize(3);
+    leg_state_check.l1_vel.resize(3);
+    leg_state_check.l2_vel.resize(3);
+    leg_state_check.r1_acc.resize(3);
+    leg_state_check.r2_acc.resize(3);
+    leg_state_check.l1_acc.resize(3);
+    leg_state_check.l2_acc.resize(3);
+    leg_state_check.contacts.resize(4);
+
+    leg_state_check.r1_grf.setZero();
+    leg_state_check.l1_grf.setZero();
+    leg_state_check.r2_grf.setZero();
+    leg_state_check.l2_grf.setZero();
+    leg_state_check.r1_pos.setZero();
+    leg_state_check.r2_pos.setZero();
+    leg_state_check.l1_pos.setZero();
+    leg_state_check.l2_pos.setZero();
+    leg_state_check.r1_vel.setZero();
+    leg_state_check.r2_vel.setZero();
+    leg_state_check.l1_vel.setZero();
+    leg_state_check.l2_vel.setZero();
+    leg_state_check.r1_acc.setZero();
+    leg_state_check.r2_acc.setZero();
+    leg_state_check.l1_acc.setZero();
+    leg_state_check.l2_acc.setZero();
+    leg_state_check.contacts = {false, false, false, false};
+
     phase.setZero();
     phi.setZero();
 
@@ -234,11 +282,12 @@ void LCMExchanger::start_exchanger()
     thImu = make_unique<thread> (&LCMExchanger::imuThread, this);
     thServoState = make_unique<thread> (&LCMExchanger::servoStateThread, this);
     thServoCmd = make_unique<thread> (&LCMExchanger::servoCmdThread, this);
-    thEnable = make_unique<thread> (&LCMExchanger::enableThread, this);
-    thCtrlType = make_unique<thread> (&LCMExchanger::ctrlTypeThread, this);
+    // thEnable = make_unique<thread> (&LCMExchanger::enableThread, this);
+    // thCtrlType = make_unique<thread> (&LCMExchanger::ctrlTypeThread, this);
     thOdometry = make_unique<thread> (&LCMExchanger::odometryThread, this);
-    thServoStateFilt = make_unique<thread> (&LCMExchanger::servoStateFiltThread, this);
+    // thServoStateFilt = make_unique<thread> (&LCMExchanger::servoStateFiltThread, this);
     thRobotState = make_unique<thread> (&LCMExchanger::robotStateThread, this);
+    thRobotStateCheck = make_unique<thread> (&LCMExchanger::robotStateCheckThread, this);
     thRobotCmd = make_unique<thread> (&LCMExchanger::robotCmdThread, this);
     thPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
 }
@@ -407,6 +456,38 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer* rbuf,
     leg_state.contacts[3] = msg->legs.contact_states[3];
 }
 
+void LCMExchanger::robotStateCheckHandler(const lcm::ReceiveBuffer* rbuf,
+    const std::string& chan,
+    const mors_msgs::robot_state_msg* msg)
+{
+    // cout << "I got robot_state_check data!" << endl;
+    for (int i=0; i<3; i++)
+    {
+        leg_state_check.r1_pos(i) = msg->legs.r1_pos[i];
+        leg_state_check.l1_pos(i) = msg->legs.l1_pos[i];
+        leg_state_check.r2_pos(i) = msg->legs.r2_pos[i];
+        leg_state_check.l2_pos(i) = msg->legs.l2_pos[i];
+
+        leg_state_check.r1_vel(i) = msg->legs.r1_vel[i];
+        leg_state_check.l1_vel(i) = msg->legs.l1_vel[i];
+        leg_state_check.r2_vel(i) = msg->legs.r2_vel[i];
+        leg_state_check.l2_vel(i) = msg->legs.l2_vel[i];
+
+        leg_state_check.r1_grf(i) = msg->legs.r1_grf[i];
+        leg_state_check.l1_grf(i) = msg->legs.l1_grf[i];
+        leg_state_check.r2_grf(i) = msg->legs.r2_grf[i];
+        leg_state_check.l2_grf(i) = msg->legs.l2_grf[i];
+
+        leg_state_check.contacts[i] = msg->legs.contact_states[i];
+
+        body_state_check.pos(i) = msg->body.position[i];
+        body_state_check.orientation(i) = msg->body.orientation[i];
+        body_state_check.lin_vel(i) = msg->body.lin_vel[i];
+        body_state_check.ang_vel(i) = msg->body.ang_vel[i];
+    }
+    leg_state_check.contacts[3] = msg->legs.contact_states[3];
+}
+
 void LCMExchanger::robotCmdHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::robot_cmd_msg* msg)
@@ -542,14 +623,23 @@ void LCMExchanger::robotStateThread()
     }
 }
 
+void LCMExchanger::robotStateCheckThread()
+{
+    robot_state_check_subscriber.subscribe(robot_state_check_channel, &LCMExchanger::robotStateCheckHandler, this);
+    while(true)
+    {
+        robot_state_check_subscriber.handle();
+        // cout << "robot_state thread" << endl;
+        // sleep(0.001);
+    }
+}
+
 void LCMExchanger::robotCmdThread()
 {
     robot_cmd_subscriber.subscribe(robot_cmd_channel, &LCMExchanger::robotCmdHandler, this);
     while(true)
     {
         robot_cmd_subscriber.handle();
-        // cout << "robot_state thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -559,8 +649,6 @@ void LCMExchanger::phaseSigThread()
     while(true)
     {
         phase_sig_subscriber.handle();
-        // cout << "robot_state thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -604,6 +692,14 @@ LegData LCMExchanger::getLegState()
     return leg_state;
 }
 
+LegData LCMExchanger::getLegStateCheck()
+{
+    return leg_state_check;
+}
+RobotData LCMExchanger::getBodyStateCheck()
+{
+    return body_state_check;
+}
 RobotData LCMExchanger::getRobotCmd()
 {
     return body_cmd;

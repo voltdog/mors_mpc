@@ -1,6 +1,10 @@
 #include "ConvexMpc.hpp"
 
 
+// #include "osqp.h"
+// #include "workspace.h"
+
+
 ConvexMPC::ConvexMPC()
 {
     num_legs = NUM_LEGS;
@@ -282,8 +286,8 @@ void ConvexMPC::init_solver()
     solver.settings()->setCheckTermination(1);
     
     solver.settings()->setAlpha(1.5);
-    solver.settings()->setMaxIteration(300);
-    solver.settings()->setRho(1e-3);
+    solver.settings()->setMaxIteration(50);
+    solver.settings()->setRho(0.1);//1e-3);
     solver.settings()->setSigma(1e-6);
     solver.settings()->setScaledTerimination(1e-6);
 
@@ -325,6 +329,8 @@ void ConvexMPC::update_solver()
 
 VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& foot_positions, vector<int>& contact_state)
 {
+    
+
     cur_rpy << x0(0), x0(1), x0(2);
     // cout << foot_positions.col(0).transpose() << endl;
     calc_AB_matrices(cur_rpy, foot_positions, A, B);
@@ -333,6 +339,8 @@ VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& fo
     calc_constraint_matrix(horizon, friction_coeff, Ac);
     calc_constraint_bounds(horizon, contact_state, f_max, f_min, lb, ub);
 
+    
+    // auto start = std::chrono::steady_clock::now();
     if (!solver.isInitialized())
         init_solver();
     else
@@ -341,13 +349,44 @@ VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& fo
     solver.solveProblem();// != OsqpEigen::ErrorExitFlag::NoError;
     VectorXd qp_solution = solver.getSolution();
 
-    ref_grf_yaw_aligned = -qp_solution.head<12>();
+    ref_grf_yaw_aligned = -qp_solution.head<12>(); 
+
+    // auto end = std::chrono::steady_clock::now();
+    // auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    // std::cout << "Elapsed time: " << elapsed.count() << " us\n";
+
+    // ----
+    // with osqp codegen
+    // ----
+    // auto start = std::chrono::steady_clock::now();
+
+    // // osqp_update_P(&workspace, H.valuePtr(), reinterpret_cast<const c_int*>(H.innerIndexPtr()), H.nonZeros());
+    // osqp_update_P(&workspace, H.valuePtr(), OSQP_NULL, 0);
+    // osqp_update_A(&workspace, Ac.valuePtr(), OSQP_NULL, 0);
+    // // memcpy(workspace.Px, H.valuePtr(),
+    // //    H.nonZeros()*sizeof(double));
+    // osqp_update_lin_cost(&workspace, q.data());
+    // osqp_update_bounds(&workspace, lb.data(), ub.data());
+    // // 
+    // osqp_warm_start(&workspace, workspace.solution->x, workspace.solution->y);
+    
+    // osqp_solve(&workspace);
+    
+    // for(int i = 0; i < 12; i++)
+    //     ref_grf_yaw_aligned(i) = -workspace.solution->x[i];
+
+    // auto end = std::chrono::steady_clock::now();
+    // auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    // std::cout << "Elapsed time: " << elapsed.count() << " us\n";
+    // ----
 
     // R_body = mors_sys::euler2mat(cur_rpy(0), cur_rpy(1), cur_rpy(2));
     for (int i = 0; i < num_legs; i++)
     {
         ref_grf.segment(i * 3, 3) = R_z * ref_grf_yaw_aligned.segment(i * 3, 3);
     }
+
+    
 
     return ref_grf;
 }   

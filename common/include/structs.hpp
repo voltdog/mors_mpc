@@ -30,7 +30,7 @@ static constexpr int NUM_LEGS = 4;
 static constexpr int LEG_CONTROL   = 1;
 static constexpr int SERVO_CONTROL = 2;
 
-struct RobotData
+struct alignas(16) RobotData
 {
     VectorXd pos;
     VectorXd lin_vel;
@@ -38,7 +38,7 @@ struct RobotData
     VectorXd ang_vel;
 };
 
-struct LegData
+struct alignas(16) LegData
 {
     VectorXd r1_grf;
     VectorXd l1_grf;
@@ -73,7 +73,7 @@ struct LegData
     VectorXd l2_kd; 
 };
 
-struct RobotPhysicalParams
+struct alignas(16) RobotPhysicalParams
 {
     double M_b;
     MatrixXd I_b;
@@ -91,7 +91,7 @@ struct RobotPhysicalParams
     double gear_ratio;
 };
 
-struct ImuData
+struct alignas(16) ImuData
 {
     VectorXd orientation_euler;
     VectorXd orientation_quaternion;
@@ -99,7 +99,7 @@ struct ImuData
     VectorXd lin_accel;
 };
 
-struct ServoData
+struct alignas(16) ServoData
 {
     VectorXd pos;
     VectorXd vel;
@@ -108,7 +108,7 @@ struct ServoData
     VectorXd kd;
 };
 
-struct Odometry
+struct alignas(16) Odometry
 {
     VectorXd position;
     VectorXd orientation;

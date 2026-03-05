@@ -15,5 +15,5 @@ do_nothing_kd: 0.0
 action1_kp: 2.0
 action1_kd: 0.05
 
-action2_kp: 2.0
+action2_kp: 24.0
 action2_kd: 0.05

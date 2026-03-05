@@ -12,7 +12,7 @@ SwingController::SwingController(double timestep, double bx, double by, double l
 {
     for (int i = 0; i < 4; ++i) {
         step_planner[i] = FootStepPlanner();
-        step_planner[i].set_coefficients(k1_fsp, k2_fsp);
+        step_planner[i].set_coefficients(k1_fsp, k2_fsp); 
     }
     step_planner[R1].set_robot_params(Eigen::Vector3d(bx + l1 + interleave_x[R1], -(by + interleave_y[R1]), 0.0));
     step_planner[L1].set_robot_params(Eigen::Vector3d(bx + l1 + interleave_x[L1],  (by + interleave_y[L1]), 0.0));
@@ -38,16 +38,17 @@ SwingController::step(const std::vector<int>& phase_signal,
                          const Eigen::Vector3d& base_rpy_rate,
                          const Eigen::Matrix3d& R_body,
                          const std::vector<Eigen::Vector3d>& foot_pos_global) {
+
     for (int i = 0; i < 4; ++i) {
         if (phase_signal[i] == SWING) {
             if (pre_phase_signal[i] == STANCE && phase_signal[i] == SWING) {
-                for (int j = 0; j < 3; ++j) p_start[i][j] = foot_pos_global[i][j];
+                for (int j = 0; j < 3; ++j) p_start[i][j] = foot_pos_global[i][j]; // на самом деле локальное положение
                 cnt[i] = -1;
                 swing_traj_gen.reset_offsets();
             }
 
             Eigen::Vector3d p_finish_i = step_planner[i].step(base_pos, R_body, base_lin_vel, base_rpy_rate,
-                                                               ref_body_vel, ref_body_yaw_vel,
+                                                               ref_body_vel, ref_body_yaw_vel, 
                                                                ref_body_height, t_st);
             for (int j = 0; j < 3; ++j) p_finish[i][j] = p_finish_i[j];
 
@@ -84,7 +85,7 @@ SwingController::step(const std::vector<int>& phase_signal,
         Eigen::Vector3d dx_global(&d_p_ref[i * 3]);
         Eigen::Vector3d ddx_global(&dd_p_ref[i * 3]);
 
-        x_ref_local[i] = inv_R_body * (x_global - base_pos);
+        x_ref_local[i] = inv_R_body * (x_global);// - base_pos);
         dx_ref[i] = inv_R_body * dx_global;
         ddx_ref[i] = inv_R_body * ddx_global;
     }

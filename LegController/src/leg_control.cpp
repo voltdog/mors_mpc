@@ -2,235 +2,77 @@
 
 LegControl::LegControl()
 {
-    X_R1.resize(3); X_L1.resize(3); X_R2.resize(3); X_L2.resize(3);
-    dX_R1.resize(3); dX_L1.resize(3); dX_R2.resize(3); dX_L2.resize(3);
-    r1_offset.resize(3); l1_offset.resize(3); r2_offset.resize(3); l2_offset.resize(3);
-    d_theta_r1.resize(3); d_theta_l1.resize(3); d_theta_r2.resize(3); d_theta_l2.resize(3);
+    // X_R1.resize(3); X_L1.resize(3); X_R2.resize(3); X_L2.resize(3);
     M_R1.resize(3,3); M_L1.resize(3,3); M_R2.resize(3,3); M_L2.resize(3,3);
-    V_R1.resize(3); V_L1.resize(3); V_R2.resize(3); V_L2.resize(3);
-    G_R1.resize(3); G_L1.resize(3); G_R2.resize(3); G_L2.resize(3);
-    F_R1.resize(3); F_L1.resize(3); F_R2.resize(3); F_L2.resize(3);
-    F_R1.setZero(); F_L1.setZero(); F_R2.setZero(); F_L2.setZero();
-
-    invJ.resize(3,3); J_T.resize(3,3); invJ_T.resize(3,3); Mx.resize(3,3);
-    Vx.resize(3); Gx.resize(3);
-    F.resize(3); tau.resize(3);
-    invR.resize(3,3);
-
-    Kp_r1.resize(3,3); Kd_r1.resize(3,3);
-    Kp_l1.resize(3,3); Kd_l1.resize(3,3);
-    Kp_r2.resize(3,3); Kd_r2.resize(3,3);
-    Kp_l2.resize(3,3); Kd_l2.resize(3,3);
-    e_r1.resize(3); de_r1.resize(3); x_ref_r1.resize(3); dx_ref_r1.resize(3); ddx_ref_r1.resize(3); u_r1.resize(3);
-    e_l1.resize(3); de_l1.resize(3); x_ref_l1.resize(3); dx_ref_l1.resize(3); ddx_ref_l1.resize(3); u_l1.resize(3);
-    e_r2.resize(3); de_r2.resize(3); x_ref_r2.resize(3); dx_ref_r2.resize(3); ddx_ref_r2.resize(3); u_r2.resize(3);
-    e_l2.resize(3); de_l2.resize(3); x_ref_l2.resize(3); dx_ref_l2.resize(3); ddx_ref_l2.resize(3); u_l2.resize(3);
-    grf_ref_r1.resize(3); grf_ref_l1.resize(3); grf_ref_r2.resize(3); grf_ref_l2.resize(3);
+    H_R1.resize(3); H_L1.resize(3); H_R2.resize(3); H_L2.resize(3);
 
     tau_ref_r1.resize(3);
     tau_ref_l1.resize(3);
     tau_ref_r2.resize(3);
     tau_ref_l2.resize(3);
-    imp_tau_ref_r1.resize(3);
-    imp_tau_ref_l1.resize(3);
-    imp_tau_ref_r2.resize(3);
-    imp_tau_ref_l2.resize(3);
-    grf_tau_ref_r1.resize(3);
-    grf_tau_ref_l1.resize(3);
-    grf_tau_ref_r2.resize(3);
-    grf_tau_ref_l2.resize(3);
-    tau_ref.resize(12);
-    tau_ref.setZero();
 
-    Kp_r1.setZero(); Kd_r1.setZero();
-    Kp_l1.setZero(); Kd_l1.setZero();
-    Kp_r2.setZero(); Kd_r2.setZero();
-    Kp_l2.setZero(); Kd_l2.setZero();
-
-    // theta_ref.setZero(12);
-    kin_sch = "x";//"m";//
-    x_ref.setZero(12);
+    robot.BuildPinocchioModel();
+    q.resize(18);
+    v.resize(18);
+    q.setZero();
+    v.setZero();
+    M_legs.resize(4);
+    h_legs.resize(4);
 }
 
-void LegControl::set_leg_params(RobotPhysicalParams &robot, VectorXd &theta)
-{
-    this->robot_params = robot;
-    leg_model.set_leg_params(this->robot_params);
-
-    r1_offset <<  robot_params.bx, -robot_params.by, 0;
-    l1_offset <<  robot_params.bx,  robot_params.by, 0;
-    r2_offset << -robot_params.bx, -robot_params.by, 0;
-    l2_offset << -robot_params.bx,  robot_params.by, 0;
-
-    if (theta(7) > 0.0 && theta(10) < 0.0)
-        kin_sch = "x";
-    else
-        kin_sch = "m";
-
-    cout << "[Leg Controller]: Kinematic scheme: " << kin_sch << endl;
-    // cout << "theta7=" << theta(7) << " | " << "theta(10)=" << theta(10) << endl;
-}
-
-void LegControl::set_feedback_params(MatrixXd& Kp_r1, MatrixXd& Kd_r1, 
-                                    MatrixXd& Kp_l1, MatrixXd& Kd_l1, 
-                                    MatrixXd& Kp_r2, MatrixXd& Kd_r2, 
-                                    MatrixXd& Kp_l2, MatrixXd& Kd_l2)
-{
-    this->Kp_r1 = Kp_r1;
-    this->Kd_r1 = Kd_r1;
-
-    this->Kp_l1 = Kp_l1;
-    this->Kd_l1 = Kd_l1;
-
-    this->Kp_r2 = Kp_r2;
-    this->Kd_r2 = Kd_r2;
-
-    this->Kp_l2 = Kp_l2;
-    this->Kd_l2 = Kd_l2;
-}
-
-VectorXd LegControl::cartesian_inverse_dynamics(VectorXd dd_x, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ)
-{
-    invJ = J.inverse();
-    J_T = J.transpose();
-    invJ_T = J_T.inverse();
-
-    Mx = invJ_T * M * invJ;
-    Vx = invJ_T * (V - M * invJ * dJ * dq);
-    Gx = invJ_T * G;
-    Fx = invJ_T * F_fric;
-
-    F = Mx * dd_x + Vx + Gx + Fx;
-    tau = J_T * F;
-
-    return tau;
-}
-
-VectorXd LegControl::get_tau_ff(VectorXd dd_x_ref, VectorXd dq, MatrixXd M, VectorXd V, VectorXd G, VectorXd F_fric, MatrixXd J, MatrixXd dJ)
-{
-    invJ = J.inverse();
-
-    tau = M * invJ * (dd_x_ref - dJ * dq) + V + G + F_fric;
-
-    return tau;
-}
-
-VectorXd LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref)
+void LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref, VectorXd& tau_ref)
 {
     // prepare data
-    x_ref_r1 = leg_cmd.r1_pos;
-    x_ref_l1 = leg_cmd.l1_pos;
-    x_ref_r2 = leg_cmd.r2_pos;
-    x_ref_l2 = leg_cmd.l2_pos;
+    q.segment(6, 3) = theta.segment(3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
+    q.segment(9, 3) = theta.segment(9, 3);
+    q.segment(12, 3) = theta.segment(0, 3);
+    q.segment(15, 3) = theta.segment(6, 3);
+    v.segment(6, 3) = d_theta.segment(3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
+    v.segment(9, 3) = d_theta.segment(9, 3);
+    v.segment(12, 3) = d_theta.segment(0, 3);
+    v.segment(15, 3) = d_theta.segment(6, 3);
 
-    dx_ref_r1 = leg_cmd.r1_vel;
-    dx_ref_l1 = leg_cmd.l1_vel;
-    dx_ref_r2 = leg_cmd.r2_vel;
-    dx_ref_l2 = leg_cmd.l2_vel;
+    // compute forward kinematics
+    robot.ComputeForwardKinematics(q, v);
+    // leg_positions = robot.GetToePositionsInBaseFrame();
+    // X_R1 = leg_positions[0];
+    // X_L1 = leg_positions[1];
+    // X_R2 = leg_positions[2];
+    // X_L2 = leg_positions[3];
 
-    ddx_ref_r1 = leg_cmd.r1_acc;
-    ddx_ref_l1 = leg_cmd.l1_acc;
-    ddx_ref_r2 = leg_cmd.r2_acc;
-    ddx_ref_l2 = leg_cmd.l2_acc;
-
-    grf_ref_r1 = leg_cmd.r1_grf;
-    grf_ref_l1 = leg_cmd.l1_grf;
-    grf_ref_r2 = leg_cmd.r2_grf;
-    grf_ref_l2 = leg_cmd.l2_grf;
-
-    d_theta_r1 = d_theta.segment(0, 3);
-    d_theta_l1 = d_theta.segment(3, 3);
-    d_theta_r2 = d_theta.segment(6, 3);
-    d_theta_l2 = d_theta.segment(9, 3);
-
-    // calculate Jacobians and its derivatives
-    J_R1 = leg_model.jacobian_R1(theta(0), theta(1), theta(2));
-    J_L1 = leg_model.jacobian_L1(theta(3), theta(4), theta(5));
-    J_R2 = leg_model.jacobian_R2(theta(6), theta(7), theta(8));
-    J_L2 = leg_model.jacobian_L2(theta(9), theta(10), theta(11));
-    
-    dJ_R1 = leg_model.d_jacobian_R1(theta(0), theta(1), theta(2), d_theta(0), d_theta(1), d_theta(2));
-    dJ_L1 = leg_model.d_jacobian_R1(theta(3), theta(4), theta(5), d_theta(3), d_theta(4), d_theta(5));
-    dJ_R2 = leg_model.d_jacobian_R1(theta(6), theta(7), theta(8), d_theta(6), d_theta(7), d_theta(8));
-    dJ_L2 = leg_model.d_jacobian_R1(theta(9), theta(10), theta(11), d_theta(9), d_theta(10), d_theta(11));
-
-    // calculate kinematics    
-    X_R1 = leg_model.fkine_R1(theta(0), theta(1),  theta(2))  + r1_offset;
-    X_L1 = leg_model.fkine_L1(theta(3), theta(4),  theta(5))  + l1_offset;
-    X_R2 = leg_model.fkine_R2(theta(6), theta(7),  theta(8))  + r2_offset;
-    X_L2 = leg_model.fkine_L2(theta(9), theta(10), theta(11)) + l2_offset;
-
-    dX_R1 = J_R1 * d_theta_r1;
-    dX_L1 = J_L1 * d_theta_l1;
-    dX_R2 = J_R2 * d_theta_r2;
-    dX_L2 = J_L2 * d_theta_l2;
+    // get leg Jacobians
+    leg_jacobians = robot.GetFootJacobian(q);
+    J_R1 = leg_jacobians[0];
+    J_L1 = leg_jacobians[1];
+    J_R2 = leg_jacobians[2];
+    J_L2 = leg_jacobians[3];
 
     // calculate dynamics matrices
-    leg_model.joint_space_matrices_R1(theta, d_theta, M_R1, V_R1, G_R1, F_R1);
-    leg_model.joint_space_matrices_L1(theta, d_theta, M_L1, V_L1, G_L1, F_L1);
-    leg_model.joint_space_matrices_R2(theta, d_theta, M_R2, V_R2, G_R2, F_R2);
-    leg_model.joint_space_matrices_L2(theta, d_theta, M_L2, V_L2, G_L2, F_L2);
+    robot.ComputeAllLegDynamics(q, v, M_legs, h_legs);
+    M_R1 = M_legs[R1]; M_L1 = M_legs[L1]; M_R2 = M_legs[R2]; M_L2 = M_legs[L2];
+    H_R1 = h_legs[R1]; H_L1 = h_legs[L1]; H_R2 = h_legs[R2]; H_L2 = h_legs[L2];
 
-    // feedback control
-    // e_r1 = x_ref_r1 - X_R1;
-    // de_r1 = dx_ref_r1 - dX_R1;
-    // u_r1 = Kp_r1 * e_r1 + Kd_r1 * de_r1;// + ddx_ref_r1;
 
-    // e_l1 = x_ref_l1 - X_L1;
-    // de_l1 = dx_ref_l1 - dX_L1;
-    // u_l1 = Kp_l1 * e_l1 + Kd_l1 * de_l1;// + ddx_ref_l1;
-
-    // e_r2 = x_ref_r2 - X_R2;
-    // de_r2 = dx_ref_r2 - dX_R2;
-    // u_r2 = Kp_r2 * e_r2 + Kd_r2 * de_r2;// + ddx_ref_r2;
-
-    // e_l2 = x_ref_l2 - X_L2;
-    // de_l2 = dx_ref_l2 - dX_L2;
-    // u_l2 = Kp_l2 * e_l2 + Kd_l2 * de_l2;// + ddx_ref_l2;
-    
-
-    // get desired tau for impedance control
-    // imp_tau_ref_r1 = -get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1); //J_R1.transpose() * u_r1 
-    // imp_tau_ref_l1 = get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1); //J_L1.transpose() * u_l1 + 
-    // imp_tau_ref_r2 = -get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2); //J_R2.transpose() * u_r2 
-    // imp_tau_ref_l2 = get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2); //J_L2.transpose() * u_l2 + 
-    imp_tau_ref_r1.setZero();// = -get_tau_ff(ddx_ref_r1, d_theta_r1, M_R1, V_R1, G_R1, F_R1, J_R1, dJ_R1); //J_R1.transpose() * u_r1 
-    imp_tau_ref_l1.setZero();// = get_tau_ff(ddx_ref_l1, d_theta_l1, M_L1, V_L1, G_L1, F_L1, J_L1, dJ_L1); //J_L1.transpose() * u_l1 + 
-    imp_tau_ref_r2.setZero();// = -get_tau_ff(ddx_ref_r2, d_theta_r2, M_R2, V_R2, G_R2, F_R2, J_R2, dJ_R2); //J_R2.transpose() * u_r2 
-    imp_tau_ref_l2.setZero();// = get_tau_ff(ddx_ref_l2, d_theta_l2, M_L2, V_L2, G_L2, F_L2, J_L2, dJ_L2); //J_L2.transpose() * u_l2 + 
-
-    // get desired tau for GRF control
-    grf_tau_ref_r1 = J_R1.transpose() * (grf_ref_r1); //invR * 
-    grf_tau_ref_l1 = J_L1.transpose() * (grf_ref_l1); // R_body.transpose()
-    grf_tau_ref_r2 = J_R2.transpose() * (grf_ref_r2);
-    grf_tau_ref_l2 = J_L2.transpose() * (grf_ref_l2);
-
-    tau_ref_r1 = imp_tau_ref_r1 + grf_tau_ref_r1;
-    tau_ref_l1 = imp_tau_ref_l1 + grf_tau_ref_l1;
-    tau_ref_r2 = imp_tau_ref_r2 + grf_tau_ref_r2;
-    tau_ref_l2 = imp_tau_ref_l2 + grf_tau_ref_l2;
-
+    // compute torques with force control and gravity compensation
+    tau_ref_r1 = J_R1.transpose() * leg_cmd.r1_grf + H_R1;
+    tau_ref_l1 = J_L1.transpose() * leg_cmd.l1_grf + H_L1;
+    tau_ref_r2 = J_R2.transpose() * leg_cmd.r2_grf + H_R2;
+    tau_ref_l2 = J_L2.transpose() * leg_cmd.l2_grf + H_L2;
     tau_ref.segment(0, 3) = tau_ref_r1;
     tau_ref.segment(3, 3) = tau_ref_l1;
     tau_ref.segment(6, 3) = tau_ref_r2;
     tau_ref.segment(9, 3) = tau_ref_l2;
 
 
-    // inverse kinematics
-    x_ref.segment(0, 3) = x_ref_r1;
-    x_ref.segment(3, 3) = x_ref_l1;
-    x_ref.segment(6, 3) = x_ref_r2;
-    x_ref.segment(9, 3) = x_ref_l2;
-    theta_ref = ikine.calculate(x_ref, kin_sch);
+    // compute ref joint positions (inverse kinematics)
+    std::vector<Eigen::Vector3d> x_ref_local(4);
+    x_ref_local[0] = leg_cmd.r1_pos;
+    x_ref_local[1] = leg_cmd.l1_pos;
+    x_ref_local[2] = leg_cmd.r2_pos;
+    x_ref_local[3] = leg_cmd.l2_pos;
+    robot.ComputeIK_CLIK(q, x_ref_local);
+    theta_ref = q.segment(6, 12);
 
-    // command velocities
-    // d_theta_ref.segment(0, 3) = J_R1.inverse() * dx_ref_r1;
-    // d_theta_ref.segment(3, 3) = J_L1.inverse() * dx_ref_l1;
-    // d_theta_ref.segment(6, 3) = J_R2.inverse() * dx_ref_r2;
-    // d_theta_ref.segment(9, 3) = J_L2.inverse() * dx_ref_l2;
+    // compute joint velocities
     d_theta_ref.setZero();
-
-
-
-    return tau_ref;
 }

@@ -94,7 +94,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #===============================================================================
 
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native ")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=auto -DEIGEN_STACK_ALLOCATION_LIMIT=0 -O3 -Wall -fPIC ${AVX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # -flto=auto -DEIGEN_STACK_ALLOCATION_LIMIT=0 -O3 -Wall -fPIC ${AVX_FLAGS}")
 
 # add_definitions(-DCOMPILEDWITHC11)
 message(STATUS "Using flag -std=c++20")
@@ -102,6 +102,7 @@ message(STATUS "Using flag -std=c++20")
 find_package(Eigen3 REQUIRED)
 # find_package(OsqpEigen REQUIRED)
 find_package(lcm REQUIRED)
+find_package(pinocchio REQUIRED)
 
 include(FetchContent)
 
@@ -141,11 +142,28 @@ set(LEG_SOURCES src/main.cpp
             src/lcm_data_exchange_lc.cpp
             src/ikine.cpp
             ../common/src/system_functions.cpp
+            ../common/src/Robot.cpp
 )
-add_executable(leg_controller ${LEG_SOURCES})
+add_executable(${PROJECT_NAME} ${LEG_SOURCES})
 # target_link_libraries(leg_controller OsqpEigen::OsqpEigen)
-target_link_libraries(leg_controller vbcontrol)
-target_link_libraries(leg_controller Eigen3::Eigen)
-target_link_libraries(leg_controller yaml-cpp::yaml-cpp)
-lcm_target_link_libraries(leg_controller messages-cpp ${LCM_NAMESPACE}lcm)
+
+
+target_link_libraries(${PROJECT_NAME} 
+    vbcontrol
+    Eigen3::Eigen
+    yaml-cpp::yaml-cpp
+    pinocchio::pinocchio 
+    pinocchio::pinocchio_parsers
+    )
+
+target_compile_definitions(${PROJECT_NAME}  PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    # EIGEN_USE_AVX
+    EIGEN_USE_AVX2
+    # EIGEN_DONT_ALIGN
+    # EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+)
+
+lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)
 

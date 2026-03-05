@@ -46,6 +46,8 @@ int main() {
     ServoData servo_state_filt;
     LegData leg_state;
     RobotData body_state;
+    LegData leg_state_check;
+    RobotData body_state_check;
     RobotData body_cmd;
     Vector4i phase;
     Vector4d phi;
@@ -76,15 +78,17 @@ int main() {
         imu_data = lcmExch.getImuData();
         servo_state = lcmExch.getServoStateData();
         servo_cmd = lcmExch.getServoCmdData();
-        lcmExch.getEnableData(leg_controller_enable, leg_controller_reset,
-                                locomotion_enable, locomotion_reset,
-                                action_ctr_enable, action_ctr_reset);
-        control_type = lcmExch.getCtrlTypeData();
+        // lcmExch.getEnableData(leg_controller_enable, leg_controller_reset,
+        //                         locomotion_enable, locomotion_reset,
+        //                         action_ctr_enable, action_ctr_reset);
+        // control_type = lcmExch.getCtrlTypeData();
         odometry = lcmExch.getOdometry();
-        servo_state_filt = lcmExch.getServoStateFiltData();
+        // servo_state_filt = lcmExch.getServoStateFiltData();
         body_state = lcmExch.getBodyState();
         body_cmd = lcmExch.getRobotCmd();
         leg_state = lcmExch.getLegState();
+        body_state_check = lcmExch.getBodyStateCheck();
+        leg_state_check = lcmExch.getLegStateCheck();
         lcmExch.getPhaseSig(phase, phi);
 
         // save arrays
@@ -100,6 +104,7 @@ int main() {
         //                     action_ctr_enable, action_ctr_reset);
         
         csv.write_robot_state(t, body_state, leg_state);
+        csv.write_robot_state_check(t, body_state_check, leg_state_check);
         csv.write_robot_cmd(t, body_cmd);
         csv.write_phase_sig(t, phase, phi);
         

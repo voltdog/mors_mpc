@@ -1,9 +1,9 @@
-#include "CommandShaper.hpp"
+#include "ReferenceGenerator.hpp"
 #include "LowPassFilter.hpp" // Include the low-pass filter implementation
 #include <cmath>
 
 // Constructor
-CommandShaper::CommandShaper(double dt, double c_freq)
+ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     // : c_freq(c_freq), dt(dt), pre_phase_signal(4, STANCE),
     //   foot_pos_global_just_stance(Eigen::Matrix<double, 4, 3>::Zero()),
     //   foot_pos_local_just_stance(Eigen::Matrix<double, 4, 3>::Zero()),
@@ -60,17 +60,17 @@ CommandShaper::CommandShaper(double dt, double c_freq)
 }
 
 // Destructor
-CommandShaper::~CommandShaper() {
+ReferenceGenerator::~ReferenceGenerator() {
 
 }
 
 // Set adaptation mode
-void CommandShaper::set_body_adaptation_mode(int mode) {
+void ReferenceGenerator::set_body_adaptation_mode(int mode) {
     this->body_adapt_mode = mode;
 }
 
 // Step function
-Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
+Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
                                     const std::vector<Eigen::Vector3d>& foot_pos_global,
                                     const std::vector<Eigen::Vector3d>& foot_pos_local,
                                     const Eigen::Vector3d& ref_body_vel,
@@ -176,7 +176,7 @@ Eigen::VectorXd CommandShaper::step(const std::vector<int>& phase_signal,
 }
 
 // Helper method to compute reference z position
-double CommandShaper::compute_ref_z_pos() const {
+double ReferenceGenerator::compute_ref_z_pos() const {
     double mean_z = 0.0;
     for (int i = 0; i < 4; ++i) {
         mean_z += foot_pos_global_just_stance(i, Z);
@@ -185,7 +185,7 @@ double CommandShaper::compute_ref_z_pos() const {
 }
 
 // Helper method to compute reference pitch position
-double CommandShaper::compute_ref_pitch_pos() const {
+double ReferenceGenerator::compute_ref_pitch_pos() const {
     Eigen::Vector3d virtual_leg1_pos = (foot_pos_local_just_stance.row(R1) + foot_pos_local_just_stance.row(L1)) / 2.0;
     Eigen::Vector3d virtual_leg2_pos = (foot_pos_local_just_stance.row(R2) + foot_pos_local_just_stance.row(L2)) / 2.0;
 

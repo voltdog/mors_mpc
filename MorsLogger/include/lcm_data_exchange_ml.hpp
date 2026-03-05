@@ -74,6 +74,9 @@ class LCMExchanger
         void robotStateHandler(const lcm::ReceiveBuffer* rbuf, 
                             const std::string& chan, 
                             const mors_msgs::robot_state_msg* msg);
+        void robotStateCheckHandler(const lcm::ReceiveBuffer* rbuf, 
+                            const std::string& chan, 
+                            const mors_msgs::robot_state_msg* msg);
         void robotCmdHandler(const lcm::ReceiveBuffer* rbuf, 
                             const std::string& chan, 
                             const mors_msgs::robot_cmd_msg* msg);
@@ -91,6 +94,7 @@ class LCMExchanger
         void odometryThread();
         void servoStateFiltThread();
         void robotStateThread();
+        void robotStateCheckThread();
         void robotCmdThread();
         void phaseSigThread();
 
@@ -102,6 +106,8 @@ class LCMExchanger
         Odometry getOdometry();
         RobotData getBodyState();
         LegData getLegState();
+        RobotData getBodyStateCheck();
+        LegData getLegStateCheck();
         RobotData getRobotCmd();
         void getPhaseSig(Vector4i& phase, Vector4d& phi);
 
@@ -113,7 +119,7 @@ class LCMExchanger
 
     private:
         string foot_cmd_channel, grf_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
-        string enable_channel, control_type_channel, odometry_channel, robot_state_channel;
+        string enable_channel, control_type_channel, odometry_channel, robot_state_channel, robot_state_check_channel;
         string robot_cmd_channel, phase_sig_channel;
 
         lcm::LCM foot_cmd_subscriber;
@@ -125,6 +131,7 @@ class LCMExchanger
         lcm::LCM controle_type_subscriber;
         lcm::LCM odometry_subscriber;
         lcm::LCM robot_state_subscriber;
+        lcm::LCM robot_state_check_subscriber;
         lcm::LCM robot_cmd_subscriber;
         lcm::LCM servo_state_filt_subscriber;
         lcm::LCM phase_sig_subscriber;
@@ -144,7 +151,9 @@ class LCMExchanger
         ServoData servo_state_filt;
         RobotData body_state;
         RobotData body_cmd;
+        RobotData body_state_check;
         LegData leg_state;
+        LegData leg_state_check;
         Vector4i phase;
         Vector4d phi;
 
@@ -160,6 +169,7 @@ class LCMExchanger
         unique_ptr<thread> thRobotState;
         unique_ptr<thread> thRobotCmd;
         unique_ptr<thread> thPhaseSig;
+        unique_ptr<thread> thRobotStateCheck;
         
         bool leg_controller_enable, leg_controller_reset;
         bool locomotion_enable, locomotion_reset;

@@ -61,6 +61,22 @@ MatrixXd mors_sys::euler2mat(double roll, double pitch, double yaw)
     return R;
 }
 
+Matrix3d mors_sys::quat2mat(float x, float y, float z, float w)
+{
+    Eigen::Matrix3d R;
+    R(0, 0) = -1.0 + 2.0 * (w * w) + 2.0 * (x * x);
+    R(1, 1) = -1.0 + 2.0 * (w * w) + 2.0 * (y * y);
+    R(2, 2) = -1.0 + 2.0 * (w * w) + 2.0 * (z * z);
+    R(0, 1) = 2.0 * (x * y + w * z);
+    R(0, 2) = 2.0 * (x * z - w * y);
+    R(1, 0) = 2.0 * (x * y - w * z);
+    R(1, 2) = 2.0 * (y * z + w * x);
+    R(2, 0) = 2.0 * (x * z + w * y);
+    R(2, 1) = 2.0 * (y * z - w * x);
+
+    return R;
+}
+
 MatrixXd mors_sys::skew(VectorXd vector)
 {
     MatrixXd skew_matr(3,3);

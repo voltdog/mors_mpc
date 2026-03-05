@@ -13,7 +13,9 @@ from additional.mors_env import MorsMujocoEnv
 
 import yaml
 import numpy as np
+import math
 from pathlib import Path
+from scipy.spatial.transform import Rotation
 
 BASE_DIR = Path(__file__).resolve().parent
 print(f"Simulator base directory: {BASE_DIR}")
@@ -72,6 +74,13 @@ class Hardware_Level_Sim():
         # self.leg_data_order = [6, 8, 7, 9, 11, 10, 0, 2, 1, 3, 5, 4]
         self.leg_data_order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
+        # yaw transformation stuff
+        self.yaw = 0.0
+        self.pre_yaw = 0.0
+        self.first_yaw = True
+        self.offset_yaw = 0.0
+        self.yaw_final = 0.0
+
     def read_config(self):
         with open(f"{BASE_DIR}/../config/simulation.yaml", "r") as f:
             sim_config = yaml.safe_load(f)
@@ -109,7 +118,7 @@ class Hardware_Level_Sim():
         self.lcm_imu_channel = lcm_config.get("lcm_imu_channel", "IMU_DATA")
         self.lcm_odom_channel = lcm_config.get("lcm_odom_channel", "ODOMETRY")
         self.lcm_contact_sensor_channel = lcm_config.get("lcm_contact_sensor_channel", "CONTACT_SENSOR")
-        self.lcm_robot_state_channel = lcm_config.get("lcm_robot_state_channel", "ROBOT_STATE")
+        self.lcm_robot_state_channel = "ROBOT_STATE" #lcm_config.get("lcm_robot_state_channel", "ROBOT_STATE")
 
         self.sim_period = 1.0/self.sim_freq
         self.first_step = True
@@ -149,15 +158,18 @@ class Hardware_Level_Sim():
         self.body_lin_pos = self.env.get_base_position()
         self.body_lin_vel = self.env.get_base_lin_vel()
 
-        if self.foot_positions_type == "global":
-            self.foot_pos = self.env.get_global_foot_positions()
-        else:
-            self.foot_pos = self.env.get_local_foot_positions()
-
         if self.first_step:
             self.first_step = False
             self.yaw_offset = self.imu_data[12]
         self.imu_data[12] -= self.yaw_offset
+
+        if self.foot_positions_type == "global":
+            self.foot_pos = self.env.get_global_foot_positions()
+            self.foot_vel = self.env.get_global_foot_velocities()
+        else:
+            yaw = self.transform_yaw(self.imu_data[12])
+            self.foot_pos = self.env.get_local_foot_positions(yaw)
+            self.foot_vel = self.env.get_local_foot_velocities(yaw)
         
         self.__pub_servo_state(self.cur_joint_pos, self.cur_joint_vel, self.cur_joint_torq)
         self.__pub_imu_msg(self.imu_data)
@@ -176,7 +188,11 @@ class Hardware_Level_Sim():
                                 r1_pos=self.foot_pos[0],
                                 l1_pos=self.foot_pos[1],
                                 r2_pos=self.foot_pos[2],
-                                l2_pos=self.foot_pos[3])
+                                l2_pos=self.foot_pos[3],
+                                r1_vel=self.foot_vel[0],
+                                l1_vel=self.foot_vel[1],
+                                r2_vel=self.foot_vel[2],
+                                l2_vel=self.foot_vel[3])
             
         elapsed = time.time() - step_start
         if elapsed < self.sim_period:
@@ -191,6 +207,7 @@ class Hardware_Level_Sim():
         self.lc_servo_state.publish(self.lcm_servo_state_channel, self.servo_state_msg.encode())
 
     def __pub_imu_msg(self, imu_data : list):
+        # imu_data[2] -= 9.81 # compensate gravity
         self.lcm_imu_msg.linear_acceleration = imu_data[:3]
         self.lcm_imu_msg.angular_velocity = imu_data[7:10]
         self.lcm_imu_msg.orientation_euler = imu_data[10:]
@@ -198,20 +215,29 @@ class Hardware_Level_Sim():
         
         self.lc_imu.publish(self.lcm_imu_channel, self.lcm_imu_msg.encode())
 
-    def __pub_robot_state(self, imu_data, base_pos, base_vel, contact_states, r1_pos, l1_pos, r2_pos, l2_pos):
-        for i in range(3):
-            self.lcm_robot_state_msg.body.position[i] = base_pos[i]
-            self.lcm_robot_state_msg.body.orientation[i] = imu_data[i+10]
-            self.lcm_robot_state_msg.body.lin_vel[i] = base_vel[i]
-            self.lcm_robot_state_msg.body.ang_vel[i] = imu_data[i+7]
+    def __pub_robot_state(self, imu_data, base_pos, base_vel, contact_states,
+                           r1_pos, l1_pos, r2_pos, l2_pos,
+                           r1_vel, l1_vel, r2_vel, l2_vel):
+        yaw = self.transform_yaw(imu_data[12])
+        rpy = [imu_data[10], imu_data[11], yaw]
 
-            self.lcm_robot_state_msg.legs.r1_pos[i] = r1_pos[i]
-            self.lcm_robot_state_msg.legs.l1_pos[i] = l1_pos[i]
-            self.lcm_robot_state_msg.legs.r2_pos[i] = r2_pos[i]
-            self.lcm_robot_state_msg.legs.l2_pos[i] = l2_pos[i]
+        self.lcm_robot_state_msg.body.position = base_pos[:]
+        self.lcm_robot_state_msg.body.orientation = rpy[:]
+        self.lcm_robot_state_msg.body.lin_vel = base_vel[:]
+        self.lcm_robot_state_msg.body.ang_vel = imu_data[7:10]
+
+        self.lcm_robot_state_msg.legs.r1_pos = r1_pos[:]
+        self.lcm_robot_state_msg.legs.l1_pos = l1_pos[:]
+        self.lcm_robot_state_msg.legs.r2_pos = r2_pos[:]
+        self.lcm_robot_state_msg.legs.l2_pos = l2_pos[:]
+
+        self.lcm_robot_state_msg.legs.r1_vel = r1_vel[:]
+        self.lcm_robot_state_msg.legs.l1_vel = l1_vel[:]
+        self.lcm_robot_state_msg.legs.r2_vel = r2_vel[:]
+        self.lcm_robot_state_msg.legs.l2_vel = l2_vel[:]
 
         self.lcm_robot_state_msg.legs.contact_states = contact_states[:]
-        # print(imu_data[11])
+
         self.lc_robot_state.publish(self.lcm_robot_state_channel, self.lcm_robot_state_msg.encode())
 
     def __pub_lcm_odom_msg(self, body_lin_pos, body_lin_vel, imu_data):
@@ -250,6 +276,31 @@ class Hardware_Level_Sim():
 
     def get_sim_period(self):
         return self.sim_period
+
+    def transform_yaw(self, yaw_raw):
+        yaw_tmp = math.fmod(
+            (2 * math.pi + yaw_raw - self.pre_yaw),
+            (2 * math.pi)
+        )
+
+        if yaw_tmp > math.pi:
+            self.yaw += (yaw_tmp - 2 * math.pi)
+        elif yaw_tmp < -math.pi:
+            self.yaw += (yaw_tmp + 2 * math.pi)
+        else:
+            self.yaw += yaw_tmp
+
+        self.pre_yaw = self.yaw
+
+        if self.first_yaw and self.yaw != 0.0:
+            self.first_yaw = False
+            self.offset_yaw = self.yaw
+            self.yaw_final = 0.0
+        else:
+            self.yaw_final = self.yaw - self.offset_yaw
+
+        return self.yaw_final
+    
 
 def main(args=None):
     hw_lvl_sim = Hardware_Level_Sim()

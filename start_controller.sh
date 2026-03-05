@@ -29,7 +29,8 @@
 
     
     # state estimation
-    ${SCRIPT_DIR}/StateEstimator/build/state_estimator &
+    # ${SCRIPT_DIR}/StateEstimator/build/state_estimator &
+    ${SCRIPT_DIR}/StateEstimatorLKF/build/state_estimator_lkf &
 
 	# robot control
 	${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC &
@@ -40,7 +41,7 @@
 	# data logger
     if [ "$2" == "--log" ]; then
 	    ${SCRIPT_DIR}/MorsLogger/build/mors_logger &
-        sleep 30s; kill $!; echo "MorsLogger killed" &
+        sleep 30s; kill $!; echo "[MorsLogger]: killed" &
     fi
 	
 	wait

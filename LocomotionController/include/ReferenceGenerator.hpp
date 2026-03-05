@@ -1,5 +1,5 @@
-#ifndef COMMAND_SHAPER_HPP
-#define COMMAND_SHAPER_HPP
+#ifndef REFERENCE_GENERATOR_HPP
+#define REFERENCE_GENERATOR_HPP
 
 #include <iostream>
 #include <Eigen/Dense>
@@ -11,7 +11,7 @@ using namespace std;
 using namespace Eigen;
 // using namespace YAML;
 
-class CommandShaper {
+class ReferenceGenerator {
 public:
     // Constants
     // static constexpr int NOADAPT = 0;
@@ -33,8 +33,8 @@ public:
     // static constexpr int Z = 2;
 
     // Constructor
-    CommandShaper(double dt, double c_freq = 1.0);
-    ~CommandShaper();
+    ReferenceGenerator(double dt, double c_freq = 1.0);
+    ~ReferenceGenerator();
 
     // Methods
     void set_body_adaptation_mode(int mode);
@@ -77,4 +77,4 @@ private:
     int test_cnt;
 };
 
-#endif // COMMAND_SHAPER_HPP
+#endif // REFERENCE_GENERATOR_HPP

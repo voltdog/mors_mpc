@@ -2,10 +2,15 @@
 #define _convex_mpc_hpp_
 
 #include <iostream>
+#include <chrono>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
 #include "OsqpEigen/OsqpEigen.h"
+// extern "C" {
+// #include "osqp.h"
+// #include "workspace.h"
+// }
 #include <vbmath.hpp>
 #include "structs.hpp"
 #include "system_functions.hpp"

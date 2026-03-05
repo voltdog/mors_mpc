@@ -16,6 +16,7 @@ namespace mors_sys
     void quaternionToEuler(float x, float y, float z, float w, float& roll, float& pitch, float& yaw);
     MatrixXd euler2mat(double roll, double pitch, double yaw);
     MatrixXd skew(VectorXd vector);
+    Matrix3d quat2mat(float x, float y, float z, float w);
 }
 
 #endif //_system_functions_hpp_

@@ -34,6 +34,7 @@ void CSVMaintainer::init()
     control_type_addr = log_folder + "control_type.csv";
     odometry_addr = log_folder + "odometry.csv";
     robot_state_addr = log_folder + "robot_state.csv";
+    robot_state_check_addr = log_folder + "robot_state_check.csv";
     robot_cmd_addr = log_folder + "robot_cmd.csv";
     phase_sig_addr = log_folder + "gait_phase.csv";
 
@@ -113,6 +114,8 @@ void CSVMaintainer::init()
         "l2_grf/0", "l2_grf/1", "l2_grf/2",
         "contact/0", "contact/1", "contact/2", "contact/3"};
 
+    const vector<string> robot_state_check_head = robot_state_head;
+
     const vector<string> robot_cmd_head = {"time", 
         "pos/0", "pos/1", "pos/2",
         "rpy/0", "rpy/1", "rpy/2",
@@ -136,6 +139,7 @@ void CSVMaintainer::init()
     // create_csv(control_type_csv, control_type_head, control_type_addr);
     create_csv(odometry_csv, odometry_head, odometry_addr);
     create_csv(robot_state_csv, robot_state_head, robot_state_addr);
+    create_csv(robot_state_check_csv, robot_state_check_head, robot_state_check_addr);
     create_csv(robot_cmd_csv, robot_cmd_head, robot_cmd_addr);
     create_csv(phase_sig_csv, phase_sig_head, phase_sig_addr);
 }
@@ -317,6 +321,37 @@ void CSVMaintainer::write_robot_state(double time, RobotData& body_state, LegDat
     set_vector(leg_state.contacts, 4, robot_state_csv);
 
     robot_state_csv.writeToFile(robot_state_addr, true);
+}
+
+void CSVMaintainer::write_robot_state_check(double time, RobotData& body_state_check, LegData& leg_state_check)
+{
+    // foot_cmd
+    robot_state_check_csv.resetContent();
+    robot_state_check_csv << time;
+
+    set_vector(body_state_check.pos, 3, robot_state_check_csv);
+    set_vector(body_state_check.orientation, 3, robot_state_check_csv);
+    set_vector(body_state_check.lin_vel, 3, robot_state_check_csv);
+    set_vector(body_state_check.ang_vel, 3, robot_state_check_csv);
+
+    set_vector(leg_state_check.r1_pos, 3, robot_state_check_csv);
+    set_vector(leg_state_check.l1_pos, 3, robot_state_check_csv);
+    set_vector(leg_state_check.r2_pos, 3, robot_state_check_csv);
+    set_vector(leg_state_check.l2_pos, 3, robot_state_check_csv);
+
+    set_vector(leg_state_check.r1_vel, 3, robot_state_check_csv);
+    set_vector(leg_state_check.l1_vel, 3, robot_state_check_csv);
+    set_vector(leg_state_check.r2_vel, 3, robot_state_check_csv);
+    set_vector(leg_state_check.l2_vel, 3, robot_state_check_csv);
+
+    set_vector(leg_state_check.r1_grf, 3, robot_state_check_csv);
+    set_vector(leg_state_check.l1_grf, 3, robot_state_check_csv);
+    set_vector(leg_state_check.r2_grf, 3, robot_state_check_csv);
+    set_vector(leg_state_check.l2_grf, 3, robot_state_check_csv);
+
+    set_vector(leg_state_check.contacts, 4, robot_state_check_csv);
+
+    robot_state_check_csv.writeToFile(robot_state_check_addr, true);
 }
 
 void CSVMaintainer::write_robot_cmd(double time, RobotData& body_cmd)
