@@ -19,7 +19,6 @@ dt = 0.005
 LEG_CMD_CHANNEL = "FOOT_CMD"
 SERVO_STATE_CHANNEL = "SERVO_STATE"
 SERVO_CMD_CHANNEL = "SERVO_CMD"
-CONTROL_TYPE_CHANNEL = "CONTROL_TYPE"
 
 SET_KP = 16
 SET_KD = 1.3
@@ -107,10 +106,6 @@ angle_lst = get_cur_angles()
 
 lc_ctrl_type = lcm.LCM()
 
-control_type_msg = std_int()
-control_type_msg.data = SERVO_CONTROL
-lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
-
 lc_srv_cmd = lcm.LCM()
 srv_cmd_msg = servo_cmd_msg()
 srv_cmd_msg.position = angle_lst[:]
@@ -178,9 +173,6 @@ lc.publish(LEG_CMD_CHANNEL, msg.encode())
 srv_cmd_msg.kp = [0.0]*12
 srv_cmd_msg.kd = [0.0]*12
 lc_srv_cmd.publish(SERVO_CMD_CHANNEL, srv_cmd_msg.encode())
-
-control_type_msg.data = LEG_CONTROL
-lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
 t = 0.0
 t_switch = 2.0
@@ -332,8 +324,6 @@ try:
     print("Almost finish")
 
     angle_lst = get_cur_angles()
-    control_type_msg.data = SERVO_CONTROL
-    lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
     srv_cmd_msg.kp = [SET_KP]*12
     srv_cmd_msg.kd = [SET_KD]*12
     
@@ -387,8 +377,6 @@ except KeyboardInterrupt:
     msg.r1_vel = [0.0]*12
     lc.publish(LEG_CMD_CHANNEL, msg.encode())
 
-    control_type_msg.data = SERVO_CONTROL
-    lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
     lc = lcm.LCM()
     srv_cmd_msg = servo_cmd_msg()

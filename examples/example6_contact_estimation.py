@@ -23,7 +23,6 @@ LEG_CMD_CHANNEL = "FOOT_CMD"
 ROBOT_STATE_CHANNEL = "ROBOT_STATE"
 SERVO_STATE_CHANNEL = "SERVO_STATE"
 SERVO_CMD_CHANNEL = "SERVO_CMD"
-CONTROL_TYPE_CHANNEL = "CONTROL_TYPE"
 GAIT_PHASE_CHANNEL = "GAIT_PHASE"
 
 LEG_CONTROL = 1
@@ -156,10 +155,6 @@ phase_sig_msg.phase[leg_num] = SWING
 phase_sig_msg.phi = [-0.5, -0.5, -0.5, -0.5]
 lc.publish(GAIT_PHASE_CHANNEL, phase_sig_msg.encode())
 
-control_type_msg = std_int()
-control_type_msg.data = LEG_CONTROL
-lc.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
-
 t = 0.0
 t_switch = 2.0
 
@@ -271,9 +266,6 @@ try:
     for i in range(10):
         time.sleep(0.01)
 
-    control_type_msg.data = SERVO_CONTROL
-    lc.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
-
     phase_sig_msg.phase = [STANCE, STANCE, STANCE, STANCE]
     lc.publish(GAIT_PHASE_CHANNEL, phase_sig_msg.encode())
 
@@ -311,9 +303,6 @@ except KeyboardInterrupt:
     msg.r1_vel = [0.0]*12
     msg.r1_grf = [0.0]*12
     lc.publish(LEG_CMD_CHANNEL, msg.encode())
-
-    control_type_msg.data = SERVO_CONTROL
-    lc.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
     phase_sig_msg.phase = [STANCE, STANCE, STANCE, STANCE]
     lc.publish(GAIT_PHASE_CHANNEL, phase_sig_msg.encode())

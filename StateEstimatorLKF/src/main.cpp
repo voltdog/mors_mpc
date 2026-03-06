@@ -158,16 +158,19 @@ int main()
     robot.BuildPinocchioModel();
 
     // define data for forward kinematics
-    VectorXd q(18);
+    VectorXd q(19);
     q.setZero();
     VectorXd v(18);
     v.setZero();
 
     // define data for leg odometry
-    std::vector<Eigen::Vector3d> leg_positions, leg_positions_world;
-    std::vector<Eigen::Matrix3d> leg_jacobians;
-    std::vector<Eigen::Vector3d> foot_vels;
-    foot_vels.resize(4);
+    std::vector<Eigen::Vector3d> pin_leg_positions(4); 
+    std::vector<Eigen::Vector3d> leg_positions(4);
+    std::vector<Eigen::Vector3d> leg_positions_world(4);
+    std::vector<Eigen::Matrix3d> leg_jacobians(4);
+    std::vector<Eigen::Matrix3d> pin_leg_jacobians(4);
+    std::vector<Eigen::Vector3d> foot_vels(4);
+    // foot_vels.resize(4);
     Eigen::Vector3d leg_odom_velocity;
     Eigen::Vector3d rel_vel;
     Eigen::Vector3d foot_vel_global;
@@ -204,7 +207,7 @@ int main()
     lkf.set_initial_estimate(x_lkf, P0_lkf);
 
 
-    cout << "[StateEstimator]: started" << endl;
+    cout << "[StateEstimatorLKF]: started" << endl;
 
     double t = 0.0;
     while(true)
@@ -224,11 +227,11 @@ int main()
 
         // compute forward kinematics
         q.segment(0, 3) = odometry.position;
-        q.segment(3, 3) = odometry.orientation_euler; 
-        q.segment(6, 3) = servo_state.pos.segment(3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
-        q.segment(9, 3) = servo_state.pos.segment(9, 3);
-        q.segment(12, 3) = servo_state.pos.segment(0, 3);
-        q.segment(15, 3) = servo_state.pos.segment(6, 3);
+        q.segment(3, 4) = odometry.orientation_quaternion; 
+        q.segment(7, 3) = servo_state.pos.segment(3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
+        q.segment(10, 3) = servo_state.pos.segment(9, 3);
+        q.segment(13, 3) = servo_state.pos.segment(0, 3);
+        q.segment(16, 3) = servo_state.pos.segment(6, 3);
         
         v.segment(0, 3) = odometry.lin_vel;
         v.segment(3, 3) = odometry.ang_vel; 
@@ -237,12 +240,14 @@ int main()
         v.segment(12, 3) = servo_state.vel.segment(0, 3);
         v.segment(15, 3) = servo_state.vel.segment(6, 3);
         robot.ComputeForwardKinematics(q, v);
-        leg_positions = robot.GetToePositionsInBaseFrame();
-
-        
+        pin_leg_positions = robot.GetToePositionsInBaseFrame(); // поменять порядок
+        leg_positions[R1] = pin_leg_positions[PIN_R1]; leg_positions[L1] = pin_leg_positions[PIN_L1];
+        leg_positions[R2] = pin_leg_positions[PIN_R2]; leg_positions[L2] = pin_leg_positions[PIN_L2];
 
         // get leg Jacobians
-        leg_jacobians = robot.GetFootJacobian(q);
+        pin_leg_jacobians = robot.GetFootJacobian(q);
+        leg_jacobians[R1] = pin_leg_jacobians[PIN_R1]; leg_jacobians[L1] = pin_leg_jacobians[PIN_L1];
+        leg_jacobians[R2] = pin_leg_jacobians[PIN_R2]; leg_jacobians[L2] = pin_leg_jacobians[PIN_L2];
 
         // get rotation matrix
         w_R_b = mors_sys::euler2mat(odometry.orientation_euler(0), 

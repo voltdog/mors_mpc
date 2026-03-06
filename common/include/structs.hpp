@@ -12,6 +12,12 @@ constexpr int L1 = 1;
 constexpr int R2 = 2;
 constexpr int L2 = 3;
 
+constexpr int PIN_R1 = 2;
+constexpr int PIN_L1 = 0;
+constexpr int PIN_R2 = 3;
+constexpr int PIN_L2 = 1;
+constexpr int PIN_START_IDX = 7;
+
 constexpr int X = 0;
 constexpr int Y = 1;
 constexpr int Z = 2;

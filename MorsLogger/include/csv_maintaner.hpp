@@ -33,7 +33,6 @@ class CSVMaintainer
         void write_enable(double time, bool leg_controller_enable, bool leg_controller_reset,
                                         bool locomotion_enable, bool locomotion_reset,
                                         bool action_ctr_enable, bool action_ctr_reset);
-        void write_control_type(double time, bool control_type);
         void write_odometry(double time, Odometry& odometry);
         void write_robot_state(double t, RobotData& body_state, LegData& leg_state);
         void write_robot_state_check(double t, RobotData& body_state_check, LegData& leg_state_check);
@@ -50,14 +49,14 @@ class CSVMaintainer
         // vector<string> servo_state_head;
 
         CSVWriter servo_state_csv, servo_cmd_csv, imu_data_csv, wbc_cmd_csv, grf_cmd_csv;
-        CSVWriter enable_csv, control_type_csv, odometry_csv;
+        CSVWriter enable_csv, odometry_csv;
         CSVWriter servo_state_filt_csv;
         CSVWriter robot_state_csv, robot_state_check_csv, robot_cmd_csv;
         CSVWriter phase_sig_csv;
 
         string log_folder;
         string servo_state_addr, servo_cmd_addr, imu_data_addr, wbc_cmd_addr, grf_cmd_addr;
-        string enable_addr, control_type_addr, odometry_addr;
+        string enable_addr, odometry_addr;
         string servo_state_filt_addr, robot_state_addr, robot_state_check_addr, robot_cmd_addr, phase_sig_addr;
 
 };

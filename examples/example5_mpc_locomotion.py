@@ -30,7 +30,6 @@ LIN_VEL_Y = 0.0
 ANG_VEL_Z = 0.0
 POS_Z = 0.21
  
-CONTROL_TYPE_CHANNEL = "CONTROL_TYPE"
 ROBOT_CMD_CHANNEL = "ROBOT_CMD"#"ROBOT_REF"#
 GAIT_PARAMS_CHANNEL = "GAIT_PARAMS"
 SERVO_CMD_CHANNEL = "SERVO_CMD"
@@ -48,10 +47,6 @@ YAW = 5
 
 def null_servo():
     global lc
-
-    control_type_msg = std_int()
-    control_type_msg.data = SERVO_CONTROL
-    lc.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
     # lc = lcm.LCM()
     srv_cmd_msg = servo_cmd_msg()
@@ -99,10 +94,6 @@ gait_prms_msg.t_sw = T_SW
 gait_prms_msg.stride_height = STRIDE_HEIGHT
 gait_prms_msg.standing = True
 lc.publish(GAIT_PARAMS_CHANNEL, gait_prms_msg.encode())
-
-control_type_msg = std_int()
-control_type_msg.data = LEG_CONTROL
-lc.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
 cmd_msg = robot_cmd_msg()
 cmd_msg.cmd_pose = [0.0]*6
@@ -222,9 +213,6 @@ try:
                   0.0, 0.0, 0.0],
                  2.0)
 
-    control_type_msg.data = SERVO_CONTROL
-    lc.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
-
     srv_cmd_msg = servo_cmd_msg()
     srv_cmd_msg.velocity = [0.0]*12
     srv_cmd_msg.torque = [0.0]*12
@@ -248,9 +236,6 @@ except KeyboardInterrupt:
                   0.0, 0.0, 0.0], #orientation
                  [0.0]*6,
                  2.0)
-
-    control_type_msg.data = SERVO_CONTROL
-    lc.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
     # lc = lcm.LCM()
     # srv_cmd_msg = servo_cmd_msg()

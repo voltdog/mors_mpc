@@ -19,7 +19,6 @@ dt = 0.005
 LEG_CMD_CHANNEL = "FOOT_CMD"
 SERVO_STATE_CHANNEL = "SERVO_STATE"
 SERVO_CMD_CHANNEL = "SERVO_CMD"
-CONTROL_TYPE_CHANNEL = "CONTROL_TYPE"
 GAIT_PHASE_CHANNEL = "GAIT_PHASE"
 
 LEG_CONTROL = 1
@@ -135,10 +134,6 @@ lc.publish(GAIT_PHASE_CHANNEL, phase_sig_msg.encode())
 
 lc_ctrl_type = lcm.LCM()
 
-control_type_msg = std_int()
-control_type_msg.data = LEG_CONTROL
-lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
-
 print("Example1 started")
 try:
     while(t < 10.0):
@@ -205,9 +200,6 @@ try:
     msg.r1_pos[2] = -0.14
     msg.r1_vel = [0.0]*12
     lc.publish(LEG_CMD_CHANNEL, msg.encode())
-
-    control_type_msg.data = SERVO_CONTROL
-    lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
     phase_sig_msg.phase = [STANCE, STANCE, STANCE, STANCE]
     lc.publish(GAIT_PHASE_CHANNEL, phase_sig_msg.encode())

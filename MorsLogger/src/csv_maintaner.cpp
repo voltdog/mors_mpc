@@ -36,7 +36,6 @@ void CSVMaintainer::init()
     odometry_addr = log_folder + "odometry.csv";
     phase_sig_addr = log_folder + "gait_phase.csv";
 
-    control_type_addr = log_folder + "control_type.csv";
     enable_addr = log_folder + "enable.csv";
 
     // define table head
@@ -122,9 +121,7 @@ void CSVMaintainer::init()
     const vector<string> phase_sig_head = {"time", 
         "phase/0", "phase/1", "phase/2", "phase/3",
         "phi/0", "phi/1", "phi/2", "phi/3"};
-
-    const vector<string> control_type_head = {"time", "control_type"};
-    
+   
     // write headers to files
     create_csv(servo_state_csv, servo_state_head, servo_state_addr);
     // create_csv(servo_state_filt_csv, servo_state_filt_head, servo_state_filt_addr);
@@ -132,7 +129,6 @@ void CSVMaintainer::init()
     create_csv(imu_data_csv, imu_data_head, imu_data_addr);
     create_csv(wbc_cmd_csv, wbc_cmd_head, wbc_cmd_addr);
     // create_csv(enable_csv, enable_head, enable_addr);
-    // create_csv(control_type_csv, control_type_head, control_type_addr);
     create_csv(odometry_csv, odometry_head, odometry_addr);
     create_csv(robot_state_csv, robot_state_head, robot_state_addr);
     create_csv(robot_state_check_csv, robot_state_check_head, robot_state_check_addr);
@@ -271,14 +267,6 @@ void CSVMaintainer::write_enable(double time, bool leg_controller_enable, bool l
     // cout << "=========" << endl;
 
     enable_csv.writeToFile(enable_addr, true);
-}
-void CSVMaintainer::write_control_type(double time, bool control_type)
-{
-    control_type_csv.resetContent();
-    control_type_csv << time;
-    control_type_csv << control_type;
-
-    control_type_csv.writeToFile(control_type_addr, true);
 }
 
 void CSVMaintainer::write_robot_state(double time, RobotData& body_state, LegData& leg_state)

@@ -16,7 +16,6 @@ import yaml
 
 dt = 0.01
  
-CONTROL_TYPE_CHANNEL = "CONTROL_TYPE"
 ROBOT_CMD_CHANNEL = "ROBOT_CMD"
 ROBOT_STATE_CHANNEL = "ROBOT_STATE"
 SERVO_CMD_CHANNEL = "SERVO_CMD"
@@ -79,10 +78,6 @@ def go_robot_pos(cur_pos, ref_pos, tf):
 print("Example4 starting...")
 
 lc_ctrl_type = lcm.LCM()
-
-control_type_msg = std_int()
-control_type_msg.data = LEG_CONTROL
-lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
 lc_rbt_cmd = lcm.LCM()
 cmd_msg = robot_cmd_msg()
@@ -279,9 +274,6 @@ try:
                  [0.0]*6,
                  2.0)
 
-    control_type_msg.data = SERVO_CONTROL
-    lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
-
     lc = lcm.LCM()
     srv_cmd_msg = servo_cmd_msg()
     srv_cmd_msg.velocity = [0.0]*12
@@ -297,9 +289,6 @@ try:
 except KeyboardInterrupt:
     print("Keyboard Interrupt")
     print("Finishing process...")
-
-    control_type_msg.data = SERVO_CONTROL
-    lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
     lc = lcm.LCM()
     srv_cmd_msg = servo_cmd_msg()

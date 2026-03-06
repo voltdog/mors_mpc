@@ -115,7 +115,7 @@ class LCMExchanger
 
     private:
         string wbc_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
-        string enable_channel, control_type_channel, odometry_channel, robot_state_channel, robot_state_check_channel;
+        string enable_channel, odometry_channel, robot_state_channel, robot_state_check_channel;
         string robot_cmd_channel, phase_sig_channel, contact_state_channel, mpc_cmd_channel;
         
         lcm::LCM robot_cmd_subscriber;
@@ -165,7 +165,6 @@ class LCMExchanger
         bool leg_controller_enable, leg_controller_reset;
         bool locomotion_enable, locomotion_reset;
         bool action_ctr_enable, action_ctr_reset;
-        int control_type;
         double gear_ratio;
 };
 

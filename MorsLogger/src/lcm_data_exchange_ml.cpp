@@ -63,7 +63,6 @@ LCMExchanger::LCMExchanger()
     locomotion_reset = true;
     action_ctr_enable = false;
     action_ctr_reset = true;
-    control_type = 0;
    
     servo_state.pos.resize(12);
     servo_state.vel.resize(12);
@@ -206,14 +205,6 @@ void LCMExchanger::enableHandler(const lcm::ReceiveBuffer* rbuf,
 
     locomotion_enable = msg->locomotion_en;
     locomotion_reset = msg->locomotion_reset;
-}
-
-void LCMExchanger::ctrlTypeHandler(const lcm::ReceiveBuffer* rbuf,
-    const std::string& chan,
-    const mors_msgs::std_int*msg)
-{
-    cout << "I got CONTROL_TYPE data!" << endl;
-    control_type = msg->data;
 }
 
 void LCMExchanger::odometryHandler(const lcm::ReceiveBuffer* rbuf,
@@ -369,15 +360,6 @@ void LCMExchanger::enableThread()
     }
 }
 
-void LCMExchanger::ctrlTypeThread()
-{
-    controle_type_subscriber.subscribe(control_type_channel, &LCMExchanger::ctrlTypeHandler, this);
-    while(true)
-    {
-        controle_type_subscriber.handle();
-    }
-}
-
 void LCMExchanger::odometryThread()
 {   
     odometry_subscriber.subscribe(odometry_channel, &LCMExchanger::odometryHandler, this);
@@ -494,11 +476,6 @@ void LCMExchanger::getEnableData(bool &leg_controller_en, bool &leg_controller_r
 
     action_ctr_en = this->action_ctr_enable;
     action_ctr_reset = this->action_ctr_reset;
-}
-
-int LCMExchanger::getCtrlTypeData()
-{
-    return control_type;
 }
 
 LCMExchanger::~LCMExchanger()

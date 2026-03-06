@@ -1,5 +1,4 @@
 enable: "ENABLE"
-# control_type: "CONTROL_TYPE" # 1 - LEG, 2 - SERVO
 
 imu_data: "IMU_DATA"
 odometry: "ODOMETRY"

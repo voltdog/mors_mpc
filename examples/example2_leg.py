@@ -18,8 +18,6 @@ GRF_CMD_CHANNEL = "GRF_CMD"
 SERVO_STATE_CHANNEL = "SERVO_STATE"
 SERVO_CMD_CHANNEL = "SERVO_CMD"
 
-CONTROL_TYPE_CHANNEL = "CONTROL_TYPE"
-
 LEG_CONTROL = 1
 SERVO_CONTROL = 2
 
@@ -45,10 +43,6 @@ lc.publish(SERVO_CMD_CHANNEL, srv_cmd_msg.encode())
 
 # set control type as leg_control
 lc_ctrl_type = lcm.LCM()
-
-control_type_msg = std_int()
-control_type_msg.data = LEG_CONTROL
-lc_ctrl_type.publish(CONTROL_TYPE_CHANNEL, control_type_msg.encode())
 
 t = 0.0
 

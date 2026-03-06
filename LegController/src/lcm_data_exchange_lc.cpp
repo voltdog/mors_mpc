@@ -105,7 +105,6 @@ void LCMExchanger::enableHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::enable_msg* msg)
 {
-    // cout << "I got ENABLE data!" << endl;
     enable = msg->leg_controller_en;
     reset = msg->leg_controller_reset;
 }
@@ -114,7 +113,6 @@ void LCMExchanger::phaseSigHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::phase_signal_msg* msg)
 {
-    // cout << "I got CONTROL_TYPE data!" << endl;
     for (int i = 0; i < 4; i++)
         phase_signal(i) = msg->phase[i];
 }

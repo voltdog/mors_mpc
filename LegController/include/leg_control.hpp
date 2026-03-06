@@ -11,10 +11,11 @@
 using namespace Eigen;
 using namespace std;
 
-// #define R1 0
-// #define L1 1
-// #define R2 2
-// #define L2 3
+// #define PIN_R1 2
+// #define PIN_L1 0
+// #define PIN_R2 3
+// #define PIN_L2 1
+// #define PIN_START_IDX 7
 
 // #define SWING  0
 // #define STANCE 1

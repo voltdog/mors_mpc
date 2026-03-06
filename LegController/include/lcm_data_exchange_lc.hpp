@@ -65,7 +65,7 @@ class LCMExchanger
 
     private:
         string wbc_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
-        string enable_channel, control_type_channel, phase_sig_channel;
+        string enable_channel, phase_sig_channel;
 
         lcm::LCM wbc_cmd_subscriber;
         lcm::LCM servo_state_subscriber;

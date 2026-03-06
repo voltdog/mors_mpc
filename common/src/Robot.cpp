@@ -3,17 +3,17 @@
 Robot::Robot()
 {
     ef_frames.resize(4);
-    ef_frames[0] = "ef_R1";
-    ef_frames[1] = "ef_L1";
-    ef_frames[2] = "ef_R2";
-    ef_frames[3] = "ef_L2";
+    ef_frames[0] = "ef_L1";
+    ef_frames[1] = "ef_L2";
+    ef_frames[2] = "ef_R1";
+    ef_frames[3] = "ef_R2";
     base_frame = "base_link";
 
     jac_pos_indicies.resize(4);
-    jac_pos_indicies[0] = 12;
-    jac_pos_indicies[1] = 6;
-    jac_pos_indicies[2] = 15;
-    jac_pos_indicies[3] = 9;
+    jac_pos_indicies[0] = 6;
+    jac_pos_indicies[1] = 9;
+    jac_pos_indicies[2] = 12;
+    jac_pos_indicies[3] = 15;
 
     dt = 0.002;
 }
@@ -43,11 +43,11 @@ void Robot::BuildPinocchioModel()
     pinocchio::urdf::buildModel(urdf_filename, root_joint, model_);
     data_ = std::make_unique<pinocchio::Data>(model_);
 
-    std::cout << "Model name: " << model_.name << std::endl;
-    std::cout << "  model nq  = " << model_.nq << " (dimension of configuration space)" << std::endl;
-    std::cout << "  model nv  = " << model_.nv << " (dimension of velocity space)" << std::endl;
-    std::cout << "  model njoints  = " << model_.njoints << " (dimension of velocity space)" << std::endl;
-    std::cout << "  model nframes  = " << model_.nframes << " (dimension of velocity space)" << std::endl;
+    // std::cout << "Model name: " << model_.name << std::endl;
+    // std::cout << "  model nq  = " << model_.nq << " (dimension of configuration space)" << std::endl;
+    // std::cout << "  model nv  = " << model_.nv << " (dimension of velocity space)" << std::endl;
+    // std::cout << "  model njoints  = " << model_.njoints << " (dimension of velocity space)" << std::endl;
+    // std::cout << "  model nframes  = " << model_.nframes << " (dimension of velocity space)" << std::endl;
 
     // Set model gravity
     model_.gravity.linear() << 0.0, 0.0, -9.81;
@@ -67,10 +67,10 @@ void Robot::BuildPinocchioModel()
     // std::cout << "Robot mass :" << robot_mass << std::endl;
     // std::cout << "Robot inertia:\n" << robot_inertia << std::endl;
 
-    cout << "Joint positions in the world frame:" << std::endl;
-    for (pinocchio::JointIndex joint_id = 0; joint_id < (pinocchio::JointIndex)model_.njoints; ++joint_id)
-        std::cout << std::setw(24) << std::left << model_.names[joint_id] << ": " << std::fixed
-                << std::setprecision(2) << data_->oMi[joint_id].translation().transpose() << std::endl;
+    // cout << "Joint positions in the world frame:" << std::endl;
+    // for (pinocchio::JointIndex joint_id = 0; joint_id < (pinocchio::JointIndex)model_.njoints; ++joint_id)
+    //     std::cout << std::setw(24) << std::left << model_.names[joint_id] << ": " << std::fixed
+    //             << std::setprecision(2) << data_->oMi[joint_id].translation().transpose() << std::endl;
 
     // cout << "\nFrame positions in the world frame:" << std::endl;
     // for (pinocchio::FrameIndex frame_id = 0; frame_id < (pinocchio::FrameIndex)model_.nframes; ++frame_id)
@@ -187,18 +187,6 @@ bool Robot::ComputeIK_CLIK(
     const int task_dim = 12;   // 4 ноги × 3 координаты
     const int dof_dim  = 12;   // 4 ноги × 3 сустава
 
-    std::vector<std::string> ik_ef_frames(4);
-    ik_ef_frames[0] = "ef_L1";
-    ik_ef_frames[1] = "ef_L2";
-    ik_ef_frames[2] = "ef_R1";
-    ik_ef_frames[3] = "ef_R2";
-
-    std::vector<int> ik_jac_pos_indicies(4);
-    ik_jac_pos_indicies[0] = 6;
-    ik_jac_pos_indicies[1] = 9;
-    ik_jac_pos_indicies[2] = 12;
-    ik_jac_pos_indicies[3] = 15;
-
     for (int iter = 0; iter < max_iter; ++iter)
     {
         // --- FK ---
@@ -220,7 +208,7 @@ bool Robot::ComputeIK_CLIK(
 
         for (int i = 0; i < 4; ++i)
         {
-            pinocchio::FrameIndex frame_id = model_.getFrameId(ik_ef_frames[i]);
+            pinocchio::FrameIndex frame_id = model_.getFrameId(ef_frames[i]);
 
             Eigen::Vector3d trans_toe = data_->oMf[frame_id].translation();
 
@@ -243,7 +231,7 @@ bool Robot::ComputeIK_CLIK(
 
             Eigen::Matrix3d J_leg =
                 R_base.transpose() *
-                J_full.block(0, ik_jac_pos_indicies[i], 3, 3);
+                J_full.block(0, jac_pos_indicies[i], 3, 3);
 
             J.block<3,3>(3*i, 3*i) = J_leg;
         }
@@ -264,7 +252,7 @@ bool Robot::ComputeIK_CLIK(
         Eigen::VectorXd dq = Eigen::VectorXd::Zero(model_.nv);
 
         for (int i = 0; i < 4; ++i)
-            dq.segment(ik_jac_pos_indicies[i], 3) = dq_legs.segment<3>(3*i);
+            dq.segment(jac_pos_indicies[i], 3) = dq_legs.segment<3>(3*i);
 
         // // --- Интеграция ---
         q = pinocchio::integrate(model_, q, dq*0.5);

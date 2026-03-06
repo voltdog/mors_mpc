@@ -54,7 +54,6 @@ int main() {
     Vector4i phase;
     Vector4d phi;
 
-    // int control_type = 0;
     // bool leg_controller_enable, leg_controller_reset;
     // bool locomotion_enable, locomotion_reset;
     // bool action_ctr_enable, action_ctr_reset;
@@ -82,7 +81,6 @@ int main() {
         // lcmExch.getEnableData(leg_controller_enable, leg_controller_reset,
         //                         locomotion_enable, locomotion_reset,
         //                         action_ctr_enable, action_ctr_reset);
-        // control_type = lcmExch.getCtrlTypeData();
         odometry = lcmExch.getOdometry();
         // servo_state_filt = lcmExch.getServoStateFiltData();
         body_state = lcmExch.getBodyState();
@@ -98,7 +96,6 @@ int main() {
         csv.write_imu_data(t, imu_data);
         csv.write_wbc_cmd(t, wbc_leg_cmd, wbc_robot_cmd);
         csv.write_odometry(t, odometry);
-        // csv.write_control_type(t, control_type);
         // csv.write_enable(t, leg_controller_enable, leg_controller_reset,
         //                     locomotion_enable, locomotion_reset,
         //                     action_ctr_enable, action_ctr_reset);

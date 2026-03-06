@@ -18,7 +18,7 @@ LCMExchanger::LCMExchanger()
     imu_channel = channel_config["imu_data"].as<string>();
     servo_state_channel = channel_config["servo_state"].as<string>();
     odometry_channel = channel_config["odometry"].as<string>();
-    robot_state_channel = channel_config["robot_state"].as<string>();
+    robot_state_channel = "ROBOT_STATE_CHECK"; //channel_config["robot_state"].as<string>();
     contact_channel = channel_config["contact_state"].as<string>();
 
     imu_data.orientation_euler.resize(3);
