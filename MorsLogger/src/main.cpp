@@ -39,7 +39,7 @@ int main() {
 
     // define lcm data
     LegData wbc_leg_cmd;
-    RobotData wbc_robot_cmd;
+    RobotData wbc_robot_cmd, mpc_robot_cmd;
     LegData leg_cmd;
     ImuData imu_data;
     ServoData servo_state;
@@ -53,6 +53,7 @@ int main() {
     RobotData body_cmd;
     Vector4i phase;
     Vector4d phi;
+    vector<bool> contact_states(4);
 
     // bool leg_controller_enable, leg_controller_reset;
     // bool locomotion_enable, locomotion_reset;
@@ -75,6 +76,7 @@ int main() {
         // -----------------------------------------------
         
         lcmExch.getWbcCmdData(wbc_leg_cmd, wbc_robot_cmd);
+        lcmExch.getMpcCmdData(mpc_robot_cmd);
         imu_data = lcmExch.getImuData();
         servo_state = lcmExch.getServoStateData();
         servo_cmd = lcmExch.getServoCmdData();
@@ -82,7 +84,7 @@ int main() {
         //                         locomotion_enable, locomotion_reset,
         //                         action_ctr_enable, action_ctr_reset);
         odometry = lcmExch.getOdometry();
-        // servo_state_filt = lcmExch.getServoStateFiltData();
+        contact_states = lcmExch.getContactSensorData();
         body_state = lcmExch.getBodyState();
         body_cmd = lcmExch.getRobotCmd();
         leg_state = lcmExch.getLegState();
@@ -94,8 +96,10 @@ int main() {
         csv.write_servo_state(t, servo_state);
         csv.write_servo_cmd(t, servo_cmd);
         csv.write_imu_data(t, imu_data);
+        csv.write_mpc_cmd(t, mpc_robot_cmd);
         csv.write_wbc_cmd(t, wbc_leg_cmd, wbc_robot_cmd);
         csv.write_odometry(t, odometry);
+        csv.write_contact_states(t, contact_states);
         // csv.write_enable(t, leg_controller_enable, leg_controller_reset,
         //                     locomotion_enable, locomotion_reset,
         //                     action_ctr_enable, action_ctr_reset);

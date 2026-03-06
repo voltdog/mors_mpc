@@ -7,16 +7,23 @@
 #include <thread>
 #include <Eigen/Dense>
 #include <lcm/lcm-cpp.hpp>
-#include "mors_msgs/wbc_cmd_msg.hpp"
-#include "mors_msgs/imu_lcm_data.hpp"
-#include "mors_msgs/servo_cmd_msg.hpp"
-#include "mors_msgs/servo_state_msg.hpp"
+
 #include "mors_msgs/enable_msg.hpp"
-#include "mors_msgs/std_int.hpp"
-#include "mors_msgs/odometry_msg.hpp"
-#include "mors_msgs/robot_state_msg.hpp"
+
 #include "mors_msgs/robot_cmd_msg.hpp"
+#include "mors_msgs/mpc_cmd_msg.hpp"
+#include "mors_msgs/wbc_cmd_msg.hpp"
+#include "mors_msgs/servo_cmd_msg.hpp"
+
+#include "mors_msgs/robot_state_msg.hpp"
+#include "mors_msgs/servo_state_msg.hpp"
+
+#include "mors_msgs/odometry_msg.hpp"
+#include "mors_msgs/imu_lcm_data.hpp"
+#include "mors_msgs/contact_sensor_msg.hpp"
+
 #include "mors_msgs/phase_signal_msg.hpp"
+
 #include "system_functions.hpp"
 #include <yaml-cpp/yaml.h>
 #include "structs.hpp"
@@ -43,6 +50,9 @@ class LCMExchanger
 
         void start_exchanger();
 
+        void mpcCmdHandler(const lcm::ReceiveBuffer* rbuf,
+                            const std::string& chan,
+                            const mors_msgs::mpc_cmd_msg* msg);
         void wbcCmdHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const mors_msgs::wbc_cmd_msg* msg);
@@ -58,9 +68,6 @@ class LCMExchanger
         void enableHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const mors_msgs::enable_msg *msg);
-        void ctrlTypeHandler(const lcm::ReceiveBuffer* rbuf,
-                            const std::string& chan,
-                            const mors_msgs::std_int* msg);
         void odometryHandler(const lcm::ReceiveBuffer* rbuf, 
                             const std::string& chan, 
                             const mors_msgs::odometry_msg* msg);
@@ -79,7 +86,11 @@ class LCMExchanger
         void phaseSigHandler(const lcm::ReceiveBuffer* rbuf, 
                             const std::string& chan, 
                             const mors_msgs::phase_signal_msg* msg);
-
+        void contactSensorHandler(const lcm::ReceiveBuffer* rbuf, 
+                            const std::string& chan, 
+                            const mors_msgs::contact_sensor_msg* msg);
+        
+        void mpcCmdThread();
         void wbcCmdThread();
         void imuThread();
         void servoStateThread();
@@ -92,8 +103,10 @@ class LCMExchanger
         void robotStateCheckThread();
         void robotCmdThread();
         void phaseSigThread();
+        void contactSensorThread();
 
         RobotData getRobotCmd();
+        void getMpcCmdData(RobotData &mpc_body_cmd);
         void getWbcCmdData(LegData &wbc_leg_cmd, RobotData &wbc_body_cmd);
         ImuData getImuData();
         ServoData getServoStateData();
@@ -104,6 +117,7 @@ class LCMExchanger
         LegData getLegState();
         RobotData getBodyStateCheck();
         LegData getLegStateCheck();
+        vector<bool> getContactSensorData();
         
         void getPhaseSig(Vector4i& phase, Vector4d& phi);
 
@@ -114,9 +128,9 @@ class LCMExchanger
 
 
     private:
-        string wbc_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
+        string mpc_cmd_channel, wbc_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
         string enable_channel, odometry_channel, robot_state_channel, robot_state_check_channel;
-        string robot_cmd_channel, phase_sig_channel, contact_state_channel, mpc_cmd_channel;
+        string robot_cmd_channel, phase_sig_channel, contact_state_channel;
         
         lcm::LCM robot_cmd_subscriber;
         lcm::LCM mpc_cmd_subscriber;
@@ -124,6 +138,7 @@ class LCMExchanger
         lcm::LCM servo_cmd_subscriber;
         lcm::LCM servo_state_subscriber;
         lcm::LCM imu_subscriber;
+        lcm::LCM contact_sensor_subscriber;
         lcm::LCM enable_subscriber;
         lcm::LCM controle_type_subscriber;
         lcm::LCM odometry_subscriber;
@@ -135,6 +150,7 @@ class LCMExchanger
 
         LegData wbc_leg_cmd;
         RobotData wbc_body_cmd;
+        RobotData mpc_body_cmd;
         
         ImuData imu_data;
         ServoData servo_state;
@@ -148,9 +164,12 @@ class LCMExchanger
         LegData leg_state_check;
         Vector4i phase;
         Vector4d phi;
+        vector<bool> contact_state;
 
+        unique_ptr<thread> thMpcCmd;
         unique_ptr<thread> thWbcCmd;
         unique_ptr<thread> thImu;
+        unique_ptr<thread> thContactSensor;
         unique_ptr<thread> thServoState;
         unique_ptr<thread> thServoCmd;
         unique_ptr<thread> thEnable;

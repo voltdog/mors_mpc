@@ -6,7 +6,8 @@
 
 LCMExchanger::LCMExchanger()
 {
-    
+    if(!mpc_cmd_subscriber.good())
+        return;
     if(!wbc_cmd_subscriber.good())
         return;
     if(!servo_state_subscriber.good())
@@ -28,6 +29,8 @@ LCMExchanger::LCMExchanger()
     if(!robot_cmd_subscriber.good())
         return;
     if(!phase_sig_subscriber.good())
+        return;
+    if(!contact_sensor_subscriber.good())
         return;
 
     // char cwd[PATH_MAX];
@@ -95,12 +98,15 @@ LCMExchanger::LCMExchanger()
     leg_state_check.contacts.resize(4);
     leg_state_check.contacts = {false, false, false, false};
 
+    contact_state.resize(4);
+
     phase.setZero();
     phi.setZero();
 }
 
 void LCMExchanger::start_exchanger()
 {
+    thMpcCmd = make_unique<thread> (&LCMExchanger::mpcCmdThread, this);
     thWbcCmd = make_unique<thread> (&LCMExchanger::wbcCmdThread, this);
     thImu = make_unique<thread> (&LCMExchanger::imuThread, this);
     thServoState = make_unique<thread> (&LCMExchanger::servoStateThread, this);
@@ -113,6 +119,30 @@ void LCMExchanger::start_exchanger()
     thRobotStateCheck = make_unique<thread> (&LCMExchanger::robotStateCheckThread, this);
     thRobotCmd = make_unique<thread> (&LCMExchanger::robotCmdThread, this);
     thPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
+    thContactSensor = make_unique<thread> (&LCMExchanger::contactSensorThread, this);
+}
+
+void LCMExchanger::contactSensorHandler(const lcm::ReceiveBuffer* rbuf,
+                            const std::string& chan,
+                            const mors_msgs::contact_sensor_msg* msg)
+{
+    // cout << "I got foot_cmd!" << endl;
+    for (int i=0; i<4; i++)
+        contact_state[i] = msg->contact_states[i];
+}
+
+void LCMExchanger::mpcCmdHandler(const lcm::ReceiveBuffer* rbuf,
+                            const std::string& chan,
+                            const mors_msgs::mpc_cmd_msg* msg)
+{
+    // cout << "I got foot_cmd!" << endl;
+    for (int i=0; i<3; i++)
+    {
+        mpc_body_cmd.pos(i) = msg->cmd_pose[i];
+        mpc_body_cmd.orientation(i) = msg->cmd_pose[i+3];
+        mpc_body_cmd.lin_vel(i) = msg->cmd_vel[i];
+        mpc_body_cmd.ang_vel(i) = msg->cmd_vel[i+3];
+    }
 }
 
 void LCMExchanger::wbcCmdHandler(const lcm::ReceiveBuffer* rbuf,
@@ -306,6 +336,24 @@ void LCMExchanger::phaseSigHandler(const lcm::ReceiveBuffer* rbuf,
     }
 }
 
+void LCMExchanger::contactSensorThread()
+{   
+    contact_sensor_subscriber.subscribe(contact_state_channel, &LCMExchanger::contactSensorHandler, this);
+    while(true)
+    {
+        contact_sensor_subscriber.handle();
+    }
+}
+
+void LCMExchanger::mpcCmdThread()
+{   
+    mpc_cmd_subscriber.subscribe(mpc_cmd_channel, &LCMExchanger::mpcCmdHandler, this);
+    while(true)
+    {
+        mpc_cmd_subscriber.handle();
+    }
+}
+
 void LCMExchanger::wbcCmdThread()
 {   
     wbc_cmd_subscriber.subscribe(wbc_cmd_channel, &LCMExchanger::wbcCmdHandler, this);
@@ -405,6 +453,11 @@ void LCMExchanger::phaseSigThread()
     }
 }
 
+void LCMExchanger::getMpcCmdData(RobotData &mpc_body_cmd)
+{
+    mpc_body_cmd = this->mpc_body_cmd;
+}
+
 void LCMExchanger::getWbcCmdData(LegData &wbc_leg_cmd, RobotData &wbc_body_cmd)
 {
     wbc_leg_cmd = this->wbc_leg_cmd;
@@ -414,6 +467,11 @@ void LCMExchanger::getWbcCmdData(LegData &wbc_leg_cmd, RobotData &wbc_body_cmd)
 ImuData LCMExchanger::getImuData()
 {
     return imu_data;
+}
+
+vector<bool> LCMExchanger::getContactSensorData()
+{
+    return contact_state;
 }
 
 ServoData LCMExchanger::getServoStateData()

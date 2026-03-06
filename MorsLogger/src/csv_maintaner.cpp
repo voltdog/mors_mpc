@@ -25,6 +25,7 @@ void CSVMaintainer::init()
 
     // define log file addresses
     robot_cmd_addr = log_folder + "robot_cmd.csv";
+    mpc_cmd_addr = log_folder + "mpc_cmd.csv";
     wbc_cmd_addr = log_folder + "wbc_cmd.csv";
     servo_cmd_addr = log_folder + "servo_cmd.csv";
 
@@ -35,6 +36,7 @@ void CSVMaintainer::init()
     imu_data_addr = log_folder + "imu_data.csv";
     odometry_addr = log_folder + "odometry.csv";
     phase_sig_addr = log_folder + "gait_phase.csv";
+    contact_sensor_addr = log_folder + "contact_sensor.csv";
 
     enable_addr = log_folder + "enable.csv";
 
@@ -55,6 +57,9 @@ void CSVMaintainer::init()
         "torq/0", "torq/1", "torq/2", "torq/3", "torq/4", "torq/5", "torq/6", "torq/7", "torq/8", "torq/9", "torq/10", "torq/11",
         "kp/0", "kp/1", "kp/2", "kp/3", "kp/4", "kp/5", "kp/6", "kp/7", "kp/8", "kp/9", "kp/10", "kp/11",
         "kd/0", "kd/1", "kd/2", "kd/3", "kd/4", "kd/5", "kd/6", "kd/7", "kd/8", "kd/9", "kd/10", "kd/11"};
+    
+    const vector<string> contact_sensor_head = {"time", 
+        "r1", "l1", "r2", "l2"};
 
     const vector<string> imu_data_head = {"time", 
         "orientation_euler/0", "orientation_euler/1", "orientation_euler/2", 
@@ -79,6 +84,12 @@ void CSVMaintainer::init()
         "l1_grf/0", "l1_grf/1", "l1_grf/2", 
         "r2_grf/0", "r2_grf/1", "r2_grf/2", 
         "l2_grf/0", "l2_grf/1", "l2_grf/2"};
+
+    const vector<string> mpc_cmd_head = {"time", 
+        "body_pos/0", "body_pos/1", "body_pos/2",
+        "body_euler/0", "body_euler/1", "body_euler/2",
+        "body_lin_vel/0", "body_lin_vel/1", "body_lin_vel/2",
+        "body_ang_vel/0", "body_ang_vel/1", "body_ang_vel/2"};
 
     const vector<string> enable_head = {"time", 
         "leg_control_en", "leg_control_reset",
@@ -127,6 +138,8 @@ void CSVMaintainer::init()
     // create_csv(servo_state_filt_csv, servo_state_filt_head, servo_state_filt_addr);
     create_csv(servo_cmd_csv, servo_cmd_head, servo_cmd_addr);
     create_csv(imu_data_csv, imu_data_head, imu_data_addr);
+    create_csv(contact_sensor_csv, contact_sensor_head, contact_sensor_addr);
+    create_csv(mpc_cmd_csv, mpc_cmd_head, mpc_cmd_addr);
     create_csv(wbc_cmd_csv, wbc_cmd_head, wbc_cmd_addr);
     // create_csv(enable_csv, enable_head, enable_addr);
     create_csv(odometry_csv, odometry_head, odometry_addr);
@@ -142,6 +155,17 @@ void CSVMaintainer::create_csv(CSVWriter &csv, const vector<string> &head, strin
     for (string head : head)
         csv << head;    
     csv.writeToFile(addr);
+}
+
+void CSVMaintainer::write_contact_states(double t, vector<bool>& contact_states)
+{
+    contact_sensor_csv.resetContent();
+    contact_sensor_csv << t;
+
+    for (int i = 0; i < 4; i++)
+        contact_sensor_csv << contact_states[i];
+
+    contact_sensor_csv.writeToFile(contact_sensor_addr, true);
 }
 
 void CSVMaintainer::write_servo_state(double time, ServoData &servo_state)
@@ -194,6 +218,20 @@ void CSVMaintainer::write_servo_cmd(double time, ServoData &servo_cmd)
 
     servo_cmd_csv.writeToFile(servo_cmd_addr, true);
 
+}
+
+void CSVMaintainer::write_mpc_cmd(double time, RobotData& robot_cmd)
+{
+    // foot_cmd
+    mpc_cmd_csv.resetContent();
+    mpc_cmd_csv << time;
+
+    set_vector(robot_cmd.pos, mpc_cmd_csv);
+    set_vector(robot_cmd.orientation, mpc_cmd_csv);
+    set_vector(robot_cmd.lin_vel, mpc_cmd_csv);
+    set_vector(robot_cmd.ang_vel, mpc_cmd_csv);
+
+    mpc_cmd_csv.writeToFile(mpc_cmd_addr, true);
 }
 
 void CSVMaintainer::write_wbc_cmd(double time, LegData& leg_cmd, RobotData& robot_cmd)

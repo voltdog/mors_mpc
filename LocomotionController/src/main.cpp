@@ -167,7 +167,7 @@ int main() {
     ContactStateFSM contact_fsm(start_td_detecting);
     // init reference generator
     int adaptation_type = 0;
-    ReferenceGenerator ref_generator(module_dt, 1.0);
+    ReferenceGenerator ref_generator(module_dt, 0.5);
     MatrixXd R_body_for_vel(3,3);
     ref_generator.set_body_adaptation_mode(adaptation_type);
 
@@ -292,6 +292,9 @@ int main() {
             // ------------------
             // STANCE CONTROLLER
             // ------------------
+            // double robot_pos_z_mpc = -0.25 * (foot_pos_local[0](Z) + foot_pos_local[1](Z) + foot_pos_local[2](Z) + foot_pos_local[3](Z));
+            // double robot_pos_z_ = robot_state.pos(Z);
+            // robot_state.pos(Z) = robot_pos_z_mpc;
             phi0 = gait_scheduler.get_phi();
             mpc_thread.set_gait_params(t_st, t_sw, phase_offsets, phase_init);
             mpc_thread.set_observation_data(robot_state, 
@@ -304,6 +307,7 @@ int main() {
                                         phi0, 
                                         active_legs);
             grf_cmd = mpc_thread.get_ref_grf();
+            // robot_state.pos(Z) = robot_pos_z_;
             
             // // //
             // my try to set toe positions and velocities even when 
