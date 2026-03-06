@@ -39,8 +39,8 @@ LCMExchanger::LCMExchanger()
     odometry.position.setZero();
     odometry.lin_vel.resize(3);
     odometry.lin_vel.setZero();
-    odometry.orientation.resize(3);
-    odometry.orientation.setZero();
+    odometry.orientation_euler.resize(3);
+    odometry.orientation_euler.setZero();
     odometry.ang_vel.resize(3);
     odometry.ang_vel.setZero();
 
@@ -94,7 +94,7 @@ void LCMExchanger::odometryHandler(const lcm::ReceiveBuffer* rbuf,
     for (int i=0; i<3; i++)
     {
         odometry.position(i) = msg->position[i];
-        odometry.orientation(i) = msg->orientation[i];
+        odometry.orientation_euler(i) = msg->orientation[i];
         odometry.lin_vel(i) = msg->lin_vel[i];
         odometry.ang_vel(i) = msg->ang_vel[i];
     }

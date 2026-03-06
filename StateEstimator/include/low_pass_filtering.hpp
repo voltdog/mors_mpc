@@ -37,10 +37,10 @@ class LowPassFiltering
         ~LowPassFiltering();
 
         // void set_input_data(ServoData servo_in, ImuData imu_in, Odometry odom_in);
-        VectorXd update_orientation(VectorXd &orientation);
-        VectorXd update_rpy_rate(VectorXd &rpy_rate);
-        VectorXd update_position(VectorXd &pos);
-        VectorXd update_lin_vel(VectorXd &lin_vel);
+        VectorXd update_orientation(Vector3d &orientation);
+        VectorXd update_rpy_rate(Vector3d &rpy_rate);
+        VectorXd update_position(Vector3d &pos);
+        VectorXd update_lin_vel(Vector3d &lin_vel);
         // void step(ServoData &servo_out, ImuData &imu_out, Odometry &odom_out);
     private:
         // LowPassFilter lpf_odom_pos[3];

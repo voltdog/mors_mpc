@@ -12,21 +12,25 @@ LegControl::LegControl()
     tau_ref_l2.resize(3);
 
     robot.BuildPinocchioModel();
-    q.resize(18);
+    q.resize(19);
     v.resize(18);
     q.setZero();
+    q(6) = 1.0;
     v.setZero();
     M_legs.resize(4);
     h_legs.resize(4);
 }
 
-void LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref, VectorXd& tau_ref)
+void LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &theta_ref, VectorXd &d_theta_ref, VectorXd& tau_ref)
 {
+    auto start = std::chrono::steady_clock::now();
+
     // prepare data
-    q.segment(6, 3) = theta.segment(3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
-    q.segment(9, 3) = theta.segment(9, 3);
-    q.segment(12, 3) = theta.segment(0, 3);
-    q.segment(15, 3) = theta.segment(6, 3);
+    q.segment(7, 3) = theta.segment(3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
+    q.segment(10, 3) = theta.segment(9, 3);
+    q.segment(13, 3) = theta.segment(0, 3);
+    q.segment(16, 3) = theta.segment(6, 3);
+
     v.segment(6, 3) = d_theta.segment(3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
     v.segment(9, 3) = d_theta.segment(9, 3);
     v.segment(12, 3) = d_theta.segment(0, 3);
@@ -48,30 +52,41 @@ void LegControl::calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta,
     J_L2 = leg_jacobians[3];
 
     // calculate dynamics matrices
-    robot.ComputeAllLegDynamics(q, v, M_legs, h_legs);
-    M_R1 = M_legs[R1]; M_L1 = M_legs[L1]; M_R2 = M_legs[R2]; M_L2 = M_legs[L2];
-    H_R1 = h_legs[R1]; H_L1 = h_legs[L1]; H_R2 = h_legs[R2]; H_L2 = h_legs[L2];
-
+    // robot.ComputeAllLegDynamics(q, v, M_legs, h_legs);
+    // M_R1 = M_legs[2]; M_L1 = M_legs[0]; M_R2 = M_legs[3]; M_L2 = M_legs[1];
+    // H_R1 = h_legs[2]; H_L1 = h_legs[0]; H_R2 = h_legs[3]; H_L2 = h_legs[1];
 
     // compute torques with force control and gravity compensation
-    tau_ref_r1 = J_R1.transpose() * leg_cmd.r1_grf + H_R1;
-    tau_ref_l1 = J_L1.transpose() * leg_cmd.l1_grf + H_L1;
-    tau_ref_r2 = J_R2.transpose() * leg_cmd.r2_grf + H_R2;
-    tau_ref_l2 = J_L2.transpose() * leg_cmd.l2_grf + H_L2;
+    tau_ref_r1 = J_R1.transpose() * leg_cmd.r1_grf;// - H_R1;
+    tau_ref_l1 = J_L1.transpose() * leg_cmd.l1_grf;// - H_L1;
+    tau_ref_r2 = J_R2.transpose() * leg_cmd.r2_grf;// - H_R2;
+    tau_ref_l2 = J_L2.transpose() * leg_cmd.l2_grf;// - H_L2;
     tau_ref.segment(0, 3) = tau_ref_r1;
     tau_ref.segment(3, 3) = tau_ref_l1;
     tau_ref.segment(6, 3) = tau_ref_r2;
     tau_ref.segment(9, 3) = tau_ref_l2;
 
-
     // compute ref joint positions (inverse kinematics)
     std::vector<Eigen::Vector3d> x_ref_local(4);
-    x_ref_local[0] = leg_cmd.r1_pos;
-    x_ref_local[1] = leg_cmd.l1_pos;
-    x_ref_local[2] = leg_cmd.r2_pos;
-    x_ref_local[3] = leg_cmd.l2_pos;
-    robot.ComputeIK_CLIK(q, x_ref_local);
-    theta_ref = q.segment(6, 12);
+    x_ref_local[0] = leg_cmd.l1_pos;
+    x_ref_local[1] = leg_cmd.l2_pos;
+    x_ref_local[2] = leg_cmd.r1_pos;
+    x_ref_local[3] = leg_cmd.r2_pos;
+     
+    bool ik_success = robot.ComputeIK_CLIK(q, x_ref_local,
+                                            50, 1e-4, 2.0, 1e-6);
+
+    // cout << ik_success << endl;
+    // cout << "-------" << endl;
+
+    theta_ref << q.segment(13, 3), 
+                 q.segment(7, 3), 
+                 q.segment(16, 3), 
+                 q.segment(10, 3);
+
+    auto end = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    // std::cout << "Elapsed time: " << elapsed.count() << " us\n";
 
     // compute joint velocities
     d_theta_ref.setZero();

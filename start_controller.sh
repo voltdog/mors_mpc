@@ -34,7 +34,7 @@
 
 	# robot control
 	${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC &
-	${SCRIPT_DIR}/LegController/build/leg_controller & 
+	${SCRIPT_DIR}/LegController/build/LegController & 
 
     echo "Robot Controller Started Successfully" &
 

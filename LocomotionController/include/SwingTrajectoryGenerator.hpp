@@ -16,7 +16,7 @@
 
 // constexpr int SWING = 0;
 // constexpr int STANCE = 1;
-// constexpr int LATE = 2;
+// constexpr int LATE_CONTACT = 2;
 
 class SwingTrajectoryGenerator {
 public:

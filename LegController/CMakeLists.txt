@@ -6,6 +6,7 @@ project(LegController VERSION 1.0)
 set(CMAKE_CXX_STANDARD 20)
 # set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_BUILD_TYPE Release)
 
 
 # check AVX2 support
@@ -94,13 +95,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #===============================================================================
 
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native ")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # -flto=auto -DEIGEN_STACK_ALLOCATION_LIMIT=0 -O3 -Wall -fPIC ${AVX_FLAGS}")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -DNDEBUG") # -flto=auto -DEIGEN_STACK_ALLOCATION_LIMIT=0 -O3 -Wall -fPIC ${AVX_FLAGS}")
 
 # add_definitions(-DCOMPILEDWITHC11)
 message(STATUS "Using flag -std=c++20")
 
 find_package(Eigen3 REQUIRED)
-# find_package(OsqpEigen REQUIRED)
 find_package(lcm REQUIRED)
 find_package(pinocchio REQUIRED)
 
@@ -120,7 +121,6 @@ include_directories("/home/$ENV{USER}/lcm_msgs/")
 include_directories(include /home/$ENV{USER}/vbcontrol/include)
 
 # Put all message definition files in the type directory in one list
-# FILE(GLOB message_definitions "${CMAKE_CURRENT_LIST_DIR}/lcm_msgs/mors_msgs/*.lcm")
 FILE(GLOB message_definitions "/home/$ENV{USER}/lcm_msgs/mors_msgs/*.lcm")
 
 # Generate headers from message definition
@@ -133,19 +133,16 @@ target_include_directories(messages-cpp INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
 # executable
-# add_subdirectory(/home/$ENV{USER}/vbcontrol/matplotplusplus)
 add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
 
 set(LEG_SOURCES src/main.cpp 
             src/leg_control.cpp 
             ../common/src/leg_model.cpp 
             src/lcm_data_exchange_lc.cpp
-            src/ikine.cpp
             ../common/src/system_functions.cpp
             ../common/src/Robot.cpp
 )
 add_executable(${PROJECT_NAME} ${LEG_SOURCES})
-# target_link_libraries(leg_controller OsqpEigen::OsqpEigen)
 
 
 target_link_libraries(${PROJECT_NAME} 
@@ -160,7 +157,7 @@ target_compile_definitions(${PROJECT_NAME}  PRIVATE
     PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
     COAL_DISABLE_HPP_FCL_WARNINGS
     # EIGEN_USE_AVX
-    EIGEN_USE_AVX2
+    # EIGEN_USE_AVX2
     # EIGEN_DONT_ALIGN
     # EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 )

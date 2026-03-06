@@ -7,9 +7,7 @@
 LCMExchanger::LCMExchanger()
 {
     
-    if(!foot_cmd_subscriber.good())
-        return;
-    if(!grf_cmd_subscriber.good())
+    if(!wbc_cmd_subscriber.good())
         return;
     if(!servo_state_subscriber.good())
         return;
@@ -42,20 +40,22 @@ LCMExchanger::LCMExchanger()
     // cout << config_address << endl;
 
     YAML::Node channel_config = YAML::LoadFile(config_address);//"/home/user/mors_mpc_control/config/channels.yaml");
-    imu_channel = channel_config["imu_data"].as<string>();
-    servo_state_channel = channel_config["servo_state"].as<string>();
-    servo_cmd_channel = channel_config["servo_cmd"].as<string>();
-    foot_cmd_channel = channel_config["foot_cmd"].as<string>();
-    grf_cmd_channel = channel_config["grf_cmd"].as<string>();
     enable_channel = channel_config["enable"].as<string>();
-    control_type_channel = channel_config["control_type"].as<string>();
+
+    imu_channel = channel_config["imu_data"].as<string>();
     odometry_channel = channel_config["odometry"].as<string>();
+    contact_state_channel = channel_config["contact_state"].as<string>();
+
+    robot_cmd_channel = channel_config["robot_cmd"].as<string>();
+    mpc_cmd_channel = channel_config["mpc_cmd"].as<string>();
+    wbc_cmd_channel = channel_config["wbc_cmd"].as<string>();
+    servo_cmd_channel = channel_config["servo_cmd"].as<string>();
+
+    servo_state_channel = channel_config["servo_state"].as<string>();
     robot_state_channel = channel_config["robot_state"].as<string>();
     robot_state_check_channel = "ROBOT_STATE_CHECK";
-    robot_cmd_channel = channel_config["robot_ref"].as<string>();
+    
     phase_sig_channel = channel_config["gait_phase"].as<string>();
-
-    // gear_ratio = GEAR_RATIO;
 
     leg_controller_enable = false;
     leg_controller_reset = true;
@@ -64,32 +64,7 @@ LCMExchanger::LCMExchanger()
     action_ctr_enable = false;
     action_ctr_reset = true;
     control_type = 0;
-
-    leg_cmd.r1_grf.resize(3);
-    leg_cmd.r2_grf.resize(3);
-    leg_cmd.l1_grf.resize(3);
-    leg_cmd.l2_grf.resize(3);
-    leg_cmd.r1_pos.resize(3);
-    leg_cmd.r2_pos.resize(3);
-    leg_cmd.l1_pos.resize(3);
-    leg_cmd.l2_pos.resize(3);
-    leg_cmd.r1_vel.resize(3);
-    leg_cmd.r2_vel.resize(3);
-    leg_cmd.l1_vel.resize(3);
-    leg_cmd.l2_vel.resize(3);
-    leg_cmd.r1_acc.resize(3);
-    leg_cmd.r2_acc.resize(3);
-    leg_cmd.l1_acc.resize(3);
-    leg_cmd.l2_acc.resize(3);
-    leg_cmd.r1_kp.resize(3);
-    leg_cmd.l1_kp.resize(3);
-    leg_cmd.r2_kp.resize(3);
-    leg_cmd.l2_kp.resize(3);
-    leg_cmd.r1_kd.resize(3);
-    leg_cmd.l1_kd.resize(3);
-    leg_cmd.r2_kd.resize(3);
-    leg_cmd.l2_kd.resize(3);
-    
+   
     servo_state.pos.resize(12);
     servo_state.vel.resize(12);
     servo_state.torq.resize(12);
@@ -115,170 +90,19 @@ LCMExchanger::LCMExchanger()
     servo_cmd.kp.setZero();
     servo_cmd.kd.setZero();
 
-    imu_data.orientation_euler.resize(3);
-    imu_data.orientation_quaternion.resize(4);
-    imu_data.ang_vel.resize(3);
-    imu_data.lin_accel.resize(3);
-    imu_data.orientation_euler.setZero();
-    imu_data.orientation_quaternion.setZero();
-    imu_data.ang_vel.setZero();
-    imu_data.lin_accel.setZero();
-
-    odometry.position.resize(3);
-    odometry.position.setZero();
-    odometry.orientation.resize(3);
-    odometry.orientation.setZero();
-    odometry.ang_vel.resize(3);
-    odometry.ang_vel.setZero();
-    odometry.lin_vel.resize(3);
-    odometry.lin_vel.setZero();
-
-    leg_cmd.r1_grf << 0.0, 0.0, 0.0;
-    leg_cmd.l1_grf << 0.0, 0.0, 0.0;
-    leg_cmd.r2_grf << 0.0, 0.0, 0.0;
-    leg_cmd.l2_grf << 0.0, 0.0, 0.0;
-    leg_cmd.r1_pos.setZero();
-    leg_cmd.r2_pos.setZero();
-    leg_cmd.l1_pos.setZero();
-    leg_cmd.l2_pos.setZero();
-    leg_cmd.r1_vel.setZero();
-    leg_cmd.r2_vel.setZero();
-    leg_cmd.l1_vel.setZero();
-    leg_cmd.l2_vel.setZero();
-    leg_cmd.r1_acc.setZero();
-    leg_cmd.r2_acc.setZero();
-    leg_cmd.l1_acc.setZero();
-    leg_cmd.l2_acc.setZero();
-    leg_cmd.r1_kp.setZero();
-    leg_cmd.r2_kp.setZero();
-    leg_cmd.l1_kp.setZero();
-    leg_cmd.l2_kp.setZero();
-    leg_cmd.r1_kd.setZero();
-    leg_cmd.r2_kd.setZero();
-    leg_cmd.l1_kd.setZero();
-    leg_cmd.l2_kd.setZero();
-
-    
-    body_state.orientation.resize(3);
-    body_state.ang_vel.resize(3);
-    body_state.pos.resize(3);
-    body_state.lin_vel.resize(3);
-    body_state.orientation.setZero();
-    body_state.ang_vel.setZero();
-    body_state.pos.setZero();
-    body_state.lin_vel.setZero();
-
-    leg_state.r1_grf.resize(3);
-    leg_state.r2_grf.resize(3);
-    leg_state.l1_grf.resize(3);
-    leg_state.l2_grf.resize(3);
-    leg_state.r1_pos.resize(3);
-    leg_state.r2_pos.resize(3);
-    leg_state.l1_pos.resize(3);
-    leg_state.l2_pos.resize(3);
-    leg_state.r1_vel.resize(3);
-    leg_state.r2_vel.resize(3);
-    leg_state.l1_vel.resize(3);
-    leg_state.l2_vel.resize(3);
-    leg_state.r1_acc.resize(3);
-    leg_state.r2_acc.resize(3);
-    leg_state.l1_acc.resize(3);
-    leg_state.l2_acc.resize(3);
     leg_state.contacts.resize(4);
-
-    leg_state.r1_grf.setZero();
-    leg_state.l1_grf.setZero();
-    leg_state.r2_grf.setZero();
-    leg_state.l2_grf.setZero();
-    leg_state.r1_pos.setZero();
-    leg_state.r2_pos.setZero();
-    leg_state.l1_pos.setZero();
-    leg_state.l2_pos.setZero();
-    leg_state.r1_vel.setZero();
-    leg_state.r2_vel.setZero();
-    leg_state.l1_vel.setZero();
-    leg_state.l2_vel.setZero();
-    leg_state.r1_acc.setZero();
-    leg_state.r2_acc.setZero();
-    leg_state.l1_acc.setZero();
-    leg_state.l2_acc.setZero();
     leg_state.contacts = {false, false, false, false};
 
-    body_state_check.orientation.resize(3);
-    body_state_check.ang_vel.resize(3);
-    body_state_check.pos.resize(3);
-    body_state_check.lin_vel.resize(3);
-    body_state_check.orientation.setZero();
-    body_state_check.ang_vel.setZero();
-    body_state_check.pos.setZero();
-    body_state_check.lin_vel.setZero();
-
-    leg_state_check.r1_grf.resize(3);
-    leg_state_check.r2_grf.resize(3);
-    leg_state_check.l1_grf.resize(3);
-    leg_state_check.l2_grf.resize(3);
-    leg_state_check.r1_pos.resize(3);
-    leg_state_check.r2_pos.resize(3);
-    leg_state_check.l1_pos.resize(3);
-    leg_state_check.l2_pos.resize(3);
-    leg_state_check.r1_vel.resize(3);
-    leg_state_check.r2_vel.resize(3);
-    leg_state_check.l1_vel.resize(3);
-    leg_state_check.l2_vel.resize(3);
-    leg_state_check.r1_acc.resize(3);
-    leg_state_check.r2_acc.resize(3);
-    leg_state_check.l1_acc.resize(3);
-    leg_state_check.l2_acc.resize(3);
     leg_state_check.contacts.resize(4);
-
-    leg_state_check.r1_grf.setZero();
-    leg_state_check.l1_grf.setZero();
-    leg_state_check.r2_grf.setZero();
-    leg_state_check.l2_grf.setZero();
-    leg_state_check.r1_pos.setZero();
-    leg_state_check.r2_pos.setZero();
-    leg_state_check.l1_pos.setZero();
-    leg_state_check.l2_pos.setZero();
-    leg_state_check.r1_vel.setZero();
-    leg_state_check.r2_vel.setZero();
-    leg_state_check.l1_vel.setZero();
-    leg_state_check.l2_vel.setZero();
-    leg_state_check.r1_acc.setZero();
-    leg_state_check.r2_acc.setZero();
-    leg_state_check.l1_acc.setZero();
-    leg_state_check.l2_acc.setZero();
     leg_state_check.contacts = {false, false, false, false};
 
     phase.setZero();
     phi.setZero();
-
-    body_cmd.ang_vel.resize(3);
-    body_cmd.lin_vel.resize(3);
-    body_cmd.pos.resize(3);
-    body_cmd.orientation.resize(3);
-    body_cmd.ang_vel.setZero();
-    body_cmd.lin_vel.setZero();
-    body_cmd.pos.setZero();
-    body_cmd.orientation.setZero();
-
-    // double bx = 0.165;
-    // double by = 0.067;
-    // r1_pos <<  bx, -by, -0.18;
-    // leg_cmd.r1_pos <<  0.225, -0.1, -0.17;
-    // leg_cmd.l1_pos <<  0.225,  0.1, -0.17;
-    // leg_cmd.r2_pos << -0.225, -0.1, -0.17;
-    // leg_cmd.l2_pos << -0.225,  0.1, -0.17;
-
-    // leg_cmd.r1_vel << 0.0, 0.0, 0.0;
-    // leg_cmd.l1_vel << 0.0, 0.0, 0.0;
-    // leg_cmd.r2_vel << 0.0, 0.0, 0.0;
-    // leg_cmd.l2_vel << 0.0, 0.0, 0.0;
 }
 
 void LCMExchanger::start_exchanger()
 {
-    thFootCmd = make_unique<thread> (&LCMExchanger::footCmdThread, this);
-    thGrfCmd = make_unique<thread> (&LCMExchanger::grfCmdThread, this);
+    thWbcCmd = make_unique<thread> (&LCMExchanger::wbcCmdThread, this);
     thImu = make_unique<thread> (&LCMExchanger::imuThread, this);
     thServoState = make_unique<thread> (&LCMExchanger::servoStateThread, this);
     thServoCmd = make_unique<thread> (&LCMExchanger::servoCmdThread, this);
@@ -292,44 +116,32 @@ void LCMExchanger::start_exchanger()
     thPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
 }
 
-void LCMExchanger::footCmdHandler(const lcm::ReceiveBuffer* rbuf,
+void LCMExchanger::wbcCmdHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
-                            const mors_msgs::foot_cmd_msg* msg)
+                            const mors_msgs::wbc_cmd_msg* msg)
 {
     // cout << "I got foot_cmd!" << endl;
     for (int i=0; i<3; i++)
     {
-        leg_cmd.r1_pos(i) = msg->r1_pos[i];
-        leg_cmd.l1_pos(i) = msg->l1_pos[i];
-        leg_cmd.r2_pos(i) = msg->r2_pos[i];
-        leg_cmd.l2_pos(i) = msg->l2_pos[i];
+        wbc_body_cmd.pos(i) = msg->body.position[i];
+        wbc_body_cmd.orientation(i) = msg->body.orientation_euler[i];
+        wbc_body_cmd.lin_vel(i) = msg->body.lin_vel[i];
+        wbc_body_cmd.ang_vel(i) = msg->body.ang_vel[i];
 
-        leg_cmd.r1_vel(i) = msg->r1_vel[i];
-        leg_cmd.l1_vel(i) = msg->l1_vel[i];
-        leg_cmd.r2_vel(i) = msg->r2_vel[i];
-        leg_cmd.l2_vel(i) = msg->l2_vel[i];
+        wbc_leg_cmd.r1_pos(i) = msg->legs.r1_pos[i];
+        wbc_leg_cmd.l1_pos(i) = msg->legs.l1_pos[i];
+        wbc_leg_cmd.r2_pos(i) = msg->legs.r2_pos[i];
+        wbc_leg_cmd.l2_pos(i) = msg->legs.l2_pos[i];
 
-        leg_cmd.r1_acc(i) = msg->r1_acc[i];
-        leg_cmd.l1_acc(i) = msg->l1_acc[i];
-        leg_cmd.r2_acc(i) = msg->r2_acc[i];
-        leg_cmd.l2_acc(i) = msg->l2_acc[i];
+        wbc_leg_cmd.r1_vel(i) = msg->legs.r1_vel[i];
+        wbc_leg_cmd.l1_vel(i) = msg->legs.l1_vel[i];
+        wbc_leg_cmd.r2_vel(i) = msg->legs.r2_vel[i];
+        wbc_leg_cmd.l2_vel(i) = msg->legs.l2_vel[i];
 
-        leg_cmd.r1_kp(i) = msg->r1_kp[i];
-        leg_cmd.r1_kd(i) = msg->r1_kd[i];
-    }
-}
-
-void LCMExchanger::grfCmdHandler(const lcm::ReceiveBuffer* rbuf,
-    const std::string& chan,
-    const mors_msgs::grf_cmd_msg* msg)
-{
-    // cout << "I got grf_cmd!" << endl;
-    for (int i=0; i<3; i++)
-    {
-        leg_cmd.r1_grf(i) = msg->r1_grf[i];
-        leg_cmd.r2_grf(i) = msg->r2_grf[i];
-        leg_cmd.l1_grf(i) = msg->l1_grf[i];
-        leg_cmd.l2_grf(i) = msg->l2_grf[i];
+        wbc_leg_cmd.r1_grf(i) = msg->legs.r1_grf[i];
+        wbc_leg_cmd.r2_grf(i) = msg->legs.r2_grf[i];
+        wbc_leg_cmd.l1_grf(i) = msg->legs.l1_grf[i];
+        wbc_leg_cmd.l2_grf(i) = msg->legs.l2_grf[i];
     }
 }
 
@@ -337,7 +149,6 @@ void LCMExchanger::imuHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan, 
                             const mors_msgs::imu_lcm_data* msg)
 {
-    // cout << "I got IMU data!" << endl;
     for (int i=0; i<3; i++)
     {
         imu_data.orientation_euler(i) = msg->orientation_euler[i];
@@ -346,14 +157,12 @@ void LCMExchanger::imuHandler(const lcm::ReceiveBuffer* rbuf,
         imu_data.lin_accel(i) = msg->linear_acceleration[i];
     }
     imu_data.orientation_quaternion(3) = msg->orientation_quaternion[3];
-    // cout << "Pitch: " << msg->orientation_euler[1] << endl;
 }
 
 void LCMExchanger::servoStateHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const mors_msgs::servo_state_msg* msg)
 {
-    // cout << "I got servo state data!" << endl;
     for (int i=0; i<12; i++)
     {
         servo_state.pos(i) = msg->position[i];
@@ -366,7 +175,6 @@ void LCMExchanger::servoStateFiltHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::servo_state_msg* msg)
 {
-// cout << "I got servo state data!" << endl;
     for (int i=0; i<12; i++)
     {
         servo_state_filt.pos(i) = msg->position[i];
@@ -379,7 +187,6 @@ void LCMExchanger::servoCmdHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::servo_cmd_msg* msg)
 {
-    // cout << "I got servo state data!" << endl;
     for (int i=0; i<12; i++)
     {
         servo_cmd.pos(i) = msg->position[i];
@@ -394,7 +201,6 @@ void LCMExchanger::enableHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::enable_msg* msg)
 {
-    // cout << "I got ENABLE data!" << endl;
     leg_controller_enable = msg->leg_controller_en;
     leg_controller_reset = msg->leg_controller_reset;
 
@@ -414,11 +220,10 @@ void LCMExchanger::odometryHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan, 
     const mors_msgs::odometry_msg* msg)
 {
-    // cout << "I got ODOMETRY data!" << endl;
     for (int i=0; i<3; i++)
     {
         odometry.position(i) = msg->position[i];
-        odometry.orientation(i) = msg->orientation[i];
+        odometry.orientation_euler(i) = msg->orientation[i];
         odometry.lin_vel(i) = msg->lin_vel[i];
         odometry.ang_vel(i) = msg->ang_vel[i];
     }
@@ -428,7 +233,6 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::robot_state_msg* msg)
 {
-    // cout << "I got robot_state!" << endl;
     for (int i=0; i<3; i++)
     {
         leg_state.r1_pos(i) = msg->legs.r1_pos[i];
@@ -460,7 +264,6 @@ void LCMExchanger::robotStateCheckHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::robot_state_msg* msg)
 {
-    // cout << "I got robot_state_check data!" << endl;
     for (int i=0; i<3; i++)
     {
         leg_state_check.r1_pos(i) = msg->legs.r1_pos[i];
@@ -492,7 +295,6 @@ void LCMExchanger::robotCmdHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::robot_cmd_msg* msg)
 {
-    // cout << "I got robot_cmd!" << endl;
     for (int i=0; i<3; i++)
     {
         body_cmd.pos(i) = msg->cmd_pose[i];
@@ -513,25 +315,12 @@ void LCMExchanger::phaseSigHandler(const lcm::ReceiveBuffer* rbuf,
     }
 }
 
-void LCMExchanger::footCmdThread()
+void LCMExchanger::wbcCmdThread()
 {   
-    foot_cmd_subscriber.subscribe(foot_cmd_channel, &LCMExchanger::footCmdHandler, this);
+    wbc_cmd_subscriber.subscribe(wbc_cmd_channel, &LCMExchanger::wbcCmdHandler, this);
     while(true)
     {
-        foot_cmd_subscriber.handle();
-        // cout << "grf thread" << endl;
-        // sleep(0.001);
-    }
-}
-
-void LCMExchanger::grfCmdThread()
-{   
-    grf_cmd_subscriber.subscribe(grf_cmd_channel, &LCMExchanger::grfCmdHandler, this);
-    while(true)
-    {
-        grf_cmd_subscriber.handle();
-        // cout << "grf thread" << endl;
-        // sleep(0.001);
+        wbc_cmd_subscriber.handle();
     }
 }
 
@@ -541,8 +330,6 @@ void LCMExchanger::imuThread()
     while(true)
     {
         imu_subscriber.handle();
-        // cout << "imu thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -552,8 +339,6 @@ void LCMExchanger::servoStateThread()
     while(true)
     {
         servo_state_subscriber.handle();
-        // cout << "servo_state thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -563,8 +348,6 @@ void LCMExchanger::servoStateFiltThread()
     while(true)
     {
         servo_state_filt_subscriber.handle();
-        // cout << "servo_state thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -574,8 +357,6 @@ void LCMExchanger::servoCmdThread()
     while(true)
     {
         servo_cmd_subscriber.handle();
-        // cout << "servo_state thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -585,8 +366,6 @@ void LCMExchanger::enableThread()
     while(true)
     {
         enable_subscriber.handle();
-        // cout << "imu thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -596,8 +375,6 @@ void LCMExchanger::ctrlTypeThread()
     while(true)
     {
         controle_type_subscriber.handle();
-        // cout << "imu thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -607,8 +384,6 @@ void LCMExchanger::odometryThread()
     while(true)
     {
         odometry_subscriber.handle();
-        // cout << "grf thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -618,8 +393,6 @@ void LCMExchanger::robotStateThread()
     while(true)
     {
         robot_state_subscriber.handle();
-        // cout << "robot_state thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -629,8 +402,6 @@ void LCMExchanger::robotStateCheckThread()
     while(true)
     {
         robot_state_check_subscriber.handle();
-        // cout << "robot_state thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -652,9 +423,10 @@ void LCMExchanger::phaseSigThread()
     }
 }
 
-LegData LCMExchanger::getLegCmdData()
+void LCMExchanger::getWbcCmdData(LegData &wbc_leg_cmd, RobotData &wbc_body_cmd)
 {
-    return leg_cmd;
+    wbc_leg_cmd = this->wbc_leg_cmd;
+    wbc_body_cmd = this->wbc_body_cmd;
 }
 
 ImuData LCMExchanger::getImuData()

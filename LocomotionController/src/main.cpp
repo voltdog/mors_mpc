@@ -131,70 +131,12 @@ int main() {
     LegData leg_state;
     LegData leg_cmd;
 
-    leg_cmd.r1_grf.resize(3);
-    leg_cmd.l1_grf.resize(3);
-    leg_cmd.r2_grf.resize(3);
-    leg_cmd.l2_grf.resize(3);
-    leg_cmd.r1_pos.resize(3);
-    leg_cmd.l1_pos.resize(3);
-    leg_cmd.r2_pos.resize(3);
-    leg_cmd.l2_pos.resize(3);
-    leg_cmd.r1_vel.resize(3);
-    leg_cmd.l1_vel.resize(3);
-    leg_cmd.r2_vel.resize(3);
-    leg_cmd.l2_vel.resize(3);
-    leg_cmd.r1_acc.resize(3);
-    leg_cmd.l1_acc.resize(3);
-    leg_cmd.r2_acc.resize(3);
-    leg_cmd.l2_acc.resize(3);
-    leg_cmd.r1_kp.resize(3);
-    leg_cmd.l1_kp.resize(3);
-    leg_cmd.r2_kp.resize(3);
-    leg_cmd.l2_kp.resize(3);
-    leg_cmd.r1_kd.resize(3);
-    leg_cmd.l1_kd.resize(3);
-    leg_cmd.r2_kd.resize(3);
-    leg_cmd.l2_kd.resize(3);
-    leg_state.r1_pos.resize(3);
-    leg_state.l1_pos.resize(3);
-    leg_state.r2_pos.resize(3);
-    leg_state.l2_pos.resize(3);
-    leg_state.r1_vel.resize(3);
-    leg_state.l1_vel.resize(3);
-    leg_state.r2_vel.resize(3);
-    leg_state.l2_vel.resize(3);
-    leg_state.r1_acc.resize(3);
-    leg_state.l1_acc.resize(3);
-    leg_state.r2_acc.resize(3);
-    leg_state.l2_acc.resize(3);
-    leg_state.r1_grf.resize(3);
-    leg_state.l1_grf.resize(3);
-    leg_state.r2_grf.resize(3);
-    leg_state.l2_grf.resize(3);
-    leg_state.r1_kp.resize(3);
-    leg_state.l1_kp.resize(3);
-    leg_state.r2_kp.resize(3);
-    leg_state.l2_kp.resize(3);
-    leg_state.r1_kd.resize(3);
-    leg_state.l1_kd.resize(3);
-    leg_state.r2_kd.resize(3);
-    leg_state.l2_kd.resize(3);
-    robot_cmd.ang_vel.resize(3);
-    robot_cmd.lin_vel.resize(3);
-    robot_cmd.orientation.resize(3);
-    robot_cmd.pos.resize(3);
-    robot_state.ang_vel.resize(3);
-    robot_state.lin_vel.resize(3);
-    robot_state.orientation.resize(3);
-    robot_state.pos.resize(3);
-    
-
     // gait generator params
     double t_sw = 0.2;
     double t_st = 0.3;
     std::vector<double> phase_offsets = {0.0, 0.0, 0.0, 0.0};
     bool standing = true;
-    bool pre_standing = true;
+    bool pre_standing = false;
     std::vector<int> phase_init = {STANCE, STANCE, STANCE, STANCE};
     double stride_height = 0.06;
 
@@ -261,8 +203,6 @@ int main() {
     VectorXd grf_cmd(12);
     double phi0 = 0.0;
     // ConvexMPC mpc_thread;
-    // mpc.set_physical_params(robot);
-    // mpc.set_mpc_params(mpc_dt, horizon, friction, f_min, f_max, Q_vec, R_vec);
     ConvexMPCThread mpc_thread;
     mpc_thread.set_physical_params(robot);
     mpc_thread.set_gait_params(t_st, t_sw, phase_offsets, phase_init);
@@ -279,14 +219,10 @@ int main() {
     
     mpc_thread.start_thread();
 
-    
-
     // gait transition
     GaitTransition gait_transition;
     gait_transition.set_gait_params(t_st, t_sw, phase_offsets, stride_height);
     gait_transition.set_transition_duration(1.0);
-    
-    // int mpc_it = 0;
 
     cout << "[LocomotionController]: Started" << endl;
 
@@ -314,13 +250,8 @@ int main() {
             // ------------------
             // GAIT SCHEDULER
             // ------------------
-            // cout << "1" << endl;
-            // gait_scheduler.reset_mpc_table();
-            // gait transition
-            
             gait_transition.set_gait_params(t_st, t_sw, phase_offsets, stride_height);
             gait_transition.make_transition(t, t_st, t_sw, phase_offsets, stride_height);
-            // cout << t_sw << " " << t_st << endl;
 
             // scheduling
             gait_scheduler.set_gait_params(t_st, t_sw, phase_offsets, phase_init);
@@ -342,11 +273,10 @@ int main() {
                 foot_pos_global[i] = foot_pos_local[i] + robot_state.pos;
 
             // transform ref velocity to local coordinate system
-            
             R_body_for_vel << cos(x_ref(2)), -sin(x_ref(2)), 0,
                               sin(x_ref(2)),  cos(x_ref(2)), 0,
                               0, 0, 1;
-            VectorXd cmd_loc_lin_vel = robot_cmd.lin_vel;
+            Vector3d cmd_loc_lin_vel = robot_cmd.lin_vel;
             robot_cmd.lin_vel = R_body_for_vel * cmd_loc_lin_vel;
 
             // step reference generator
@@ -374,8 +304,11 @@ int main() {
                                         phi0, 
                                         active_legs);
             grf_cmd = mpc_thread.get_ref_grf();
-
-            // cout << standing << endl;
+            
+            // // //
+            // my try to set toe positions and velocities even when 
+            // the robot in stance phase like it was in first HyQ algorithms
+            // uncomment and debug later if needed
             if (standing == false) {
                 dp_ref_stance[R1] = -robot_cmd.lin_vel;
                 dp_ref_stance[L1] = -robot_cmd.lin_vel;
@@ -391,7 +324,6 @@ int main() {
                 if ((phase_signal[L2] == STANCE && pre_phase_signal[L2] != STANCE) || (standing == false && pre_standing == true) || (phase_signal[L2] == EARLY_CONTACT && pre_phase_signal[L2] == SWING))
                     p_ref_stance[L2] = leg_state.l2_pos;
                     
-                // cout << phase_signal[R1] << endl;
                 if (phase_signal[R1] == STANCE && pre_phase_signal[R1] == STANCE)
                     p_ref_stance[R1] += dp_ref_stance[R1]*module_dt;
                 if (phase_signal[L1] == STANCE && pre_phase_signal[L1] == STANCE)
@@ -401,24 +333,35 @@ int main() {
                 if (phase_signal[L2] == STANCE && pre_phase_signal[L2] == STANCE)
                     p_ref_stance[L2] += dp_ref_stance[L2]*module_dt;
             }
-                // cout << p_ref_stance[R1](X) << endl;
+            else
+            {
+                if ((standing == true && pre_standing == false))
+                    p_ref_stance[R1] = leg_state.r1_pos;
+                if ((standing == true && pre_standing == false))
+                    p_ref_stance[L1] = leg_state.l1_pos;
+                if ((standing == true && pre_standing == false))
+                    p_ref_stance[R2] = leg_state.r2_pos;
+                if ((standing == true && pre_standing == false))
+                    p_ref_stance[L2] = leg_state.l2_pos;
 
+                p_ref_stance[R1] += dp_ref_stance[R1]*module_dt;
+                p_ref_stance[L1] += dp_ref_stance[L1]*module_dt;
+                p_ref_stance[R2] += dp_ref_stance[R2]*module_dt;
+                p_ref_stance[L2] += dp_ref_stance[L2]*module_dt;
+            }
+            
             pre_phase_signal[R1] = phase_signal[R1];
             pre_phase_signal[L1] = phase_signal[L1];
             pre_phase_signal[R2] = phase_signal[R2];
             pre_phase_signal[L2] = phase_signal[L2];
             pre_standing = standing;
-
-            // cout << "Yo" << endl;
-
-            // p_ref_stance(R1)
+            // // // //
 
             // ------------------
             // SWING CONTROLLER
             // ------------------
-            // inv_R_body = ;
             v << robot_state.ang_vel(X), robot_state.ang_vel(Y), robot_state.ang_vel(Z);
-            base_rpy_rate = R_body.transpose() * v; // << robot_state.ang_vel(X), robot_state.ang_vel(Y), robot_state.ang_vel(Z); //= 
+            base_rpy_rate = R_body.transpose() * v;
 
             foot_pos_local[0] = R_body * leg_state.r1_pos;
             foot_pos_local[1] = R_body * leg_state.l1_pos;
@@ -450,54 +393,31 @@ int main() {
                                                                     // foot_pos_global);
 
             // convert grf_cmd to convinient format
-            if (active_legs[R1] == false)//phase_signal[R1] == SWING)
-                leg_cmd.r1_grf.setZero();
-            else
-                leg_cmd.r1_grf = grf_cmd.segment(0, 3);
+            if (active_legs[R1] == false) leg_cmd.r1_grf.setZero();
+            else leg_cmd.r1_grf = grf_cmd.segment(0, 3);
 
-            if (active_legs[L1] == false)//phase_signal[L1] == SWING)
-                leg_cmd.l1_grf.setZero();
-            else  
-                leg_cmd.l1_grf = grf_cmd.segment(3, 3);
+            if (active_legs[L1] == false) leg_cmd.l1_grf.setZero();
+            else leg_cmd.l1_grf = grf_cmd.segment(3, 3);
 
-            if (active_legs[R2] == false)//phase_signal[R2] == SWING)
-                leg_cmd.r2_grf.setZero();
-            else
-                leg_cmd.r2_grf = grf_cmd.segment(6, 3);
+            if (active_legs[R2] == false) leg_cmd.r2_grf.setZero();
+            else leg_cmd.r2_grf = grf_cmd.segment(6, 3);
             
-            if (active_legs[L2] == false)//phase_signal[L2] == SWING)
-                leg_cmd.l2_grf.setZero();
-            else
-                leg_cmd.l2_grf = grf_cmd.segment(9, 3);
-            // convert desired leg pos, vel and acc
-            
-            // leg_cmd.r1_pos = p_ref[R1];
-            // leg_cmd.l1_pos = p_ref[L1];
-            // leg_cmd.r2_pos = p_ref[R2];
-            // leg_cmd.l2_pos = p_ref[L2];
-            // leg_cmd.r1_vel = dp_ref[R1];
-            // leg_cmd.l1_vel = dp_ref[L1];
-            // leg_cmd.r2_vel = dp_ref[R2];
-            // leg_cmd.l2_vel = dp_ref[L2];
-            // leg_cmd.r1_acc = ddp_ref[R1];
-            // leg_cmd.l1_acc = ddp_ref[L1];
-            // leg_cmd.r2_acc = ddp_ref[R2];
-            // leg_cmd.l2_acc = ddp_ref[L2];
-            
+            if (active_legs[L2] == false) leg_cmd.l2_grf.setZero();
+            else leg_cmd.l2_grf = grf_cmd.segment(9, 3);
+
+            // convert desired leg pos, vel and acc           
             if (phase_signal[R1] == SWING || phase_signal[R1] == LATE_CONTACT)
             {
-                leg_cmd.r1_kp = leg_kp_swing;
-                leg_cmd.r1_kd = leg_kd_swing;
+                // leg_cmd.r1_kp = leg_kp_swing;
+                // leg_cmd.r1_kd = leg_kd_swing;
                 leg_cmd.r1_pos = p_ref[R1];
                 leg_cmd.r1_vel = dp_ref[R1];
                 leg_cmd.r1_acc = ddp_ref[R1];
             }
             else
             {
-                // leg_cmd.r1_kp.setZero();
-                // leg_cmd.r1_kd.setZero();
-                leg_cmd.r1_kp = leg_kp_stance;
-                leg_cmd.r1_kd = leg_kd_stance;
+                // leg_cmd.r1_kp = leg_kp_stance;
+                // leg_cmd.r1_kd = leg_kd_stance;
                 leg_cmd.r1_pos = p_ref_stance[R1];
                 leg_cmd.r1_vel = dp_ref_stance[R1];
                 leg_cmd.r1_acc.setZero();
@@ -505,18 +425,16 @@ int main() {
 
             if (phase_signal[L1] == SWING || phase_signal[L1] == LATE_CONTACT)
             {
-                leg_cmd.l1_kp = leg_kp_swing;
-                leg_cmd.l1_kd = leg_kd_swing;
+                // leg_cmd.l1_kp = leg_kp_swing;
+                // leg_cmd.l1_kd = leg_kd_swing;
                 leg_cmd.l1_pos = p_ref[L1];
                 leg_cmd.l1_vel = dp_ref[L1];
                 leg_cmd.l1_acc = ddp_ref[L1];
             }
             else
             {
-                // leg_cmd.l1_kp.setZero();
-                // leg_cmd.l1_kd.setZero();
-                leg_cmd.l1_kp = leg_kp_stance;
-                leg_cmd.l1_kd = leg_kd_stance;
+                // leg_cmd.l1_kp = leg_kp_stance;
+                // leg_cmd.l1_kd = leg_kd_stance;
                 leg_cmd.l1_pos = p_ref_stance[L1];
                 leg_cmd.l1_vel = dp_ref_stance[L1];
                 leg_cmd.l1_acc.setZero();
@@ -524,18 +442,16 @@ int main() {
 
             if (phase_signal[R2] == SWING || phase_signal[R2] == LATE_CONTACT)
             {
-                leg_cmd.r2_kp = leg_kp_swing;
-                leg_cmd.r2_kd = leg_kd_swing;
+                // leg_cmd.r2_kp = leg_kp_swing;
+                // leg_cmd.r2_kd = leg_kd_swing;
                 leg_cmd.r2_pos = p_ref[R2];
                 leg_cmd.r2_vel = dp_ref[R2];
                 leg_cmd.r2_acc = ddp_ref[R2];
             }
             else
             {
-                // leg_cmd.r2_kp.setZero();
-                // leg_cmd.r2_kd.setZero();
-                leg_cmd.r2_kp = leg_kp_stance;
-                leg_cmd.r2_kd = leg_kd_stance;
+                // leg_cmd.r2_kp = leg_kp_stance;
+                // leg_cmd.r2_kd = leg_kd_stance;
                 leg_cmd.r2_pos = p_ref_stance[R2];
                 leg_cmd.r2_vel = dp_ref_stance[R2];
                 leg_cmd.r2_acc.setZero();
@@ -543,56 +459,45 @@ int main() {
 
             if (phase_signal[L2] == SWING || phase_signal[L2] == LATE_CONTACT)
             {
-                leg_cmd.l2_kp = leg_kp_swing;
-                leg_cmd.l2_kd = leg_kd_swing;
+                // leg_cmd.l2_kp = leg_kp_swing;
+                // leg_cmd.l2_kd = leg_kd_swing;
                 leg_cmd.l2_pos = p_ref[L2];
                 leg_cmd.l2_vel = dp_ref[L2];
                 leg_cmd.l2_acc = ddp_ref[L2];
             }
             else
             {
-                // leg_cmd.l2_kp.setZero();
-                // leg_cmd.l2_kd.setZero();
-                leg_cmd.l2_kp = leg_kp_stance;
-                leg_cmd.l2_kd = leg_kd_stance;
+                // leg_cmd.l2_kp = leg_kp_stance;
+                // leg_cmd.l2_kd = leg_kd_stance;
                 leg_cmd.l2_pos = p_ref_stance[L2];
                 leg_cmd.l2_vel = dp_ref_stance[L2];
                 leg_cmd.l2_acc.setZero();
             }
 
-            // если нужно сделать kp kd stance не равно нулю, то раскомментить
-            // if (standing == true)
+            // // // //
+            // behaviour whit losing contact
+            // uncomment after contact sensors debug finished
+            // if ((phase_signal[R1] == STANCE || phase_signal[R1] == EARLY_CONTACT) && leg_state.contacts[R1] == false)
             // {
-            //     leg_cmd.r1_kp.setZero();
-            //     leg_cmd.r1_kd.setZero();
-            //     leg_cmd.l1_kp.setZero();
-            //     leg_cmd.l1_kd.setZero();
-            //     leg_cmd.r2_kp.setZero();
-            //     leg_cmd.r2_kd.setZero();
-            //     leg_cmd.l2_kp.setZero();
-            //     leg_cmd.l2_kd.setZero();
+            //     leg_cmd.r1_grf(X) = 0.0;
+            //     leg_cmd.r1_grf(Y) = 0.0;
             // }
-
-            if ((phase_signal[R1] == STANCE || phase_signal[R1] == EARLY_CONTACT) && leg_state.contacts[R1] == false)
-            {
-                leg_cmd.l1_grf(X) = 0.0;
-                leg_cmd.l1_grf(Y) = 0.0;
-            }
-            if ((phase_signal[L1] == STANCE || phase_signal[L1] == EARLY_CONTACT) && leg_state.contacts[L1] == false)
-            {
-                leg_cmd.l1_grf(X) = 0.0;
-                leg_cmd.l1_grf(Y) = 0.0;
-            }
-            if ((phase_signal[R2] == STANCE || phase_signal[R2] == EARLY_CONTACT) && leg_state.contacts[R2] == false)
-            {
-                leg_cmd.l1_grf(X) = 0.0;
-                leg_cmd.l1_grf(Y) = 0.0;
-            }
-            if ((phase_signal[L2] == STANCE || phase_signal[L2] == EARLY_CONTACT) && leg_state.contacts[L2] == false)
-            {
-                leg_cmd.l1_grf(X) = 0.0;
-                leg_cmd.l1_grf(Y) = 0.0;
-            }
+            // if ((phase_signal[L1] == STANCE || phase_signal[L1] == EARLY_CONTACT) && leg_state.contacts[L1] == false)
+            // {
+            //     leg_cmd.l1_grf(X) = 0.0;
+            //     leg_cmd.l1_grf(Y) = 0.0;
+            // }
+            // if ((phase_signal[R2] == STANCE || phase_signal[R2] == EARLY_CONTACT) && leg_state.contacts[R2] == false)
+            // {
+            //     leg_cmd.r2_grf(X) = 0.0;
+            //     leg_cmd.r2_grf(Y) = 0.0;
+            // }
+            // if ((phase_signal[L2] == STANCE || phase_signal[L2] == EARLY_CONTACT) && leg_state.contacts[L2] == false)
+            // {
+            //     leg_cmd.l2_grf(X) = 0.0;
+            //     leg_cmd.l2_grf(Y) = 0.0;
+            // }
+            // // // //
 
             robot_ref.orientation = x_ref.segment(0, 3);
             robot_ref.pos = x_ref.segment(3, 3);
@@ -602,10 +507,9 @@ int main() {
             // ------------------
             // SEND LCM
             // ------------------
-            lcmExch.sendRobotRef(robot_ref, active_legs, (int8_t)adaptation_type);
-            lcmExch.sendLegCmd(leg_cmd);
+            lcmExch.sendMpcCmd(robot_ref, active_legs);
+            lcmExch.sendWbcCmd(robot_ref, leg_cmd);
             lcmExch.sendPhaseSig(phase_signal, leg_phi, t);
-            // lcmExch.sendPhaseSig(desired_leg_state, leg_phi, t);
 
             t += module_dt;
         }

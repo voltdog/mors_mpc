@@ -52,7 +52,8 @@ public:
 
 private:
     pinocchio::Model model_;
-    pinocchio::Data data_;
+    // pinocchio::Data data_;
+    std::unique_ptr<pinocchio::Data> data_;
 
     std::vector<std::string> ef_frames;
     std::string base_frame;

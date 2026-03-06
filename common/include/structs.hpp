@@ -22,7 +22,7 @@ static constexpr int NOADAPT = 2;
 
 static constexpr int SWING = 0;
 static constexpr int STANCE = 1;
-static constexpr int LATE = 2;
+static constexpr int LATE_CONTACT = 2;
 static constexpr int EARLY_CONTACT = 3;
 
 static constexpr int NUM_LEGS = 4;
@@ -32,45 +32,45 @@ static constexpr int SERVO_CONTROL = 2;
 
 struct alignas(16) RobotData
 {
-    VectorXd pos;
-    VectorXd lin_vel;
-    VectorXd orientation;
-    VectorXd ang_vel;
+    Vector3d pos;
+    Vector3d lin_vel;
+    Vector3d orientation;
+    Vector3d ang_vel;
 };
 
 struct alignas(16) LegData
 {
-    VectorXd r1_grf;
-    VectorXd l1_grf;
-    VectorXd r2_grf;
-    VectorXd l2_grf;
+    Vector3d r1_grf;
+    Vector3d l1_grf;
+    Vector3d r2_grf;
+    Vector3d l2_grf;
 
-    VectorXd r1_pos;
-    VectorXd l1_pos;
-    VectorXd r2_pos; 
-    VectorXd l2_pos;
+    Vector3d r1_pos;
+    Vector3d l1_pos;
+    Vector3d r2_pos; 
+    Vector3d l2_pos;
 
-    VectorXd r1_vel; 
-    VectorXd l1_vel; 
-    VectorXd r2_vel; 
-    VectorXd l2_vel;
+    Vector3d r1_vel; 
+    Vector3d l1_vel; 
+    Vector3d r2_vel; 
+    Vector3d l2_vel;
 
-    VectorXd r1_acc; 
-    VectorXd l1_acc; 
-    VectorXd r2_acc; 
-    VectorXd l2_acc;
+    Vector3d r1_acc; 
+    Vector3d l1_acc; 
+    Vector3d r2_acc; 
+    Vector3d l2_acc;
 
     vector<bool> contacts;
 
-    VectorXd r1_kp; 
-    VectorXd l1_kp; 
-    VectorXd r2_kp; 
-    VectorXd l2_kp; 
+    Vector3d r1_kp; 
+    Vector3d l1_kp; 
+    Vector3d r2_kp; 
+    Vector3d l2_kp; 
 
-    VectorXd r1_kd; 
-    VectorXd l1_kd; 
-    VectorXd r2_kd; 
-    VectorXd l2_kd; 
+    Vector3d r1_kd; 
+    Vector3d l1_kd; 
+    Vector3d r2_kd; 
+    Vector3d l2_kd; 
 };
 
 struct alignas(16) RobotPhysicalParams
@@ -93,10 +93,10 @@ struct alignas(16) RobotPhysicalParams
 
 struct alignas(16) ImuData
 {
-    VectorXd orientation_euler;
-    VectorXd orientation_quaternion;
-    VectorXd ang_vel;
-    VectorXd lin_accel;
+    Vector3d orientation_euler;
+    Vector4d orientation_quaternion;
+    Vector3d ang_vel;
+    Vector3d lin_accel;
 };
 
 struct alignas(16) ServoData
@@ -110,10 +110,11 @@ struct alignas(16) ServoData
 
 struct alignas(16) Odometry
 {
-    VectorXd position;
-    VectorXd orientation;
-    VectorXd lin_vel;
-    VectorXd ang_vel;
+    Vector3d position;
+    Vector3d orientation_euler;
+    Vector4d orientation_quaternion;
+    Vector3d lin_vel;
+    Vector3d ang_vel;
 };
 
 

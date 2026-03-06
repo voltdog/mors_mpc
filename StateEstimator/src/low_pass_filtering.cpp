@@ -26,7 +26,7 @@ LowPassFiltering::LowPassFiltering(float dt)
 //     this->odom_in = odom_in;
 // }
 
-VectorXd LowPassFiltering::update_orientation(VectorXd &orientation)
+VectorXd LowPassFiltering::update_orientation(Vector3d &orientation)
 {
     for (int i=0; i<3; i++)
     {
@@ -35,7 +35,7 @@ VectorXd LowPassFiltering::update_orientation(VectorXd &orientation)
     return orientation_filt;
 }
 
-VectorXd LowPassFiltering::update_rpy_rate(VectorXd &rpy_rate)
+VectorXd LowPassFiltering::update_rpy_rate(Vector3d &rpy_rate)
 {
     for (int i=0; i<3; i++)
     {
@@ -44,7 +44,7 @@ VectorXd LowPassFiltering::update_rpy_rate(VectorXd &rpy_rate)
     return rpy_rate_filt;
 }
 
-VectorXd LowPassFiltering::update_position(VectorXd &pos)
+VectorXd LowPassFiltering::update_position(Vector3d &pos)
 {
     for (int i=0; i<3; i++)
     {
@@ -53,7 +53,7 @@ VectorXd LowPassFiltering::update_position(VectorXd &pos)
     return pos_filt;
 }
 
-VectorXd LowPassFiltering::update_lin_vel(VectorXd &lin_vel)
+VectorXd LowPassFiltering::update_lin_vel(Vector3d &lin_vel)
 {
     for (int i=0; i<3; i++)
     {

@@ -14,43 +14,15 @@ ConvexMPCThread::ConvexMPCThread()
     x0.setZero();
     foot_positions.setZero();
 
-    robot_state.ang_vel.resize(3);
-    robot_state.lin_vel.resize(3);
-    robot_state.orientation.resize(3);
-    robot_state.pos.resize(3);
-    leg_state.r1_pos.resize(3);
-    leg_state.l1_pos.resize(3);
-    leg_state.r2_pos.resize(3);
-    leg_state.l2_pos.resize(3);
-    leg_state.r1_vel.resize(3);
-    leg_state.l1_vel.resize(3);
-    leg_state.r2_vel.resize(3);
-    leg_state.l2_vel.resize(3);
-    leg_state.r1_acc.resize(3);
-    leg_state.l1_acc.resize(3);
-    leg_state.r2_acc.resize(3);
-    leg_state.l2_acc.resize(3);
-    leg_state.r1_grf.resize(3);
-    leg_state.l1_grf.resize(3);
-    leg_state.r2_grf.resize(3);
-    leg_state.l2_grf.resize(3);
-    leg_state.r1_kp.resize(3);
-    leg_state.l1_kp.resize(3);
-    leg_state.r2_kp.resize(3);
-    leg_state.l2_kp.resize(3);
-    leg_state.r1_kd.resize(3);
-    leg_state.l1_kd.resize(3);
-    leg_state.r2_kd.resize(3);
-    leg_state.l2_kd.resize(3);
     rpy_rate.resize(3);
     com_vel_body_frame.resize(3);
     x_ref.resize(13);
     des_state.resize(13);
-    R_body.resize(3,3);
-    R_z.resize(3,3);
+    phase_signal.resize(4);
+
     en = false;
     standing = true;
-    phase_signal.resize(4);
+    
     phi0 = 0.0;
 
     active_legs = {true, true, true, true};

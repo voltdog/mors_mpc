@@ -5,29 +5,27 @@
 #include <Eigen/Dense>
 #include <vbmath.hpp>
 #include "structs.hpp"
-#include "leg_model.hpp"
-#include "ikine.hpp"
 #include "Robot.hpp"
 
 
 using namespace Eigen;
 using namespace std;
 
-#define R1 0
-#define L1 1
-#define R2 2
-#define L2 3
+// #define R1 0
+// #define L1 1
+// #define R2 2
+// #define L2 3
 
-#define SWING  0
-#define STANCE 1
-#define LATE   2
-#define EARLY_CONTACT   3
+// #define SWING  0
+// #define STANCE 1
+// #define LATE_CONTACT   2
+// #define EARLY_CONTACT   3
 
 class LegControl{
 public:
     LegControl();
 
-    void calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, Vector4i &phase_signal, VectorXd &theta_ref, VectorXd &d_theta_ref, VectorXd& tau_ref);
+    void calculate(LegData &leg_cmd, VectorXd &theta, VectorXd &d_theta, VectorXd &theta_ref, VectorXd &d_theta_ref, VectorXd& tau_ref);
 
 private:
     MatrixXd J_R1, J_R2, J_L1, J_L2;
@@ -41,7 +39,6 @@ private:
     std::vector<Eigen::Matrix3d> leg_jacobians;
     std::vector<Eigen::Matrix3d> M_legs;
     std::vector<Eigen::Vector3d> h_legs;
-
 };
 
 #endif //_grf_control_hpp_

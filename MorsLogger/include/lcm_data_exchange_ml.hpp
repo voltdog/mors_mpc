@@ -7,8 +7,7 @@
 #include <thread>
 #include <Eigen/Dense>
 #include <lcm/lcm-cpp.hpp>
-#include "mors_msgs/foot_cmd_msg.hpp"
-#include "mors_msgs/grf_cmd_msg.hpp"
+#include "mors_msgs/wbc_cmd_msg.hpp"
 #include "mors_msgs/imu_lcm_data.hpp"
 #include "mors_msgs/servo_cmd_msg.hpp"
 #include "mors_msgs/servo_state_msg.hpp"
@@ -44,12 +43,9 @@ class LCMExchanger
 
         void start_exchanger();
 
-        void footCmdHandler(const lcm::ReceiveBuffer* rbuf,
+        void wbcCmdHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
-                            const mors_msgs::foot_cmd_msg* msg);
-        void grfCmdHandler(const lcm::ReceiveBuffer* rbuf,
-                            const std::string& chan,
-                            const mors_msgs::grf_cmd_msg* msg);
+                            const mors_msgs::wbc_cmd_msg* msg);
         void imuHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan, 
                             const mors_msgs::imu_lcm_data* msg);
@@ -84,8 +80,7 @@ class LCMExchanger
                             const std::string& chan, 
                             const mors_msgs::phase_signal_msg* msg);
 
-        void footCmdThread();
-        void grfCmdThread();
+        void wbcCmdThread();
         void imuThread();
         void servoStateThread();
         void servoCmdThread();
@@ -98,7 +93,8 @@ class LCMExchanger
         void robotCmdThread();
         void phaseSigThread();
 
-        LegData getLegCmdData();
+        RobotData getRobotCmd();
+        void getWbcCmdData(LegData &wbc_leg_cmd, RobotData &wbc_body_cmd);
         ImuData getImuData();
         ServoData getServoStateData();
         ServoData getServoStateFiltData();
@@ -108,7 +104,7 @@ class LCMExchanger
         LegData getLegState();
         RobotData getBodyStateCheck();
         LegData getLegStateCheck();
-        RobotData getRobotCmd();
+        
         void getPhaseSig(Vector4i& phase, Vector4d& phi);
 
         void getEnableData(bool &leg_controller_en, bool &leg_controller_reset,
@@ -118,33 +114,29 @@ class LCMExchanger
 
 
     private:
-        string foot_cmd_channel, grf_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
+        string wbc_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
         string enable_channel, control_type_channel, odometry_channel, robot_state_channel, robot_state_check_channel;
-        string robot_cmd_channel, phase_sig_channel;
-
-        lcm::LCM foot_cmd_subscriber;
-        lcm::LCM grf_cmd_subscriber;
-        lcm::LCM servo_state_subscriber;
+        string robot_cmd_channel, phase_sig_channel, contact_state_channel, mpc_cmd_channel;
+        
+        lcm::LCM robot_cmd_subscriber;
+        lcm::LCM mpc_cmd_subscriber;
+        lcm::LCM wbc_cmd_subscriber;
         lcm::LCM servo_cmd_subscriber;
+        lcm::LCM servo_state_subscriber;
         lcm::LCM imu_subscriber;
         lcm::LCM enable_subscriber;
         lcm::LCM controle_type_subscriber;
         lcm::LCM odometry_subscriber;
         lcm::LCM robot_state_subscriber;
         lcm::LCM robot_state_check_subscriber;
-        lcm::LCM robot_cmd_subscriber;
+        
         lcm::LCM servo_state_filt_subscriber;
         lcm::LCM phase_sig_subscriber;
 
-        // VectorXd r1_grf, r2_grf, l1_grf, l2_grf;
-        // VectorXd r1_pos, ref_l1_pos, r2_pos, l2_pos;
-        // VectorXd r1_vel, l1_vel, r2_vel, l2_vel;
-        // VectorXd imu_orientation_euler;
+        LegData wbc_leg_cmd;
+        RobotData wbc_body_cmd;
+        
         ImuData imu_data;
-        // VectorXd servo_pos, servo_vel, servo_torq;
-        // VectorXd servo_pos_cmd, servo_vel_cmd, servo_torq_cmd, servo_kp_cmd, servo_kd_cmd;
-        // VectorXd kp_vec, kd_vec;
-        LegData leg_cmd;
         ServoData servo_state;
         ServoData servo_cmd;
         Odometry odometry;
@@ -157,8 +149,7 @@ class LCMExchanger
         Vector4i phase;
         Vector4d phi;
 
-        unique_ptr<thread> thFootCmd;
-        unique_ptr<thread> thGrfCmd;
+        unique_ptr<thread> thWbcCmd;
         unique_ptr<thread> thImu;
         unique_ptr<thread> thServoState;
         unique_ptr<thread> thServoCmd;

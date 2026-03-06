@@ -21,12 +21,12 @@ LCMExchanger::LCMExchanger()
     contact_channel = channel_config["contact_state"].as<string>();
     robot_state_channel = "ROBOT_STATE_CHECK"; //channel_config["robot_state"].as<string>();
 
-    imu_data.orientation_euler.resize(3);
-    imu_data.orientation_euler.setZero();
-    imu_data.ang_vel.resize(3);
-    imu_data.ang_vel.setZero();
-    imu_data.lin_accel.resize(3);
-    imu_data.lin_accel.setZero();
+    // imu_data.orientation_euler.resize(3);
+    // imu_data.orientation_euler.setZero();
+    // imu_data.ang_vel.resize(3);
+    // imu_data.ang_vel.setZero();
+    // imu_data.lin_accel.resize(3);
+    // imu_data.lin_accel.setZero();
 
     servo_state.pos.resize(12);
     servo_state.pos.setZero();
@@ -35,14 +35,14 @@ LCMExchanger::LCMExchanger()
     servo_state.torq.resize(12);
     servo_state.torq.setZero();
 
-    odometry.position.resize(3);
-    odometry.position.setZero();
-    odometry.lin_vel.resize(3);
-    odometry.lin_vel.setZero();
-    odometry.orientation.resize(3);
-    odometry.orientation.setZero();
-    odometry.ang_vel.resize(3);
-    odometry.ang_vel.setZero();
+    // odometry.position.resize(3);
+    // odometry.position.setZero();
+    // odometry.lin_vel.resize(3);
+    // odometry.lin_vel.setZero();
+    // odometry.orientation.resize(3);
+    // odometry.orientation.setZero();
+    // odometry.ang_vel.resize(3);
+    // odometry.ang_vel.setZero();
 
     contact_states.resize(4);
     contact_states[0] = false;
@@ -95,7 +95,7 @@ void LCMExchanger::odometryHandler(const lcm::ReceiveBuffer* rbuf,
     for (int i=0; i<3; i++)
     {
         odometry.position(i) = msg->position[i];
-        odometry.orientation(i) = msg->orientation[i];
+        odometry.orientation_euler(i) = msg->orientation[i];
         odometry.lin_vel(i) = msg->lin_vel[i];
         odometry.ang_vel(i) = msg->ang_vel[i];
     }

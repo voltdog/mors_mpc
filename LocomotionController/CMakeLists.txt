@@ -131,9 +131,7 @@ target_include_directories(messages-cpp INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
 # executable
-# add_subdirectory(/home/$ENV{USER}/vbcontrol/matplotplusplus)
 add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
-# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/osqp_codegen)
 
 set(EXEC_SOURCES  src/main.cpp 
                   src/ConvexMpc.cpp 
@@ -149,21 +147,12 @@ set(EXEC_SOURCES  src/main.cpp
                   ../common/src/SimpleGaitScheduler.cpp
 )
 add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
-# target_link_libraries(${PROJECT_NAME} OsqpEigen::OsqpEigen)
-# target_link_libraries(${PROJECT_NAME} PRIVATE osqp)
-# target_link_libraries(${PROJECT_NAME} vbcontrol)
-# target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
-# target_link_libraries(${PROJECT_NAME} yaml-cpp::yaml-cpp)
+
 target_link_libraries(${PROJECT_NAME}  
-                        # emosqpstatic
                         OsqpEigen::OsqpEigen
                         vbcontrol
                         Eigen3::Eigen
                         yaml-cpp::yaml-cpp)
-
-# target_include_directories(${PROJECT_NAME}  PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/osqp_codegen/include
-# )
 
 lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)
 

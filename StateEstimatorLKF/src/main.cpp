@@ -15,55 +15,55 @@ auto now()
   return std::chrono::steady_clock::now(); 
 }
 
-void init_vectors(RobotData &robot_state, LegData &leg_state)
-{
-    robot_state.pos.resize(3);
-    robot_state.pos.setZero();
-    robot_state.lin_vel.resize(3);
-    robot_state.lin_vel.setZero();
-    robot_state.orientation.resize(3);
-    robot_state.orientation.setZero();
-    robot_state.ang_vel.resize(3);
-    robot_state.ang_vel.setZero();
+// void init_vectors(RobotData &robot_state, LegData &leg_state)
+// {
+//     robot_state.pos.resize(3);
+//     robot_state.pos.setZero();
+//     robot_state.lin_vel.resize(3);
+//     robot_state.lin_vel.setZero();
+//     robot_state.orientation.resize(3);
+//     robot_state.orientation.setZero();
+//     robot_state.ang_vel.resize(3);
+//     robot_state.ang_vel.setZero();
 
-    leg_state.contacts.resize(4);
-    leg_state.contacts = {false, false, false, false};
-    leg_state.r1_pos.resize(3);
-    leg_state.r1_pos.setZero();
-    leg_state.l1_pos.resize(3);
-    leg_state.l1_pos.setZero();
-    leg_state.r2_pos.resize(3);
-    leg_state.r2_pos.setZero();
-    leg_state.l2_pos.resize(3);
-    leg_state.l2_pos.setZero();
+//     leg_state.contacts.resize(4);
+//     leg_state.contacts = {false, false, false, false};
+//     leg_state.r1_pos.resize(3);
+//     leg_state.r1_pos.setZero();
+//     leg_state.l1_pos.resize(3);
+//     leg_state.l1_pos.setZero();
+//     leg_state.r2_pos.resize(3);
+//     leg_state.r2_pos.setZero();
+//     leg_state.l2_pos.resize(3);
+//     leg_state.l2_pos.setZero();
 
-    leg_state.r1_vel.resize(3);
-    leg_state.r1_vel.setZero();
-    leg_state.l1_vel.resize(3);
-    leg_state.l1_vel.setZero();
-    leg_state.r2_vel.resize(3);
-    leg_state.r2_vel.setZero();
-    leg_state.l2_vel.resize(3);
-    leg_state.l2_vel.setZero();
+//     leg_state.r1_vel.resize(3);
+//     leg_state.r1_vel.setZero();
+//     leg_state.l1_vel.resize(3);
+//     leg_state.l1_vel.setZero();
+//     leg_state.r2_vel.resize(3);
+//     leg_state.r2_vel.setZero();
+//     leg_state.l2_vel.resize(3);
+//     leg_state.l2_vel.setZero();
 
-    leg_state.r1_acc.resize(3);
-    leg_state.r1_acc.setZero();
-    leg_state.l1_acc.resize(3);
-    leg_state.l1_acc.setZero();
-    leg_state.r2_acc.resize(3);
-    leg_state.r2_acc.setZero();
-    leg_state.l2_acc.resize(3);
-    leg_state.l2_acc.setZero();
+//     leg_state.r1_acc.resize(3);
+//     leg_state.r1_acc.setZero();
+//     leg_state.l1_acc.resize(3);
+//     leg_state.l1_acc.setZero();
+//     leg_state.r2_acc.resize(3);
+//     leg_state.r2_acc.setZero();
+//     leg_state.l2_acc.resize(3);
+//     leg_state.l2_acc.setZero();
 
-    leg_state.r1_grf.resize(3);
-    leg_state.r1_grf.setZero();
-    leg_state.l1_grf.resize(3);
-    leg_state.l1_grf.setZero();
-    leg_state.r2_grf.resize(3);
-    leg_state.r2_grf.setZero();
-    leg_state.l2_grf.resize(3);
-    leg_state.l2_grf.setZero();
-}
+//     leg_state.r1_grf.resize(3);
+//     leg_state.r1_grf.setZero();
+//     leg_state.l1_grf.resize(3);
+//     leg_state.l1_grf.setZero();
+//     leg_state.r2_grf.resize(3);
+//     leg_state.r2_grf.setZero();
+//     leg_state.l2_grf.resize(3);
+//     leg_state.l2_grf.setZero();
+// }
 
 void init_lkf_matrices(double dt, MatrixXd &F, MatrixXd &G, MatrixXd &H, MatrixXd &Q, MatrixXd &R, MatrixXd &P0)
 {
@@ -149,7 +149,9 @@ int main()
     // defin output data
     RobotData robot_state;
     LegData leg_state;
-    init_vectors(robot_state, leg_state);
+    leg_state.contacts.resize(4);
+    leg_state.contacts = {false, false, false, false};
+    // init_vectors(robot_state, leg_state);
 
     // define robot model
     Robot robot;
@@ -222,11 +224,12 @@ int main()
 
         // compute forward kinematics
         q.segment(0, 3) = odometry.position;
-        q.segment(3, 3) = odometry.orientation; 
+        q.segment(3, 3) = odometry.orientation_euler; 
         q.segment(6, 3) = servo_state.pos.segment(3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
         q.segment(9, 3) = servo_state.pos.segment(9, 3);
         q.segment(12, 3) = servo_state.pos.segment(0, 3);
         q.segment(15, 3) = servo_state.pos.segment(6, 3);
+        
         v.segment(0, 3) = odometry.lin_vel;
         v.segment(3, 3) = odometry.ang_vel; 
         v.segment(6, 3) = servo_state.vel.segment(3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
@@ -236,11 +239,15 @@ int main()
         robot.ComputeForwardKinematics(q, v);
         leg_positions = robot.GetToePositionsInBaseFrame();
 
+        
+
         // get leg Jacobians
         leg_jacobians = robot.GetFootJacobian(q);
 
         // get rotation matrix
-        w_R_b = mors_sys::euler2mat(odometry.orientation(0), odometry.orientation(1), odometry.orientation(2));
+        w_R_b = mors_sys::euler2mat(odometry.orientation_euler(0), 
+                                    odometry.orientation_euler(1), 
+                                    odometry.orientation_euler(2));
 
         // get leg odometry
         Eigen::Vector3d dq;
@@ -286,7 +293,7 @@ int main()
         // robot_state.lin_vel = odometry.lin_vel;
         robot_state.pos << x_lkf(0), x_lkf(3), x_lkf(6);
         robot_state.lin_vel << x_lkf(1), x_lkf(4), x_lkf(7);
-        robot_state.orientation = odometry.orientation;
+        robot_state.orientation = odometry.orientation_euler;
         robot_state.ang_vel = odometry.ang_vel;
         leg_state.r1_pos = leg_positions[0];
         leg_state.l1_pos = leg_odom_velocity; //leg_positions[1];

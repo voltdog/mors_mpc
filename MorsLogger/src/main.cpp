@@ -38,6 +38,8 @@ int main() {
     std::this_thread::sleep_for(5ms);
 
     // define lcm data
+    LegData wbc_leg_cmd;
+    RobotData wbc_robot_cmd;
     LegData leg_cmd;
     ImuData imu_data;
     ServoData servo_state;
@@ -52,10 +54,10 @@ int main() {
     Vector4i phase;
     Vector4d phi;
 
-    int control_type = 0;
-    bool leg_controller_enable, leg_controller_reset;
-    bool locomotion_enable, locomotion_reset;
-    bool action_ctr_enable, action_ctr_reset;
+    // int control_type = 0;
+    // bool leg_controller_enable, leg_controller_reset;
+    // bool locomotion_enable, locomotion_reset;
+    // bool action_ctr_enable, action_ctr_reset;
 
     // define csv
     CSVMaintainer csv;
@@ -63,7 +65,6 @@ int main() {
 
     cout << "[MORS Logger]: started" << endl;
     
-
     double t = 0.0;
 
     while(true)
@@ -74,7 +75,7 @@ int main() {
         // Put your code here
         // -----------------------------------------------
         
-        leg_cmd = lcmExch.getLegCmdData();
+        lcmExch.getWbcCmdData(wbc_leg_cmd, wbc_robot_cmd);
         imu_data = lcmExch.getImuData();
         servo_state = lcmExch.getServoStateData();
         servo_cmd = lcmExch.getServoCmdData();
@@ -93,10 +94,9 @@ int main() {
 
         // save arrays
         csv.write_servo_state(t, servo_state);
-        // csv.write_servo_state_filt(t, servo_state_filt);
         csv.write_servo_cmd(t, servo_cmd);
         csv.write_imu_data(t, imu_data);
-        csv.write_leg_cmd(t, leg_cmd);
+        csv.write_wbc_cmd(t, wbc_leg_cmd, wbc_robot_cmd);
         csv.write_odometry(t, odometry);
         // csv.write_control_type(t, control_type);
         // csv.write_enable(t, leg_controller_enable, leg_controller_reset,

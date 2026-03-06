@@ -18,55 +18,55 @@ auto now()
   return std::chrono::steady_clock::now(); 
 }
 
-void init_vectors(RobotData &robot_state, LegData &leg_state)
-{
-    robot_state.pos.resize(3);
-    robot_state.pos.setZero();
-    robot_state.lin_vel.resize(3);
-    robot_state.lin_vel.setZero();
-    robot_state.orientation.resize(3);
-    robot_state.orientation.setZero();
-    robot_state.ang_vel.resize(3);
-    robot_state.ang_vel.setZero();
+// void init_vectors(RobotData &robot_state, LegData &leg_state)
+// {
+    // robot_state.pos.resize(3);
+    // robot_state.pos.setZero();
+    // robot_state.lin_vel.resize(3);
+    // robot_state.lin_vel.setZero();
+    // robot_state.orientation.resize(3);
+    // robot_state.orientation.setZero();
+    // robot_state.ang_vel.resize(3);
+    // robot_state.ang_vel.setZero();
 
-    leg_state.contacts.resize(4);
-    leg_state.contacts = {false, false, false, false};
-    leg_state.r1_pos.resize(3);
-    leg_state.r1_pos.setZero();
-    leg_state.l1_pos.resize(3);
-    leg_state.l1_pos.setZero();
-    leg_state.r2_pos.resize(3);
-    leg_state.r2_pos.setZero();
-    leg_state.l2_pos.resize(3);
-    leg_state.l2_pos.setZero();
+    // leg_state.contacts.resize(4);
+    // leg_state.contacts = {false, false, false, false};
+    // leg_state.r1_pos.resize(3);
+    // leg_state.r1_pos.setZero();
+    // leg_state.l1_pos.resize(3);
+    // leg_state.l1_pos.setZero();
+    // leg_state.r2_pos.resize(3);
+    // leg_state.r2_pos.setZero();
+    // leg_state.l2_pos.resize(3);
+    // leg_state.l2_pos.setZero();
 
-    leg_state.r1_vel.resize(3);
-    leg_state.r1_vel.setZero();
-    leg_state.l1_vel.resize(3);
-    leg_state.l1_vel.setZero();
-    leg_state.r2_vel.resize(3);
-    leg_state.r2_vel.setZero();
-    leg_state.l2_vel.resize(3);
-    leg_state.l2_vel.setZero();
+    // leg_state.r1_vel.resize(3);
+    // leg_state.r1_vel.setZero();
+    // leg_state.l1_vel.resize(3);
+    // leg_state.l1_vel.setZero();
+    // leg_state.r2_vel.resize(3);
+    // leg_state.r2_vel.setZero();
+    // leg_state.l2_vel.resize(3);
+    // leg_state.l2_vel.setZero();
 
-    leg_state.r1_acc.resize(3);
-    leg_state.r1_acc.setZero();
-    leg_state.l1_acc.resize(3);
-    leg_state.l1_acc.setZero();
-    leg_state.r2_acc.resize(3);
-    leg_state.r2_acc.setZero();
-    leg_state.l2_acc.resize(3);
-    leg_state.l2_acc.setZero();
+    // leg_state.r1_acc.resize(3);
+    // leg_state.r1_acc.setZero();
+    // leg_state.l1_acc.resize(3);
+    // leg_state.l1_acc.setZero();
+    // leg_state.r2_acc.resize(3);
+    // leg_state.r2_acc.setZero();
+    // leg_state.l2_acc.resize(3);
+    // leg_state.l2_acc.setZero();
 
-    leg_state.r1_grf.resize(3);
-    leg_state.r1_grf.setZero();
-    leg_state.l1_grf.resize(3);
-    leg_state.l1_grf.setZero();
-    leg_state.r2_grf.resize(3);
-    leg_state.r2_grf.setZero();
-    leg_state.l2_grf.resize(3);
-    leg_state.l2_grf.setZero();
-}
+    // leg_state.r1_grf.resize(3);
+    // leg_state.r1_grf.setZero();
+    // leg_state.l1_grf.resize(3);
+    // leg_state.l1_grf.setZero();
+    // leg_state.r2_grf.resize(3);
+    // leg_state.r2_grf.setZero();
+    // leg_state.l2_grf.resize(3);
+    // leg_state.l2_grf.setZero();
+// }
 
 int main() 
 {
@@ -142,17 +142,17 @@ int main()
     leg_state_estimator.set_contact_threshold(contact_threshold);
 
     LowPassFiltering lpf(module_dt);
-    init_vectors(robot_state, leg_state);
+    // init_vectors(robot_state, leg_state);
 
-    MatrixXd R_body(3,3);
-    VectorXd ang_vel_body(3), ang_vel_world(3);
-    MatrixXd ang_vel_body_cross(3,3);
+    Matrix3d R_body;
+    Vector3d ang_vel_body, ang_vel_world;
+    Matrix3d ang_vel_body_cross;
 
-    VectorXd P_body_cam(3);
+    Vector3d P_body_cam;
     P_body_cam << camera_offset_x, camera_offset_y, camera_offset_z;
 
-    VectorXd body_pos(3);
-    VectorXd pos_offset(3);
+    Vector3d body_pos;
+    Vector3d pos_offset;
     pos_offset.setZero();
     double yaw_offset;
     yaw_offset = 0;

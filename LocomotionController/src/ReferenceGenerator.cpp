@@ -99,7 +99,7 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
     // Update foot positions just after stance
     // for (int i = 0; i < 4; ++i) {
     //     if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
-    //         (pre_phase_signal[i] == LATE && phase_signal[i] == STANCE) ||
+    //         (pre_phase_signal[i] == LATE_CONTACT && phase_signal[i] == STANCE) ||
     //         (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)) {
     //         foot_pos_local_just_stance.row(i) = foot_pos_local[i];
     //         foot_pos_global_just_stance.row(i) = foot_pos_global[i];

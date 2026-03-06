@@ -13,7 +13,7 @@ std::vector<int> ContactStateFSM::step(const std::vector<bool>& contact_flag, co
                 state[i] = EARLY_CONTACT;
             }
             if (contact_flag[i] == false && des_leg_state[i] == STANCE) {
-                state[i] = LATE; 
+                state[i] = LATE_CONTACT; 
             }
             if (contact_flag[i] == true and des_leg_state[i] == STANCE) {
                     state[i] = STANCE;
@@ -22,7 +22,7 @@ std::vector<int> ContactStateFSM::step(const std::vector<bool>& contact_flag, co
             if (des_leg_state[i] == SWING) {
                 state[i] = SWING;
             }
-        } else if (state[i] == LATE) {
+        } else if (state[i] == LATE_CONTACT) {
             if (contact_flag[i] == true) {
                 state[i] = STANCE;
             }

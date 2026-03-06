@@ -20,42 +20,16 @@ LCMExchanger::LCMExchanger()
     config_address += "/channels.yaml";
 
     YAML::Node channel_config = YAML::LoadFile(config_address);//"/home/user/mors_mpc_control/config/channels.yaml");
-    robot_cmd_channel = channel_config["robot_cmd"].as<string>();
-    robot_ref_channel = channel_config["robot_ref"].as<string>();
-    robot_state_channel = channel_config["robot_state"].as<string>();
     enable_channel = channel_config["enable"].as<string>();
+    robot_cmd_channel = channel_config["robot_cmd"].as<string>();
+    mpc_cmd_channel = channel_config["mpc_cmd"].as<string>();
+    wbc_cmd_channel = channel_config["wbc_cmd"].as<string>();
+    robot_state_channel = channel_config["robot_state"].as<string>();    
     gait_params_channel = channel_config["gait_params"].as<string>();
-    grf_cmd_channel = channel_config["grf_cmd"].as<string>();
-    foot_cmd_channel = channel_config["foot_cmd"].as<string>();
     phase_signal_channel = channel_config["gait_phase"].as<string>();
 
-    robot_state.ang_vel.resize(3);
-    robot_state.lin_vel.resize(3);
-    robot_state.orientation.resize(3);
-    robot_state.pos.resize(3);
-    robot_cmd.ang_vel.resize(3);
-    robot_cmd.lin_vel.resize(3);
-    robot_cmd.orientation.resize(3);
-    robot_cmd.pos.resize(3);
     leg_state.contacts.resize(4);
-    leg_state.r1_pos.resize(3);
-    leg_state.l1_pos.resize(3);
-    leg_state.r2_pos.resize(3);
-    leg_state.l2_pos.resize(3);
-
-    robot_state.ang_vel.setZero();
-    robot_state.lin_vel.setZero();
-    robot_state.orientation.setZero();
-    robot_state.pos.setZero();
-    robot_cmd.ang_vel.setZero();
-    robot_cmd.lin_vel.setZero();
-    robot_cmd.orientation.setZero();
-    robot_cmd.pos.setZero();
     leg_state.contacts = {false, false, false, false};
-    leg_state.r1_pos.setZero();
-    leg_state.l1_pos.setZero();
-    leg_state.r2_pos.setZero();
-    leg_state.l2_pos.setZero();
 
     t_sw = 0.2;
     t_st = 0.3;
@@ -126,15 +100,10 @@ void LCMExchanger::gaitParamsHandler(const lcm::ReceiveBuffer* rbuf,
     const std::string& chan,
     const mors_msgs::gait_params_msg* msg)
 {
-    // for (int i=0; i<4; i++)
-    //     phase(i) = msg->phase[i];
     t_sw = msg->t_sw;
     t_st = msg->t_st;
     standing = msg->standing;
     stride_height = msg->stride_height;
-    // for (int i = 0; i < 4; i++)
-    //     gait_type[i] = msg->gait_type[i];
-    // cout << phase.transpose() << endl;
     gait_type.assign(msg->gait_type, msg->gait_type+4);
 }
 
@@ -151,8 +120,6 @@ void LCMExchanger::robotCmdThread()
     while(true)
     {
         robot_cmd_subscriber.handle();
-        // cout << "grf thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -162,8 +129,6 @@ void LCMExchanger::robotStateThread()
     while(true)
     {
         robot_state_subscriber.handle();
-        // cout << "grf thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -173,8 +138,6 @@ void LCMExchanger::gaitParamsThread()
     while(true)
     {
         gait_params_subscriber.handle();
-        // cout << "imu thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -184,8 +147,6 @@ void LCMExchanger::enableThread()
     while(true)
     {
         enable_subscriber.handle();
-        // cout << "imu thread" << endl;
-        // sleep(0.001);
     }
 }
 
@@ -228,42 +189,32 @@ int LCMExchanger::get_adaptation_type()
     return adaptation_type;
 }
 
-void LCMExchanger::sendLegCmd(LegData &leg_data)
+void LCMExchanger::sendWbcCmd(RobotData& robot_data, LegData& leg_data)
 {
     for (int i=0; i<3; i++)
     {
-        grfCmdMsg.r1_grf[i] = leg_data.r1_grf(i);
-        grfCmdMsg.l1_grf[i] = leg_data.l1_grf(i);
-        grfCmdMsg.r2_grf[i] = leg_data.r2_grf(i);
-        grfCmdMsg.l2_grf[i] = leg_data.l2_grf(i);
+        wbcCmdMsg.body.position[i] = robot_data.pos(i);
+        wbcCmdMsg.body.orientation_euler[i] = robot_data.orientation(i);
+        wbcCmdMsg.body.lin_vel[i] = robot_data.lin_vel(i);
+        wbcCmdMsg.body.ang_vel[i] = robot_data.ang_vel(i);
 
-        footCmdMsg.r1_pos[i] = leg_data.r1_pos(i);
-        footCmdMsg.l1_pos[i] = leg_data.l1_pos(i);
-        footCmdMsg.r2_pos[i] = leg_data.r2_pos(i);
-        footCmdMsg.l2_pos[i] = leg_data.l2_pos(i);
+        wbcCmdMsg.legs.r1_pos[i] = leg_data.r1_pos(i);
+        wbcCmdMsg.legs.l1_pos[i] = leg_data.l1_pos(i);
+        wbcCmdMsg.legs.r2_pos[i] = leg_data.r2_pos(i);
+        wbcCmdMsg.legs.l2_pos[i] = leg_data.l2_pos(i);
 
-        footCmdMsg.r1_vel[i] = leg_data.r1_vel(i);
-        footCmdMsg.l1_vel[i] = leg_data.l1_vel(i);
-        footCmdMsg.r2_vel[i] = leg_data.r2_vel(i);
-        footCmdMsg.l2_vel[i] = leg_data.l2_vel(i);
+        wbcCmdMsg.legs.r1_vel[i] = leg_data.r1_vel(i);
+        wbcCmdMsg.legs.l1_vel[i] = leg_data.l1_vel(i);
+        wbcCmdMsg.legs.r2_vel[i] = leg_data.r2_vel(i);
+        wbcCmdMsg.legs.l2_vel[i] = leg_data.l2_vel(i);
 
-        footCmdMsg.r1_acc[i] = leg_data.r1_acc(i);
-        footCmdMsg.l1_acc[i] = leg_data.l1_acc(i);
-        footCmdMsg.r2_acc[i] = leg_data.r2_acc(i);
-        footCmdMsg.l2_acc[i] = leg_data.l2_acc(i);
-
-        footCmdMsg.r1_kp[i] = leg_data.r1_kp(i);
-        footCmdMsg.l1_kp[i] = leg_data.l1_kp(i);
-        footCmdMsg.r2_kp[i] = leg_data.r2_kp(i);
-        footCmdMsg.l2_kp[i] = leg_data.l2_kp(i);
-        
-        footCmdMsg.r1_kd[i] = leg_data.r1_kd(i);
-        footCmdMsg.l1_kd[i] = leg_data.l1_kd(i);
-        footCmdMsg.r2_kd[i] = leg_data.r2_kd(i);
-        footCmdMsg.l2_kd[i] = leg_data.l2_kd(i);
+        wbcCmdMsg.legs.r1_grf[i] = leg_data.r1_grf(i);
+        wbcCmdMsg.legs.l1_grf[i] = leg_data.l1_grf(i);
+        wbcCmdMsg.legs.r2_grf[i] = leg_data.r2_grf(i);
+        wbcCmdMsg.legs.l2_grf[i] = leg_data.l2_grf(i);
     }
-    grf_cmd_publisher.publish(grf_cmd_channel, &grfCmdMsg);
-    foot_cmd_publisher.publish(foot_cmd_channel, &footCmdMsg);
+
+    wbc_cmd_publisher.publish(wbc_cmd_channel, &wbcCmdMsg);
 }
 
 void LCMExchanger::sendPhaseSig(vector<int>& phase, vector<double>& phi, double t)
@@ -273,31 +224,24 @@ void LCMExchanger::sendPhaseSig(vector<int>& phase, vector<double>& phi, double 
         phaseSigMsg.phase[i] = phase[i];
         phaseSigMsg.phi[i] = phi[i];
     }
-    // phaseSigMsg.num = static_cast<int16_t>(gait_table.size());
-    // phaseSigMsg.gait_table.resize(static_cast<int16_t>(gait_table.size()));
-    // for (int16_t i = 0; i < static_cast<int16_t>(gait_table.size()); i++)
-    // {
-    //     phaseSigMsg.gait_table[i] = static_cast<int16_t>(gait_table[i]);
-    // }
     phaseSigMsg.t = t;
     phase_sig_publisher.publish(phase_signal_channel, &phaseSigMsg);
 }
 
-void LCMExchanger::sendRobotRef(RobotData& robot_cmd, vector<bool> &active_legs, int8_t adaptation_type)
+void LCMExchanger::sendMpcCmd(RobotData& robot_cmd, vector<bool> &active_legs)
 {
-    robotRefMsg.adaptation_type = adaptation_type;
-    for (int i = 0; i < 4; i++)
-    {
-        robotRefMsg.active_legs[i] = active_legs[i];
-    }
     for (int i = 0; i < 3; i++)
     {
-        robotRefMsg.cmd_vel[i] = robot_cmd.lin_vel[i];
-        robotRefMsg.cmd_vel[i+3] = robot_cmd.ang_vel[i];
-        robotRefMsg.cmd_pose[i] = robot_cmd.pos[i];
-        robotRefMsg.cmd_pose[i+3] = robot_cmd.orientation[i];
+        mpcCmdMsg.cmd_vel[i] = robot_cmd.lin_vel[i];
+        mpcCmdMsg.cmd_vel[i+3] = robot_cmd.ang_vel[i];
+        mpcCmdMsg.cmd_pose[i] = robot_cmd.pos[i];
+        mpcCmdMsg.cmd_pose[i+3] = robot_cmd.orientation[i];
+
+        mpcCmdMsg.active_legs[i] = active_legs[i];
     }
-    robot_ref_publisher.publish(robot_ref_channel, &robotRefMsg);
+    mpcCmdMsg.active_legs[3] = active_legs[3];
+
+    robot_ref_publisher.publish(mpc_cmd_channel, &mpcCmdMsg);
 }
 
 LCMExchanger::~LCMExchanger()
