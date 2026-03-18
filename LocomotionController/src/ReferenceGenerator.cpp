@@ -1,5 +1,6 @@
 #include "ReferenceGenerator.hpp"
 #include "LowPassFilter.hpp" // Include the low-pass filter implementation
+#include <algorithm>
 #include <cmath>
 
 // Constructor
@@ -16,6 +17,7 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     foot_pos_global_just_stance.setZero();
     foot_pos_local_just_stance.resize(4,3);
     foot_pos_local_just_stance.setZero();
+    foot_pos_valid_just_stance.fill(false);
     R_body_for_vel.resize(3,3);
     x_ref.resize(13);
     x_ref.setZero();
@@ -72,101 +74,58 @@ void ReferenceGenerator::set_body_adaptation_mode(int mode) {
 // Step function
 Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
                                     const std::vector<Eigen::Vector3d>& foot_pos_global,
-                                    const std::vector<Eigen::Vector3d>& foot_pos_local,
-                                    const Eigen::Vector3d& ref_body_vel,
-                                    double ref_body_yaw_vel,
-                                    const double ref_body_height,
+                                    const RobotData& robot_cmd,
                                     const RobotData& robot_state) { 
-    ref_body_yaw_vel_filtered = lpf_yaw_vel.update(ref_body_yaw_vel); 
-    ref_yaw_pos += ref_body_yaw_vel_filtered * dt;
-    // if (test_cnt < 20)
-    // {
-    //     cout << ref_yaw_pos << " | " << ref_body_yaw_vel_filtered << " | " << ref_body_yaw_vel << " | " << robot_state.orientation(2) << endl;
-    //     test_cnt++;
-    // }
-    
-    // R_body_for_vel << cos(ref_yaw_pos), -sin(ref_yaw_pos), 0,
-    //                   sin(ref_yaw_pos),  cos(ref_yaw_pos), 0,
-    //                   0, 0, 1;
-    // ref_body_vel_directed = R_body_for_vel * ref_body_vel; //
 
     // Apply low-pass filters to reference velocities
-    ref_body_vel_filtered(X) = lpf_x_vel.update(ref_body_vel(X));
-    ref_body_vel_filtered(Y) = lpf_y_vel.update(ref_body_vel(Y));
-    ref_body_vel_filtered(Z) = lpf_z_vel.update(ref_body_vel(Z));
+    ref_body_vel_filtered(X) = lpf_x_vel.update(robot_cmd.lin_vel(X));
+    ref_body_vel_filtered(Y) = lpf_y_vel.update(robot_cmd.lin_vel(Y));
+    ref_body_vel_filtered(Z) = lpf_z_vel.update(robot_cmd.lin_vel(Z));
+    ref_body_yaw_vel_filtered = lpf_yaw_vel.update(robot_cmd.ang_vel(Z)); 
     
-
-    // Update foot positions just after stance
-    // for (int i = 0; i < 4; ++i) {
-    //     if ((pre_phase_signal[i] == SWING && phase_signal[i] == STANCE) ||
-    //         (pre_phase_signal[i] == LATE_CONTACT && phase_signal[i] == STANCE) ||
-    //         (pre_phase_signal[i] == SWING && phase_signal[i] == EARLY_CONTACT)) {
-    //         foot_pos_local_just_stance.row(i) = foot_pos_local[i];
-    //         foot_pos_global_just_stance.row(i) = foot_pos_global[i];
-    //     }
-    // }
-    for (int i = 0; i < 4; ++i) {
-        if (phase_signal[i] == STANCE || phase_signal[i] == EARLY_CONTACT) {
-            foot_pos_local_just_stance.row(i) = foot_pos_local[i];
-            foot_pos_global_just_stance.row(i) = foot_pos_global[i];
-        }
-    }
-
-    
-    // Compute reference z position
-    // if (body_adapt_mode == INCL_ADAPT || body_adapt_mode == HEIGHT_ADAPT)
-        // ref_z_pos = compute_ref_z_pos() + ref_body_height;// + 0.044;//
-    // else
-        ref_z_pos = ref_body_height;//-0.044;
-
-    // Compute reference pitch position
-    // if (body_adapt_mode == INCL_ADAPT)
-        // ref_pitch_pos = compute_ref_pitch_pos();//0.0;// 
-    // else
-        ref_pitch_pos = 0.0;
-
     // Update reference position
     ref_x_pos += ref_body_vel_filtered(X) * dt;
     ref_y_pos += ref_body_vel_filtered(Y) * dt;
-    // cout << robot_state.pos(Z) << endl;
 
-    // Check position error
-    // double e_x_threshold = 0.12;
-    // double e_y_threshold = 0.2;
-    // double e_yaw_threshold = 0.2;
-    // double body_height_threshold = 0.01;
-    // double e_x = ref_x_pos - robot_state.pos(X);
-    // double e_y = ref_y_pos - robot_state.pos(Y);
-    // double e_yaw = ref_yaw_pos - robot_state.orientation(2);
-    // if (abs(e_x) > e_x_threshold)
-    // {
-        // ref_x_pos = robot_state.pos(X);
-    //     cout << "More than X_threshold. New X ref pos: " << ref_x_pos << endl;
-    // }
-    // if (abs(e_y) > e_y_threshold)
-    // {
-        // ref_y_pos = robot_state.pos(Y);
-    //     cout << "More than Y_threshold. New Y ref pos: " << ref_y_pos << endl;
-    // }
-    // if (abs(e_yaw) > e_yaw_threshold)
-    // {
-        // ref_yaw_pos = robot_state.orientation(2);
-    //     cout << "More than YAW_threshold. New YAW ref pos: " << ref_yaw_pos << endl;
-    // }
-    // if (ref_body_height < body_height_threshold)
-    // {
-        // ref_x_pos = robot_state.pos(X);
-        // ref_y_pos = robot_state.pos(Y);
-    //     // ref_yaw_pos = robot_state.orientation(2);
-    //     cout << "New desired X Y: " << ref_x_pos << " " << ref_y_pos << endl;
-    // }
+    update_support_foot_states(phase_signal, foot_pos_global, robot_state);
 
+    bool has_support = false;
+    const double support_mean_z = compute_ref_z_pos(phase_signal, has_support);
+    // cout << body_adapt_mode << endl;
+    if (body_adapt_mode == INCL_ADAPT || body_adapt_mode == HEIGHT_ADAPT) {
+        if (has_support) {
+            ref_z_pos = support_mean_z + robot_cmd.pos(Z);
+        } else if (std::abs(ref_z_pos) < 1e-9) {
+            ref_z_pos = robot_cmd.pos(Z);
+        }
+    } else {
+        ref_z_pos = robot_cmd.pos(Z);
+    }
 
+    bool has_pitch_support = false;
+    const double raw_ref_pitch_pos = -compute_ref_pitch_pos(phase_signal, has_pitch_support);
+    if (body_adapt_mode == INCL_ADAPT) {
+        if (has_pitch_support) {
+            ref_pitch_pos = lpf_pitch_vel.update(raw_ref_pitch_pos);
+        }
+    } else {
+        ref_pitch_pos = 0.0;
+    }
+    ref_yaw_pos += ref_body_yaw_vel_filtered * dt;
+    
     // Update reference vector
-    x_ref << 0.0, ref_pitch_pos, ref_yaw_pos,
-             ref_x_pos, ref_y_pos, ref_z_pos,
-             0.0, 0.0, ref_body_yaw_vel_filtered,
-             ref_body_vel_filtered(X), ref_body_vel_filtered(Y), 0.0, 
+    x_ref << robot_cmd.orientation(X),                  // roll
+            ref_pitch_pos + robot_cmd.orientation(Y),   // pitch
+            ref_yaw_pos + robot_cmd.orientation(Z),     // yaw
+            ref_x_pos + robot_cmd.pos(X),               // pos X
+            ref_y_pos + robot_cmd.pos(Y),               // pos Y
+            ref_z_pos,                                  // pos Z
+            0.0,                                        // angvel roll
+            0.0,                                        // angvel pitch
+            ref_body_yaw_vel_filtered,                  // angvel yaw
+            ref_body_vel_filtered(X),                   // vel X
+            ref_body_vel_filtered(Y),                   // vel Y
+            robot_cmd.lin_vel(Z),                       // vel Z
              -9.81;
 
     // Update previous phase signal
@@ -175,29 +134,126 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
     return x_ref;
 }
 
-// Helper method to compute reference z position
-double ReferenceGenerator::compute_ref_z_pos() const {
-    double mean_z = 0.0;
-    for (int i = 0; i < 4; ++i) {
-        mean_z += foot_pos_global_just_stance(i, Z);
+bool ReferenceGenerator::is_support_phase(int phase) const {
+    return phase == STANCE || phase == EARLY_CONTACT;
+}
+
+bool ReferenceGenerator::is_valid_foot_pos(const Eigen::Vector3d& foot_pos_global,
+                                           const RobotData& robot_state) const {
+    if (!foot_pos_global.allFinite()) {
+        return false;
     }
-    return mean_z / 4.0;
+
+    const Eigen::Vector3d foot_pos_rel = foot_pos_global - robot_state.pos;
+    return foot_pos_rel.norm() < 1.0;
+}
+
+Eigen::Vector3d ReferenceGenerator::foot_pos_to_yaw_aligned_local(
+    const Eigen::Vector3d& foot_pos_global,
+    const RobotData& robot_state) const {
+    const double yaw = robot_state.orientation(Z);
+    const double cos_yaw = std::cos(yaw);
+    const double sin_yaw = std::sin(yaw);
+
+    Eigen::Matrix3d R_yaw;
+    R_yaw << cos_yaw, -sin_yaw, 0.0,
+             sin_yaw,  cos_yaw, 0.0,
+             0.0,      0.0,     1.0;
+
+    return R_yaw.transpose() * (foot_pos_global - robot_state.pos);
+}
+
+void ReferenceGenerator::update_support_foot_states(
+    const std::vector<int>& phase_signal,
+    const std::vector<Eigen::Vector3d>& foot_pos_global,
+    const RobotData& robot_state) {
+    const int leg_count = std::min<int>(NUM_LEGS,
+                                        std::min(phase_signal.size(), foot_pos_global.size()));
+    for (int i = 0; i < leg_count; ++i) {
+        if (!is_support_phase(phase_signal[i])) {
+            continue;
+        }
+
+        if (!is_valid_foot_pos(foot_pos_global[i], robot_state)) {
+            continue;
+        }
+
+        foot_pos_global_just_stance.row(i) = foot_pos_global[i].transpose();
+        foot_pos_local_just_stance.row(i) =
+            foot_pos_to_yaw_aligned_local(foot_pos_global[i], robot_state).transpose();
+        foot_pos_valid_just_stance[i] = true;
+    }
+}
+
+// Helper method to compute reference z position
+double ReferenceGenerator::compute_ref_z_pos(const std::vector<int>& phase_signal,
+                                             bool& has_support) const {
+    double mean_z = 0.0;
+    int support_count = 0;
+    const int leg_count = std::min<int>(NUM_LEGS, phase_signal.size());
+    for (int i = 0; i < leg_count; ++i) {
+        if (!is_support_phase(phase_signal[i]) || !foot_pos_valid_just_stance[i]) {
+            continue;
+        }
+        mean_z += foot_pos_global_just_stance(i, Z);
+        ++support_count;
+    }
+
+    has_support = support_count > 0;
+    if (!has_support) {
+        return 0.0;
+    }
+
+    return mean_z / static_cast<double>(support_count);
 }
 
 // Helper method to compute reference pitch position
-double ReferenceGenerator::compute_ref_pitch_pos() const {
-    Eigen::Vector3d virtual_leg1_pos = (foot_pos_local_just_stance.row(R1) + foot_pos_local_just_stance.row(L1)) / 2.0;
-    Eigen::Vector3d virtual_leg2_pos = (foot_pos_local_just_stance.row(R2) + foot_pos_local_just_stance.row(L2)) / 2.0;
+double ReferenceGenerator::compute_ref_pitch_pos(const std::vector<int>& phase_signal,
+                                                 bool& has_pitch_support) const {
+    Eigen::Vector3d front_mean = Eigen::Vector3d::Zero();
+    Eigen::Vector3d rear_mean = Eigen::Vector3d::Zero();
+    int front_count = 0;
+    int rear_count = 0;
 
-    double virtual_a = -(virtual_leg1_pos(Z) - virtual_leg2_pos(Z));
-    double virtual_b = std::abs(virtual_leg1_pos(X) - virtual_leg2_pos(X));
-    // double virtual_c = std::sqrt(virtual_a * virtual_a + virtual_b * virtual_b);
+    const int front_legs[2] = {R1, L1};
+    const int rear_legs[2] = {R2, L2};
 
-    // if (virtual_c != 0.0) {
-    //     return std::asin(virtual_a / virtual_c);
-    // } else {
-    //     return 0.0;
-    // }
-    double ref_pitch = std::atan2(virtual_a, virtual_b)-0.02;
-    return ref_pitch*0.9;
+    for (int leg_id : front_legs) {
+        if (leg_id >= static_cast<int>(phase_signal.size())) {
+            continue;
+        }
+        if (!is_support_phase(phase_signal[leg_id]) || !foot_pos_valid_just_stance[leg_id]) {
+            continue;
+        }
+        front_mean += foot_pos_local_just_stance.row(leg_id).transpose();
+        ++front_count;
+    }
+
+    for (int leg_id : rear_legs) {
+        if (leg_id >= static_cast<int>(phase_signal.size())) {
+            continue;
+        }
+        if (!is_support_phase(phase_signal[leg_id]) || !foot_pos_valid_just_stance[leg_id]) {
+            continue;
+        }
+        rear_mean += foot_pos_local_just_stance.row(leg_id).transpose();
+        ++rear_count;
+    }
+
+    has_pitch_support = front_count > 0 && rear_count > 0;
+    if (!has_pitch_support) {
+        return 0.0;
+    }
+
+    front_mean /= static_cast<double>(front_count);
+    rear_mean /= static_cast<double>(rear_count);
+
+    const double dx = front_mean(X) - rear_mean(X);
+    if (std::abs(dx) < 1e-6) {
+        has_pitch_support = false;
+        return 0.0;
+    }
+
+    const double dz = front_mean(Z) - rear_mean(Z);
+    return std::atan2(dz, dx);
 }

@@ -10,6 +10,7 @@ wbc_cmd: "WBC_CMD"
 servo_cmd: "SERVO_CMD"
 
 robot_state: "ROBOT_STATE"
+wbc_state: "WBC_STATE"
 servo_state: "SERVO_STATE"
 
 gait_phase: "GAIT_PHASE"

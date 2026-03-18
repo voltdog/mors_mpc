@@ -58,7 +58,7 @@ std::tuple<double, double, double> SwingTrajectoryGenerator::map_z_descending(in
     double tf, int /*cnt*/, double dp_finish) {
 
     a_zd[leg_num] = calc_a(p_rise[Z], p_finish[Z], tf, 0.0, dp_finish, 0.0, 0.0);
-    t_zd[leg_num] = it - it_offset[leg_num][Z] - tf / 4;
+    t_zd[leg_num] = it - it_offset[leg_num][Z];// - tf;
     return calc_spline(a_zd[leg_num], t_zd[leg_num]);
 }
 
@@ -100,10 +100,10 @@ SwingTrajectoryGenerator::step(const std::vector<double>& it, const std::vector<
             auto [p_y_val, d_p_y_val, dd_p_y_val] = map_xy_swing(it[i], p_start[i][Y], p_finish[i][Y], d_p_start[i][Y], tf);
 
             double p_z_val, d_p_z_val, dd_p_z_val;
-            if (0 <= it[i] && it[i] < tf / 4.0) {
-                std::tie(p_z_val, d_p_z_val, dd_p_z_val) = map_z_rising(i, it[i], p_start[i], p_rise[i], d_p_start[i], tf / 4.0, cnt[i]);
+            if (0 <= it[i] && it[i] < tf * rising_proportion) {
+                std::tie(p_z_val, d_p_z_val, dd_p_z_val) = map_z_rising(i, it[i], p_start[i], p_rise[i], d_p_start[i], tf * rising_proportion, cnt[i]);
             } else {
-                std::tie(p_z_val, d_p_z_val, dd_p_z_val) = map_z_descending(i, it[i], p_rise[i], p_finish[i], 3 * tf / 4.0, cnt[i], dz_near_ground);
+                std::tie(p_z_val, d_p_z_val, dd_p_z_val) = map_z_descending(i, (it[i] - tf*rising_proportion), p_rise[i], p_finish[i], tf * (1-rising_proportion), cnt[i], dz_near_ground);
             }
 
             p_ref[3 * i] = p_x_val;

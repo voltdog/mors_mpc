@@ -332,7 +332,7 @@ VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& fo
     
 
     cur_rpy << x0(0), x0(1), x0(2);
-    // cout << foot_positions.col(0).transpose() << endl;
+
     calc_AB_matrices(cur_rpy, foot_positions, A, B);
     calc_discrete_matrices(A, B, dt, Ad, Bd);
     calc_QP_matrices(horizon, x0, x_ref, Qqp, Rqp, Ad, Bd, H, q);
@@ -349,7 +349,7 @@ VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& fo
     solver.solveProblem();// != OsqpEigen::ErrorExitFlag::NoError;
     VectorXd qp_solution = solver.getSolution();
 
-    ref_grf_yaw_aligned = -qp_solution.head<12>(); 
+    ref_grf_yaw_aligned = qp_solution.head<12>(); // !!!не забыть минус!!! 
 
     // auto end = std::chrono::steady_clock::now();
     // auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -383,7 +383,7 @@ VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& fo
     // R_body = mors_sys::euler2mat(cur_rpy(0), cur_rpy(1), cur_rpy(2));
     for (int i = 0; i < num_legs; i++)
     {
-        ref_grf.segment(i * 3, 3) = R_z * ref_grf_yaw_aligned.segment(i * 3, 3);
+        ref_grf.segment(i * 3, 3) = ref_grf_yaw_aligned.segment(i * 3, 3); //R_z * !! не забыть!!!
     }
 
     

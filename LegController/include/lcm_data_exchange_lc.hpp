@@ -55,24 +55,24 @@ class LCMExchanger
         void enableThread();
         void phaseSigThread();
 
-        void getLegCmdData(LegData &leg_cmd);
+        void getWbcCmdData(LegData &leg_cmd);
         void getImuData(VectorXd &orientation_euler);
         void getServoStateData(VectorXd &position, VectorXd &velocity, VectorXd &torque);
         void getEnableData(bool &en, bool &reset);
-        Vector4i getPhaseSignal();
+        Vector4i getGaitPhaseSignal();
 
         void sendServoCmd(VectorXd &position, VectorXd &velocity, VectorXd &torque, VectorXd &kp, VectorXd &kd);
 
     private:
         string wbc_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
-        string enable_channel, phase_sig_channel;
+        string enable_channel, gait_phase_sig_channel;
 
         lcm::LCM wbc_cmd_subscriber;
         lcm::LCM servo_state_subscriber;
         lcm::LCM imu_subscriber;
         lcm::LCM enable_subscriber;
         lcm::LCM controle_type_subscriber;
-        lcm::LCM phase_sig_subscriber;
+        lcm::LCM gait_phase_sig_subscriber;
 
         lcm::LCM servo_cmd_publisher;
 
@@ -87,7 +87,7 @@ class LCMExchanger
         unique_ptr<thread> thServoState;
         unique_ptr<thread> thEnable;
         unique_ptr<thread> thCtrlType;
-        unique_ptr<thread> thPhaseSig;
+        unique_ptr<thread> thGaitPhaseSig;
         
         bool enable, reset;
         double gear_ratio;

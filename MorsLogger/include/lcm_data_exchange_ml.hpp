@@ -15,7 +15,7 @@
 #include "mors_msgs/wbc_cmd_msg.hpp"
 #include "mors_msgs/servo_cmd_msg.hpp"
 
-#include "mors_msgs/robot_state_msg.hpp"
+#include "mors_msgs/robot_state_msg.hpp" 
 #include "mors_msgs/servo_state_msg.hpp"
 
 #include "mors_msgs/odometry_msg.hpp"
@@ -35,7 +35,7 @@ using namespace YAML;
 #define LEG_CONTROL   1
 #define SERVO_CONTROL 2
 
-#define SERVO_FILTERED_CHANNEL "SERVO_STATE_FILTERED"
+// #define SERVO_FILTERED_CHANNEL "SERVO_STATE_FILTERED"
 
 // #define GRF_CMD_CHANNEL "LEG_CMD"
 // #define SERVO_STATE_CHANNEL "SERVO_STATE"
@@ -130,7 +130,7 @@ class LCMExchanger
     private:
         string mpc_cmd_channel, wbc_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
         string enable_channel, odometry_channel, robot_state_channel, robot_state_check_channel;
-        string robot_cmd_channel, phase_sig_channel, contact_state_channel;
+        string robot_cmd_channel, gait_phase_sig_channel, contact_state_channel;
         
         lcm::LCM robot_cmd_subscriber;
         lcm::LCM mpc_cmd_subscriber;
@@ -146,7 +146,7 @@ class LCMExchanger
         lcm::LCM robot_state_check_subscriber;
         
         lcm::LCM servo_state_filt_subscriber;
-        lcm::LCM phase_sig_subscriber;
+        lcm::LCM gait_phase_sig_subscriber;
 
         LegData wbc_leg_cmd;
         RobotData wbc_body_cmd;
@@ -178,7 +178,7 @@ class LCMExchanger
         unique_ptr<thread> thServoStateFilt;
         unique_ptr<thread> thRobotState;
         unique_ptr<thread> thRobotCmd;
-        unique_ptr<thread> thPhaseSig;
+        unique_ptr<thread> thGaitPhaseSig;
         unique_ptr<thread> thRobotStateCheck;
         
         bool leg_controller_enable, leg_controller_reset;

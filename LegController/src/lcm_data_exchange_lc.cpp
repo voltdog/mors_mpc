@@ -15,7 +15,7 @@ LCMExchanger::LCMExchanger()
         return;
     if(!enable_subscriber.good())
         return;
-    if(!phase_sig_subscriber.good())
+    if(!gait_phase_sig_subscriber.good())
         return;
     if(!servo_cmd_publisher.good())
         return;
@@ -29,7 +29,7 @@ LCMExchanger::LCMExchanger()
     wbc_cmd_channel = channel_config["wbc_cmd"].as<string>();
     servo_cmd_channel = channel_config["servo_cmd"].as<string>();
     servo_state_channel = channel_config["servo_state"].as<string>();
-    phase_sig_channel = channel_config["gait_phase"].as<string>();
+    gait_phase_sig_channel = channel_config["gait_phase"].as<string>();
 
     enable = false;
     reset = true;
@@ -53,7 +53,7 @@ void LCMExchanger::start_exchanger()
     thImu = make_unique<thread> (&LCMExchanger::imuThread, this);
     thServoState = make_unique<thread> (&LCMExchanger::servoStateThread, this);
     thEnable = make_unique<thread> (&LCMExchanger::enableThread, this);
-    thPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
+    thGaitPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
 }
 
 void LCMExchanger::wbcCmdHandler(const lcm::ReceiveBuffer* rbuf,
@@ -156,10 +156,10 @@ void LCMExchanger::enableThread()
 
 void LCMExchanger::phaseSigThread()
 {
-    phase_sig_subscriber.subscribe(phase_sig_channel, &LCMExchanger::phaseSigHandler, this);
+    gait_phase_sig_subscriber.subscribe(gait_phase_sig_channel, &LCMExchanger::phaseSigHandler, this);
     while(true)
     {
-        phase_sig_subscriber.handle();
+        gait_phase_sig_subscriber.handle();
     }
 }
 
@@ -178,7 +178,7 @@ void LCMExchanger::sendServoCmd(VectorXd &position, VectorXd &velocity, VectorXd
     servo_cmd_publisher.publish(servo_cmd_channel, &servoCmdMsg);
 }
 
-void LCMExchanger::getLegCmdData(LegData &leg_cmd)
+void LCMExchanger::getWbcCmdData(LegData &leg_cmd)
 {
     leg_cmd.r1_grf = this->leg_cmd.r1_grf;
     leg_cmd.l1_grf = this->leg_cmd.l1_grf;
@@ -214,7 +214,7 @@ void LCMExchanger::getEnableData(bool &en, bool &reset)
     reset = this->reset;
 }
 
-Vector4i LCMExchanger::getPhaseSignal()
+Vector4i LCMExchanger::getGaitPhaseSignal()
 {
     return phase_signal;
 }

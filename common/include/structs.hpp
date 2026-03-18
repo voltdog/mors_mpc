@@ -41,6 +41,7 @@ struct alignas(16) RobotData
     Vector3d pos;
     Vector3d lin_vel;
     Vector3d orientation;
+    Vector4d orientation_quaternion;
     Vector3d ang_vel;
 };
 

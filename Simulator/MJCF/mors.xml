@@ -22,15 +22,15 @@
     <mesh name="joint3_1" file="../meshes/j3_1.obj"/>
   </asset>
 
-  <asset>
+  <!-- <asset>
     <texture name="grid" type="2d" builtin="checker" rgb1=".1 .2 .3"
      rgb2=".2 .3 .4" width="300" height="300" mark="edge" markrgb=".2 .3 .4"/>
     <material name="grid" texture="grid" texrepeat="10 10" reflectance=".05"/>
-  </asset>
+  </asset> -->
 
   <worldbody>
     <!-- <geom size="10.0 10.0 .01" type="plane" material="grid"/> -->
-    <geom name="ground" type="plane" pos="0 0 0" size="10 10 0.1" material="grid"/>
+    <!-- <geom name="ground" type="plane" pos="0 0 0" size="10 10 0.1" material="grid"/> -->
     <light pos="0 0 20.0" mode="trackcom"/>
     <camera name="closeup" pos="0 -.1 .07" xyaxes="1 0 0 0 1 2"/>
 
@@ -81,7 +81,7 @@
                 fullinertia="1.4e-6 1.4e-6 1.4e-6 0.0 0.0 0.0"
               />
               <!-- <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" condim="6"/> -->
-              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" solimp="0.99 1.0 0.0022 0.5 2" solref="0.01 1"/>
+              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" margin="0.001" priority="1" solimp="0.8 1.0 0.0023 0.5 2" solref="0.01 1"/>
             </body>
           </body>
         </body>
@@ -120,7 +120,7 @@
                 fullinertia="1.4e-6 1.4e-6 1.4e-6 0.0 0.0 0.0"
               />
               <!-- <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" condim="6"/> -->
-              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" solimp="0.99 1.0 0.0022 0.5 2" solref="0.01 1"/>
+              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" margin="0.001" priority="1" solimp="0.8 1.0 0.0023 0.5 2" solref="0.01 1"/>
             </body>
           </body>
         </body>
@@ -159,7 +159,7 @@
                 fullinertia="1.4e-6 1.4e-6 1.4e-6 0.0 0.0 0.0"
               />
               <!-- <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" condim="6"/> -->
-              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" solimp="0.99 1.0 0.0022 0.5 2" solref="0.01 1"/>
+              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" margin="0.001" priority="1" solimp="0.8 1.0 0.0023 0.5 2" solref="0.01 1"/>
             </body>
           </body>
         </body>
@@ -198,7 +198,7 @@
                 fullinertia="1.4e-6 1.4e-6 1.4e-6 0.0 0.0 0.0"
               />
               <!-- <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" condim="6"/> -->
-              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" priority="1" solimp="0.99 1.0 0.0022 0.5 2" solref="0.01 1"/>
+              <geom type="sphere" size="0.015" rgba="0.2 0.2 0.2 1" margin="0.001" priority="1" solimp="0.8 1.0 0.0023 0.5 2" solref="0.01 1"/>
             </body>
           </body>
         </body>

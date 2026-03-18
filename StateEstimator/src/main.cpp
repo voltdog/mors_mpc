@@ -141,6 +141,7 @@ int main()
         // orientation data fusion
         data_fusioned.orientation = sensor_fusion.update_orientation(imu_data.orientation_euler, imu_data.orientation_euler); // imu_data.orientation_euler;////odometry.orientation;//
         // fused orientation filtering
+        robot_state.orientation_quaternion = imu_data.orientation_quaternion;
         robot_state.orientation = lpf.update_orientation(data_fusioned.orientation); //odometry.orientation;//
         if (first_yaw)
         {

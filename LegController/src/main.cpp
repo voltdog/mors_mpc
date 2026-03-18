@@ -167,11 +167,11 @@ int main() {
         // Put your code here
         // -----------------------------------------------
         
-        lcmExch.getLegCmdData(leg_cmd);
+        lcmExch.getWbcCmdData(leg_cmd);
         lcmExch.getImuData(cur_euler);
         lcmExch.getServoStateData(cur_theta, cur_omega, cur_tau);
         lcmExch.getEnableData(enable, reset);
-        phase_signal = lcmExch.getPhaseSignal();
+        phase_signal = lcmExch.getGaitPhaseSignal();
         
         if (enable == true)
         {

@@ -20,6 +20,8 @@
 
 class SwingTrajectoryGenerator {
 public:
+    static constexpr double rising_proportion = 0.25;
+
     SwingTrajectoryGenerator(double sim_freq = 200.0);
 
     void set_parameters(double t_swing, double dz_near_ground);

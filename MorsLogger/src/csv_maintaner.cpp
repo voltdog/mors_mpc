@@ -173,12 +173,26 @@ void CSVMaintainer::write_servo_state(double time, ServoData &servo_state)
     servo_state_csv.resetContent();
     servo_state_csv << time;
 
-    for (int i=0; i<12; i++)
-        servo_state_csv << servo_state.pos(i);
-    for (int i=0; i<12; i++)
-        servo_state_csv << servo_state.vel(i);
-    for (int i=0; i<12; i++)
-        servo_state_csv << servo_state.torq(i);
+    for (int i=0; i<12; i++) {
+        if (std::abs(servo_state.pos(i)) < 1e-4) 
+            servo_state_csv << 0.0;
+        else
+            servo_state_csv << servo_state.pos(i);
+    }
+        
+    for (int i=0; i<12; i++) {
+        if (std::abs(servo_state.vel(i)) < 1e-4)
+            servo_state_csv << 0.0;
+        else
+            servo_state_csv << servo_state.vel(i);
+    }
+        
+    for (int i=0; i<12; i++) {
+        if (std::abs(servo_state.torq(i)) < 1e-4)
+            servo_state_csv << 0.0;
+        else
+            servo_state_csv << servo_state.torq(i);
+    }
 
     servo_state_csv.writeToFile(servo_state_addr, true);
 
@@ -189,15 +203,29 @@ void CSVMaintainer::write_servo_state_filt(double time, ServoData &servo_state_f
     servo_state_filt_csv.resetContent();
     servo_state_filt_csv << time;
 
-    for (int i=0; i<12; i++)
-        servo_state_filt_csv << servo_state_filt.pos(i);
-    for (int i=0; i<12; i++)
-        servo_state_filt_csv << servo_state_filt.vel(i);
-    for (int i=0; i<12; i++)
-        servo_state_filt_csv << servo_state_filt.torq(i);
+    for (int i=0; i<12; i++) {
+        if (std::abs(servo_state_filt.pos(i)) < 1e-4) 
+            servo_state_filt_csv << 0.0;
+        else
+            servo_state_filt_csv << servo_state_filt.pos(i);
+    }
+        
+    for (int i=0; i<12; i++) {
+        if (std::abs(servo_state_filt.vel(i)) < 1e-4)
+            servo_state_filt_csv << 0.0;
+        else
+            servo_state_filt_csv << servo_state_filt.vel(i);
+    }
+        
+    for (int i=0; i<12; i++) {
+        if (std::abs(servo_state_filt.torq(i)) < 1e-4)
+            servo_state_filt_csv << 0.0;
+        else
+            servo_state_filt_csv << servo_state_filt.torq(i);
+    }
+        
 
     servo_state_filt_csv.writeToFile(servo_state_filt_addr, true);
-
 }
 
 void CSVMaintainer::write_servo_cmd(double time, ServoData &servo_cmd)

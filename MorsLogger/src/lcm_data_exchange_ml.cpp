@@ -20,15 +20,15 @@ LCMExchanger::LCMExchanger()
         return;
     if(!odometry_subscriber.good())
         return;
-    if(!servo_state_filt_subscriber.good())
-        return;
+    // if(!servo_state_filt_subscriber.good())
+    //     return;
     if(!robot_state_subscriber.good())
         return;
     if(!robot_state_check_subscriber.good())
         return;
     if(!robot_cmd_subscriber.good())
         return;
-    if(!phase_sig_subscriber.good())
+    if(!gait_phase_sig_subscriber.good())
         return;
     if(!contact_sensor_subscriber.good())
         return;
@@ -58,7 +58,7 @@ LCMExchanger::LCMExchanger()
     robot_state_channel = channel_config["robot_state"].as<string>();
     robot_state_check_channel = "ROBOT_STATE_CHECK";
     
-    phase_sig_channel = channel_config["gait_phase"].as<string>();
+    gait_phase_sig_channel = channel_config["gait_phase"].as<string>();
 
     leg_controller_enable = false;
     leg_controller_reset = true;
@@ -118,7 +118,7 @@ void LCMExchanger::start_exchanger()
     thRobotState = make_unique<thread> (&LCMExchanger::robotStateThread, this);
     thRobotStateCheck = make_unique<thread> (&LCMExchanger::robotStateCheckThread, this);
     thRobotCmd = make_unique<thread> (&LCMExchanger::robotCmdThread, this);
-    thPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
+    thGaitPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
     thContactSensor = make_unique<thread> (&LCMExchanger::contactSensorThread, this);
 }
 
@@ -143,7 +143,7 @@ void LCMExchanger::mpcCmdHandler(const lcm::ReceiveBuffer* rbuf,
         mpc_body_cmd.lin_vel(i) = msg->cmd_vel[i];
         mpc_body_cmd.ang_vel(i) = msg->cmd_vel[i+3];
     }
-}
+} 
 
 void LCMExchanger::wbcCmdHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
@@ -381,15 +381,6 @@ void LCMExchanger::servoStateThread()
     }
 }
 
-void LCMExchanger::servoStateFiltThread()
-{
-    servo_state_filt_subscriber.subscribe(SERVO_FILTERED_CHANNEL, &LCMExchanger::servoStateFiltHandler, this);
-    while(true)
-    {
-        servo_state_filt_subscriber.handle();
-    }
-}
-
 void LCMExchanger::servoCmdThread()
 {
     servo_cmd_subscriber.subscribe(servo_cmd_channel, &LCMExchanger::servoCmdHandler, this);
@@ -446,10 +437,10 @@ void LCMExchanger::robotCmdThread()
 
 void LCMExchanger::phaseSigThread()
 {
-    phase_sig_subscriber.subscribe(phase_sig_channel, &LCMExchanger::phaseSigHandler, this);
+    gait_phase_sig_subscriber.subscribe(gait_phase_sig_channel, &LCMExchanger::phaseSigHandler, this);
     while(true)
     {
-        phase_sig_subscriber.handle();
+        gait_phase_sig_subscriber.handle();
     }
 }
 

@@ -29,12 +29,13 @@
 
     
     # state estimation
-    ${SCRIPT_DIR}/StateEstimator/build/state_estimator &
+    # ${SCRIPT_DIR}/StateEstimator/build/state_estimator &
     # ${SCRIPT_DIR}/StateEstimatorLKF/build/state_estimator_lkf &
 
 	# robot control
 	${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC &
-	${SCRIPT_DIR}/LegController/build/LegController & 
+    ${SCRIPT_DIR}/WBIC/build/wbic_ctrl &
+	# ${SCRIPT_DIR}/LegController/build/LegController & 
 
     echo "Robot Controller Started Successfully" &
 
@@ -46,16 +47,3 @@
 	
 	wait
 	)
-
-# 3.118
-# 3.110
-# 5.723
-# 3.134
-# 3.185
-# 2.844
-# 3.165
-# 3.142
-# 8.022
-# 3.182
-# 3.080
-# 0.377

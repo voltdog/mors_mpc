@@ -12,9 +12,10 @@
 class SwingController {
 public:
     SwingController(double timestep, double bx, double by, double l1,
+                       double max_leg_length,
                        const std::array<double, 4>& interleave_x,
                        const std::array<double, 4>& interleave_y,
-                       double dz_near_ground, double k1_fsp, double k2_fsp);
+                       double dz_near_ground, double k1_fsp);
 
     void set_gait_params(double t_sw, double t_st, double ref_stride_height);
 
@@ -40,6 +41,9 @@ private:
     double t_st, t_sw;
     double ref_stride_height;
     std::vector<FootStepPlanner> step_planner;
+
+    double avg_support_foot_z;
+    int support_leg_count;
 };
 
 #endif // SWING_LEG_CONTROLLER_HPP

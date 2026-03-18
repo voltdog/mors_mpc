@@ -86,8 +86,8 @@ class Hardware_Level_Sim():
             sim_config = yaml.safe_load(f)
 
         self.sim_freq = sim_config.get("frequency", 500)
-        self.mjcf_root = sim_config.get("mjcf_root", "MJCF/mors.xml")
-        self.mjcf_root = f"{BASE_DIR}/{self.mjcf_root}"
+        self.mjcf_root = str((BASE_DIR / sim_config.get("mjcf_root", "MJCF/mors.xml")).resolve())
+        self.scene = self._parse_scene_config(sim_config.get("scene", None))
         self.init_motor_angles = sim_config.get("init_motor_angles", [0.0, -1.57, 3.14,
                                                                       -0.0, 1.57, -3.14,
                                                                       -0.0, -1.57, 3.14,
@@ -123,8 +123,22 @@ class Hardware_Level_Sim():
         self.sim_period = 1.0/self.sim_freq
         self.first_step = True
 
+    def _parse_scene_config(self, scene_config):
+        if isinstance(scene_config, dict):
+            scene_config = scene_config.get("type")
+
+        if scene_config is None:
+            return None
+
+        scene_name = str(scene_config).strip()
+        if scene_name == "" or scene_name.lower() in ("none", "robot", "base"):
+            return None
+
+        return scene_name
+
     def init_simulation(self):
         self.env = MorsMujocoEnv(xml_path=self.mjcf_root,
+                 scene=self.scene,
                  sim_freq=self.sim_freq,
                  motor_kp=0.0,
                  motor_kd=0.0,
@@ -158,10 +172,10 @@ class Hardware_Level_Sim():
         self.body_lin_pos = self.env.get_base_position()
         self.body_lin_vel = self.env.get_base_lin_vel()
 
-        if self.first_step:
-            self.first_step = False
-            self.yaw_offset = self.imu_data[12]
-        self.imu_data[12] -= self.yaw_offset
+        # if self.first_step:
+        #     self.first_step = False
+        #     self.yaw_offset = self.imu_data[12]
+        # self.imu_data[12] -= self.yaw_offset
 
         if self.foot_positions_type == "global":
             self.foot_pos = self.env.get_global_foot_positions()
@@ -220,9 +234,11 @@ class Hardware_Level_Sim():
                            r1_vel, l1_vel, r2_vel, l2_vel):
         yaw = self.transform_yaw(imu_data[12])
         rpy = [imu_data[10], imu_data[11], yaw]
+        quat_xyzw = Rotation.from_euler('xyz', rpy, degrees=False).as_quat().tolist()
 
         self.lcm_robot_state_msg.body.position = base_pos[:]
         self.lcm_robot_state_msg.body.orientation = rpy[:]
+        self.lcm_robot_state_msg.body.orientation_quaternion = quat_xyzw #imu_data[3:7]
         self.lcm_robot_state_msg.body.lin_vel = base_vel[:]
         self.lcm_robot_state_msg.body.ang_vel = imu_data[7:10]
 
@@ -243,6 +259,7 @@ class Hardware_Level_Sim():
     def __pub_lcm_odom_msg(self, body_lin_pos, body_lin_vel, imu_data):
         self.lcm_odom_msg.position = body_lin_pos[:]
         self.lcm_odom_msg.orientation = imu_data[10:]
+        self.lcm_odom_msg.orientation_quaternion = imu_data[3:7]
         self.lcm_odom_msg.lin_vel = body_lin_vel[:]
         self.lcm_odom_msg.ang_vel = imu_data[7:10]
         self.lc_odom.publish(self.lcm_odom_channel, self.lcm_odom_msg.encode())

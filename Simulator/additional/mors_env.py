@@ -5,12 +5,14 @@ MuJoCo implementation of MORS Gym environment.
 import os
 import inspect
 import time
+import math
 import numpy as np
 import mujoco
 import mujoco.viewer
 from scipy.spatial.transform import Rotation
 from transforms3d.quaternions import quat2mat
 
+from additional.mjcf import load_mjmodel
 from additional.motor_accurate import MotorAccurate
 
 
@@ -32,6 +34,7 @@ class MorsMujocoEnv():
 
     def __init__(self,
                  xml_path="../MJCF/mors.xml",
+                 scene=None,
                  sim_freq=500,
                  motor_kp=30.0,
                  motor_kd=0.1,
@@ -47,13 +50,14 @@ class MorsMujocoEnv():
         self._motor_kd = motor_kd
         # self._motor_torque_limit = motor_torque_limit
         self._xml_path = xml_path
+        self._scene = scene
         self._sim_freq = sim_freq
         self._ext_disturbance_enabled = ext_disturbance_enabled
         self._time_step = 1 / sim_freq
         self._env_step_counter = 0
 
         # ---------------- MuJoCo ----------------
-        self.model = mujoco.MjModel.from_xml_path(xml_path)
+        self.model = load_mjmodel(xml_path, scene=scene)
         self.data = mujoco.MjData(self.model)
         self.model.opt.timestep = self._time_step
         self.viewer = mujoco.viewer.launch_passive(self.model, 
@@ -138,14 +142,26 @@ class MorsMujocoEnv():
         return pos.copy()
 
     def get_base_orientation(self):
-        return self.data.qpos[3:7].copy()
+        quat = self.data.qpos[3:7].copy()
+        # quat[0] *= -1
+        # quat[2] *= -1
+        # нормализация
+        w, x, y, z = quat
+        n = math.sqrt(w*w + x*x + y*y + z*z)
+        w, x, y, z = w/n, x/n, y/n, z/n
+        # присваеваем обратно в порядке x y z w
+        quat = [x, y, z, w]
+
+        return quat
 
     def get_base_orientation_euler(self):
         quat = self.get_base_orientation()
         # quat[0] *= -1
         # quat[2] *= -1
-        euler = Rotation.from_quat(quat).as_euler('xyz', degrees=False)
-        euler_correct = np.array([euler[2], -euler[1], -euler[0]])
+        # euler = Rotation.from_quat(quat).as_euler('xyz', degrees=False)
+        # euler_correct = np.array([euler[2], -euler[1], -euler[0]])
+        euler = Rotation.from_quat(quat, scalar_first=False).as_euler('xyz', degrees=False)
+        euler_correct = np.array([euler[0], euler[1], euler[2]])
 
         return euler_correct.copy()
 
@@ -171,42 +187,59 @@ class MorsMujocoEnv():
         Returns:
             contact_flags: [R1, L1, R2, L2] boolean flags
         """
-
         contact_flags = [False] * 4
 
-        # предполагаем, что геометрии стоп имеют имена:
-        # foot_R1, foot_L1, foot_R2, foot_L2
         foot_body_names = ["ef_R1", "ef_L1", "ef_R2", "ef_L2"]
-        foot_geom_ids = [
+        foot_body_ids = [
             mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
             for name in foot_body_names
         ]
 
         for i in range(self.data.ncon):
-            contact = self.data.contact[i]
+            c = self.data.contact[i]
+            body1 = self.model.geom_bodyid[c.geom1]
+            body2 = self.model.geom_bodyid[c.geom2]
 
-            geom1 = contact.geom1
-            geom2 = contact.geom2
-
-            contact_info = {
-                "geom1": geom1,
-                "geom2": geom2,
-                "pos": contact.pos.copy(),
-                "frame": contact.frame.copy(),
-                "force": None
-            }
-
-            # вычисляем контактную силу
-            force = np.zeros(6)
-            mujoco.mj_contactForce(self.model, self.data, i, force)
-            contact_info["force"] = force.copy()
-
-            # проверяем, есть ли контакт стоп
-            for leg_index, foot_id in enumerate(foot_geom_ids):
-                if geom1 == foot_id or geom2 == foot_id:
+            for leg_index, foot_body_id in enumerate(foot_body_ids):
+                if body1 == foot_body_id or body2 == foot_body_id:
                     contact_flags[leg_index] = True
 
         return contact_flags
+        # contact_flags = [False] * 4
+
+        # # предполагаем, что геометрии стоп имеют имена:
+        # # foot_R1, foot_L1, foot_R2, foot_L2
+        # foot_body_names = ["ef_R1", "ef_L1", "ef_R2", "ef_L2"]
+        # foot_body_ids = [
+        #     mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
+        #     for name in foot_body_names
+        # ]
+
+        # for i in range(self.data.ncon):
+        #     contact = self.data.contact[i]
+
+        #     geom1 = contact.geom1
+        #     geom2 = contact.geom2
+
+        #     contact_info = {
+        #         "geom1": geom1,
+        #         "geom2": geom2,
+        #         "pos": contact.pos.copy(),
+        #         "frame": contact.frame.copy(),
+        #         "force": None
+        #     }
+
+        #     # вычисляем контактную силу
+        #     force = np.zeros(6)
+        #     mujoco.mj_contactForce(self.model, self.data, i, force)
+        #     contact_info["force"] = force.copy()
+
+        #     # проверяем, есть ли контакт стоп
+        #     for leg_index, foot_id in enumerate(foot_body_ids):
+        #         if geom1 == foot_id or geom2 == foot_id:
+        #             contact_flags[leg_index] = True
+
+        # return contact_flags
     
     def get_global_foot_positions(self):
         """
@@ -321,6 +354,5 @@ class MorsMujocoEnv():
                 body_id,
                 self.data.qfrc_applied
             )
-
 
 

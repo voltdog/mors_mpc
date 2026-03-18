@@ -1,5 +1,6 @@
 #include "LcmDataExchange.hpp"
 #include <unistd.h>
+#include <Eigen/Geometry>
 
 // #define KT 0.74
 // #define GEAR_RATIO 10.0
@@ -191,6 +192,17 @@ int LCMExchanger::get_adaptation_type()
 
 void LCMExchanger::sendWbcCmd(RobotData& robot_data, LegData& leg_data)
 {
+    // WBC expects body quaternion in x,y,z,w order.
+    const Eigen::Quaterniond q_ref =
+        Eigen::AngleAxisd(robot_data.orientation[Z], Eigen::Vector3d::UnitZ()) *
+        Eigen::AngleAxisd(robot_data.orientation[Y], Eigen::Vector3d::UnitY()) *
+        Eigen::AngleAxisd(robot_data.orientation[X], Eigen::Vector3d::UnitX());
+
+    wbcCmdMsg.body.orientation_quaternion[0] = q_ref.x();
+    wbcCmdMsg.body.orientation_quaternion[1] = q_ref.y();
+    wbcCmdMsg.body.orientation_quaternion[2] = q_ref.z();
+    wbcCmdMsg.body.orientation_quaternion[3] = q_ref.w();
+
     for (int i=0; i<3; i++)
     {
         wbcCmdMsg.body.position[i] = robot_data.pos(i);

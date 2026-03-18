@@ -298,7 +298,8 @@ int main()
         // robot_state.lin_vel = odometry.lin_vel;
         robot_state.pos << x_lkf(0), x_lkf(3), x_lkf(6);
         robot_state.lin_vel << x_lkf(1), x_lkf(4), x_lkf(7);
-        robot_state.orientation = odometry.orientation_euler;
+        robot_state.orientation = imu_data.orientation_euler;
+        robot_state.orientation_quaternion = imu_data.orientation_quaternion;
         robot_state.ang_vel = odometry.ang_vel;
         leg_state.r1_pos = leg_positions[0];
         leg_state.l1_pos = leg_odom_velocity; //leg_positions[1];

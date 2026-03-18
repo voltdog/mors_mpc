@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD 20)
 # set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+set(CMAKE_BUILD_TYPE Release)
+message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
 # check AVX2 support
 
@@ -76,7 +78,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
     # Set Flags according to check results
     if (MSVC)
         if (HAVE_AVX2_EXTENSIONS AND NOT MSVC_VERSION LESS 1800)
-            set(AVX_FLAGS "${AVX_FLAGS} /arch:AVX2")
+            set(AVX_FLAGS "${AVX_FLAGS} /arch:AVX2") 
         elseif (HAVE_AVX_EXTENSIONS AND NOT MSVC_VERSION LESS 1600)
             set(AVX_FLAGS "${AVX_FLAGS} /arch:AVX")
         endif ()
@@ -94,7 +96,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #===============================================================================
 
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native ")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=auto -DEIGEN_STACK_ALLOCATION_LIMIT=0 -O3 -Wall -fPIC ${AVX_FLAGS}")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=auto -DEIGEN_STACK_ALLOCATION_LIMIT=0 -O3 -Wall -fPIC ${AVX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
 
 # add_definitions(-DCOMPILEDWITHC11)
 message(STATUS "Using flag -std=c++20")

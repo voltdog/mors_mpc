@@ -16,6 +16,7 @@ Robot::Robot()
     jac_pos_indicies[3] = 15;
 
     dt = 0.002;
+
 }
 
 void Robot::set_timestep(double dt)
@@ -55,8 +56,8 @@ void Robot::BuildPinocchioModel()
     // data_ = pinocchio::Data(model_);
     
 
-    Eigen::VectorXd v = Eigen::VectorXd::Zero(model_.nv);
-    Eigen::VectorXd q = Eigen::VectorXd::Zero(model_.nq);
+    v = Eigen::VectorXd::Zero(model_.nv);
+    q = Eigen::VectorXd::Zero(model_.nq);
     q(6) = 1.0;
 
     ComputeForwardKinematics(q, v);
@@ -78,6 +79,27 @@ void Robot::BuildPinocchioModel()
     //             << std::setprecision(4) << data_->oMf[frame_id].translation().transpose() << std::endl;
 
     base_frame_id = model_.getFrameId(base_frame);
+
+    nq = model_.nq;
+    nv = model_.nv;
+    // q.resize(nq);
+    // v.resize(nv);
+    M.setZero();
+    nle.setZero();
+    J_body_ori.setZero();
+    J_body_pos.setZero();
+    Jdqd_body_ori.setZero();
+    Jdqd_body_pos.setZero();
+    Jd_leg_time_variation_buf.setZero();
+    Jcdqd_support_cache.setZero();
+    tau_with_fr.setZero();
+    Jc_all.setZero();
+    for (auto& Jdqd_leg : Jdqd_leg_cache) {
+        Jdqd_leg.setZero();
+    }
+    for (auto& J : J_leg) {
+        J.setZero();
+    }
 }
 
 void Robot::ComputeForwardKinematics(const VectorXd &q, const VectorXd &v) // size(q) = 18
@@ -132,7 +154,7 @@ std::vector<Eigen::Matrix3d> Robot::GetFootJacobian(const VectorXd &q)
     {
         pinocchio::FrameIndex frame_id = model_.getFrameId(frame_name);
         Eigen::MatrixXd J_full(6, model_.nv);
-        Matrix3d Jac;
+        Matrix3d Jac = Eigen::Matrix3d::Zero();
 
         pinocchio::getFrameJacobian(model_, *data_, frame_id, pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, J_full);
         Jac = R.transpose() * J_full.block(0, jac_pos_indicies[i], 3, 3);
@@ -278,7 +300,9 @@ void Robot::ComputeAllLegDynamics(
         }
     }
 
-    pinocchio::ccrba(model_, *data_, q, q_dot);                     // вычисляет M(q) в data.M
+    pinocchio::crba(model_, *data_, q);                     // вычисляет M(q) в data.M
+    data_->M.triangularView<Eigen::StrictlyLower>() =
+        data_->M.transpose().triangularView<Eigen::StrictlyLower>();
     pinocchio::nonLinearEffects(model_, *data_, q, q_dot); // вычисляет nle = C(q,qdot)*qdot + g(q) в data.nle
 
     for (int leg = 0; leg < 4; leg++) {
@@ -292,4 +316,260 @@ void Robot::ComputeAllLegDynamics(
         Eigen::Vector3d h_leg = data_->nle.segment(idx[0], 3);
         h_legs[leg] = h_leg;
     }
+}
+
+void Robot::update(RobotData& body_state,
+                   const wbic_types::Vector12d& joint_pos,
+                   const wbic_types::Vector12d& joint_vel)
+{
+    q.segment(0, 3) = body_state.pos;
+    q.segment(3, 4) = body_state.orientation_quaternion;
+    q.segment(PIN_START_IDX+PIN_R1*3, 3) = joint_pos.segment(R1*3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
+    q.segment(PIN_START_IDX+PIN_L1*3, 3) = joint_pos.segment(L1*3, 3);
+    q.segment(PIN_START_IDX+PIN_R2*3, 3) = joint_pos.segment(R2*3, 3);
+    q.segment(PIN_START_IDX+PIN_L2*3, 3) = joint_pos.segment(L2*3, 3);
+
+    Eigen::Quaterniond q_body(
+        body_state.orientation_quaternion[3],
+        body_state.orientation_quaternion[0],
+        body_state.orientation_quaternion[1],
+        body_state.orientation_quaternion[2]);
+
+    R_body = q_body.toRotationMatrix();
+
+    v.segment(0, 3) = R_body.transpose() * body_state.lin_vel; // возможно надо умножить на R_body.T
+    v.segment(3, 3) = body_state.ang_vel; // возможно надо умножить на R_body.T 
+    v.segment(PIN_START_IDX+PIN_R1*3-1, 3) = joint_vel.segment(R1*3, 3); // order of legs in pinocchio model is L1, L2, R1, R2
+    v.segment(PIN_START_IDX+PIN_L1*3-1, 3) = joint_vel.segment(L1*3, 3);
+    v.segment(PIN_START_IDX+PIN_R2*3-1, 3) = joint_vel.segment(R2*3, 3);
+    v.segment(PIN_START_IDX+PIN_L2*3-1, 3) = joint_vel.segment(L2*3, 3);
+
+    // Вычисление прямой кинематики and jacobians
+    pinocchio::forwardKinematics(model_, *data_, q, v); 
+    pinocchio::computeJointJacobians(model_, *data_, q);
+    pinocchio::computeJointJacobiansTimeVariation(model_, *data_, q, v);
+    
+    // Обновление позиций фреймов
+    pinocchio::updateFramePlacements(model_, *data_);
+
+    // compute joint Jacobians
+    int i = 0;
+
+    // cout << "quat: " << q.segment(3, 4).transpose() << endl;
+
+    for (const auto& frame_name : ef_frames)
+    {
+        pinocchio::FrameIndex frame_id = model_.getFrameId(frame_name);
+        wbic_types::Matrix6_18d J_full;
+        J_full.setZero();
+
+        pinocchio::getFrameJacobian(
+            model_, 
+            *data_, 
+            frame_id, 
+            pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, 
+            J_full);
+
+        J_leg[i] = J_full.topRows(3);
+
+        Jd_leg_time_variation_buf.setZero();
+        pinocchio::getFrameJacobianTimeVariation(
+            model_,
+            *data_,
+            frame_id,
+            pinocchio::LOCAL_WORLD_ALIGNED,
+            Jd_leg_time_variation_buf);
+        Jdqd_leg_cache[i].noalias() = Jd_leg_time_variation_buf.topRows(3) * v;
+
+        // cout << "J_leg[" << i << "]: " << endl << J_full.topRows(3) << endl;
+        // cout << "---" << endl;
+
+        i++;
+    }
+
+    // mass and nle matrices
+    pinocchio::crba(model_, *data_, q);  // вычисляет M(q) в data.M
+    data_->M.triangularView<Eigen::StrictlyLower>() =
+        data_->M.transpose().triangularView<Eigen::StrictlyLower>();
+
+    pinocchio::nonLinearEffects(model_, *data_, q, v); // вычисляет nle = C(q,qdot)*qdot + g(q) в data.nle
+
+    M = data_->M;
+    nle = data_->nle;
+
+    // pinocchio::computeAllTerms(model_, *data_, q, v);
+    // M = data_->M.selfadjointView<Eigen::Upper>();
+    // nle = data_->nle;
+
+
+    // cout << "[dyn_model]: H: " << endl << data_->M << endl;
+}
+
+const wbic_types::Matrix3_18d& Robot::get_body_ori_jacobian()
+{
+    J_body_ori.setZero();
+    J_body_ori.block(0, 3, 3, 3) = R_body;
+
+    return J_body_ori;
+}
+
+const wbic_types::Matrix3_18d& Robot::get_body_pos_jacobian()
+{
+    J_body_pos.setZero();
+    J_body_pos.block(0, 0, 3, 3) = R_body;
+    // J_body_pos.block(0, 0, 3, 3).setIdentity();
+
+    return J_body_pos;
+}
+
+const wbic_types::Vector3d& Robot::get_body_ori_jdqd() const
+{
+    return Jdqd_body_ori;
+}
+
+const wbic_types::Vector3d& Robot::get_body_pos_jdqd() const
+{
+    return Jdqd_body_pos;
+}
+
+Vector4d Robot::get_body_ori_global()
+{
+    return q.segment(3, 4);
+}
+
+Vector3d Robot::get_body_angvel_global()
+{
+    return R_body * v.segment(3, 3); //  если в update происходило умножение на R_body.T, то тут множить на R_body
+}
+
+Vector3d Robot::get_body_pos_global()
+{
+    return q.segment(0, 3);
+}
+
+Vector3d Robot::get_body_vel_global()
+{
+    return R_body * v.segment(0, 3); //  если в update происходило умножение на R_body.T, то тут множить на R_body
+}
+
+const wbic_types::Matrix3_18d& Robot::get_leg_pos_jacobian(int leg_id) const
+{
+    return J_leg[leg_id];
+}
+
+const wbic_types::Vector3d& Robot::get_leg_pos_jdqd(int leg_id) const
+{
+    return Jdqd_leg_cache[leg_id];
+}
+
+Vector3d Robot::get_tip_pos_global(int leg_id)
+{
+    pinocchio::FrameIndex frame_id = model_.getFrameId(ef_frames[leg_id]);
+
+    return data_->oMf[frame_id].translation();
+}
+
+Vector3d Robot::get_tip_vel_global(int leg_id)
+{
+    return J_leg[leg_id] * v;
+}
+
+int Robot::get_contact_jacobian_or_none(Eigen::Ref<wbic_types::Matrix12_18d> Jc) const
+{
+    int n_support_legs = get_n_support_legs();
+    if (n_support_legs <= 0)
+        return 0;
+
+    // MatrixXd Jc(3*n_support_legs, nv);
+    int cnt = 0;
+
+    for (int leg = 0; leg < 4; leg++)
+    {
+        if (support_states[leg] == 1)
+        {
+            Jc.block(3 * cnt, 0, 3, nv) = J_leg[leg];
+            cnt++;
+        }
+    }
+
+    return cnt;
+}
+
+// how to use the function get_contact_jacobian_or_none
+// Eigen::MatrixXd Jc(12, nv);
+// int n_support = getContactJacobian(Jc);
+
+// if (n_support == 0)
+// {
+//     // flight phase
+// }
+// else
+// {
+//     Eigen::Block<Eigen::MatrixXd> Jc_active =
+//         Jc.block(0,0,3*n_support,nv);
+
+//     // используем Jc_active
+// }
+
+const wbic_types::Vector12d& Robot::get_contact_jcdqd_or_none(int& n_support_legs)
+{
+    n_support_legs = get_n_support_legs();
+    Jcdqd_support_cache.setZero();
+    if (n_support_legs <= 0)
+        return Jcdqd_support_cache;
+
+    int cnt = 0;
+
+    for (int leg = 0; leg < 4; leg++)
+    {
+        if (support_states[leg] == 1)
+        {
+            Jcdqd_support_cache.segment<3>(3 * cnt) = Jdqd_leg_cache[leg];
+            cnt++;
+        }
+    }
+    return Jcdqd_support_cache;
+}
+
+void Robot::update_support_states(Vector4i support_states) // 1 - stance, 0 - swing
+{
+    this->support_states = support_states;
+}
+
+int Robot::get_n_support_legs() const
+{
+    return support_states.sum();
+}
+
+bool Robot::is_leg_supporting(int leg_id) const
+{
+    if (support_states[leg_id] == 1)
+        return true;
+    else
+        return false;
+}
+
+const wbic_types::Matrix18d& Robot::get_mass_matix() const
+{
+    return M;
+}
+
+const wbic_types::Vector18d& Robot::get_nle_vector() const
+{
+    return nle;
+}
+
+const wbic_types::Vector18d& Robot::get_tau(const wbic_types::Vector18d& a,
+                                            const wbic_types::Vector12d& fr)
+{
+    // build contact Jacobian
+    for (int i = 0; i < 4; i++)
+    {
+        Jc_all.block(i*3, 0, 3, nv) = J_leg[i];
+    }
+
+    // tau = M * qdd + C * qd + g - Jc^T * Fr 
+    tau_with_fr = M * a + nle - Jc_all.transpose() * fr;
+
+    return tau_with_fr;
 }

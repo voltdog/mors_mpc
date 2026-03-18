@@ -21,11 +21,12 @@ LCMExchanger::LCMExchanger()
     robot_state_channel = "ROBOT_STATE_CHECK"; //channel_config["robot_state"].as<string>();
     contact_channel = channel_config["contact_state"].as<string>();
 
-    imu_data.orientation_euler.resize(3);
+    // imu_data.orientation_euler.resize(3);
     imu_data.orientation_euler.setZero();
-    imu_data.ang_vel.resize(3);
+    imu_data.orientation_quaternion.setZero();
+    // imu_data.ang_vel.resize(3);
     imu_data.ang_vel.setZero();
-    imu_data.lin_accel.resize(3);
+    // imu_data.lin_accel.resize(3);
     imu_data.lin_accel.setZero();
 
     servo_state.pos.resize(12);
@@ -41,6 +42,7 @@ LCMExchanger::LCMExchanger()
     odometry.lin_vel.setZero();
     odometry.orientation_euler.resize(3);
     odometry.orientation_euler.setZero();
+    odometry.orientation_quaternion.setZero();
     odometry.ang_vel.resize(3);
     odometry.ang_vel.setZero();
 
@@ -68,9 +70,11 @@ void LCMExchanger::imuHandler(const lcm::ReceiveBuffer* rbuf,
     for (int i=0; i<3; i++)
     {
         imu_data.orientation_euler(i) = msg->orientation_euler[i];
+        imu_data.orientation_quaternion(i) = msg->orientation_quaternion[i];
         imu_data.ang_vel(i) = msg->angular_velocity[i];
         imu_data.lin_accel(i) = msg->linear_acceleration[i];
     }
+    imu_data.orientation_quaternion(3) = msg->orientation_quaternion[3];
 }
 
 void LCMExchanger::servoStateHandler(const lcm::ReceiveBuffer* rbuf,
@@ -95,9 +99,11 @@ void LCMExchanger::odometryHandler(const lcm::ReceiveBuffer* rbuf,
     {
         odometry.position(i) = msg->position[i];
         odometry.orientation_euler(i) = msg->orientation[i];
+        odometry.orientation_quaternion(i) = msg->orientation_quaternion[i];
         odometry.lin_vel(i) = msg->lin_vel[i];
         odometry.ang_vel(i) = msg->ang_vel[i];
     }
+    odometry.orientation_quaternion(3) = msg->orientation_quaternion[3];
 }
 
 
@@ -182,6 +188,7 @@ void LCMExchanger::sendRobotState(RobotData robot_state, LegData leg_state)
     {
         rs_msg.body.position[i] = robot_state.pos[i];
         rs_msg.body.orientation[i] = robot_state.orientation[i];
+        rs_msg.body.orientation_quaternion[i] = robot_state.orientation_quaternion[i];
         rs_msg.body.lin_vel[i] = robot_state.lin_vel[i];
         rs_msg.body.ang_vel[i] = robot_state.ang_vel[i];
 
@@ -203,6 +210,7 @@ void LCMExchanger::sendRobotState(RobotData robot_state, LegData leg_state)
         rs_msg.legs.contact_states[i] = leg_state.contacts[i];
     }
     rs_msg.legs.contact_states[3] = leg_state.contacts[3];
+    rs_msg.body.orientation_quaternion[3] = robot_state.orientation_quaternion[3];
 
     robot_state_publisher.publish(robot_state_channel, &rs_msg);
 }
