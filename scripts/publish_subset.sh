@@ -2,7 +2,8 @@
 set -euo pipefail
 
 SRC_REPO="/home/yoggi/mors_mpc"
-TARGET_REPO="git@github.com:yoggi56/quadruped_control.git"
+# TARGET_REPO="git@github.com:yoggi56/quadruped_control.git"
+TARGET_REPO="git@github.com:voltdog/mors_quadruped.git"
 TARGET_BRANCH="main"   # если нужно, поменяй на master
 
 TMP_DIR="$(mktemp -d)"
