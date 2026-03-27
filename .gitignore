@@ -8,6 +8,7 @@ __pycache__/
 ros_ws/build/
 ros_ws/install/
 ros_ws/log/
+lcm_msgs/mors_msgs/
 # ros_ws/
 # mors_sim/
 # radiolink_teleop/
@@ -15,3 +16,4 @@ ros_ws/log/
 *.csv
 *.zip
 MUJOCO_LOG.TXT
+plotjuggler_layout.xml
