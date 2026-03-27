@@ -24,6 +24,7 @@ PATHS=(
   install.sh
   README.md
   README_rus.md
+  LICENSE
 )
 
 mkdir -p "$TMP_DIR/export"
