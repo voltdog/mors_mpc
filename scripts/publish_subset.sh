@@ -16,8 +16,13 @@ PATHS=(
   MorsLogger
   ros_ws/src/mors_keyboard_control
   ros_ws/src/robot_mode_controller
+  ros_ws/src/mors_ros_msgs
   Simulator
+  pictures
   start_controller.sh
+  install.sh
+  README.md
+  README_rus.md
 )
 
 mkdir -p "$TMP_DIR/export"

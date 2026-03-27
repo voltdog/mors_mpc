@@ -35,7 +35,7 @@ set -euo pipefail
     # Проверяем аргумент
     if [ "${1:-}" == "--sim" ]; then
         echo "-------------- Simulation Mode Activated --------------" 
-        /home/yoggi/mors_mpc/.mpc_venv/bin/python ${SCRIPT_DIR}/Simulator/mors_simulator.py &
+        ${SCRIPT_DIR}/.mpc_venv/bin/python ${SCRIPT_DIR}/Simulator/mors_simulator.py &
         pids+=($!)
         sleep 4s
     else
@@ -56,11 +56,8 @@ set -euo pipefail
     # ${SCRIPT_DIR}/StateEstimatorLKF/build/state_estimator_lkf &
 
 	# robot control
-    # sudo setcap cap_sys_nice=eip ${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC
-    # getcap ${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC
 	${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC &
     pids+=($!)
-	# ${SCRIPT_DIR}/LegController/build/LegController &
 
     echo "Robot Controller Started Successfully"
 
