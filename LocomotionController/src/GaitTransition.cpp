@@ -69,11 +69,7 @@ void GaitTransition::make_transition(double t, double& t_st_out,
         if (t_saturation >= 1.0)
         {
             transisting = false;
-            // cout << "hoi" << endl;
         }
-        // cout << "(" << t_saturation << " = " << t << " - " << t_gt << ") / " << delta_T_gt << endl;
-        // cout << t_sw_out << " " << t_st_out << endl;
-        // cout << "---" << endl;
     }
     else
     {

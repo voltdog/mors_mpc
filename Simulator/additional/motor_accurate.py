@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class MotorAccurate():
+class MotorModel():
     def __init__(self, num_motors = 1):
         self.num_motors = num_motors
         
@@ -45,10 +45,6 @@ class MotorAccurate():
         self.p = self.kp * self.e
         self.d = self.kd * self.d_e
 
-        # self.p = [x * y for x, y in zip(self.kp, self.e)]
-        # self.d = [x * y for x, y in zip(self.kd, self.d_e)]
-
         self.u = self.p + self.d + self.tau_ref
 
-        # self.e_prev = self.e
         return self.u

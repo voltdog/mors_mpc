@@ -7,6 +7,10 @@ set(CMAKE_CXX_STANDARD 20)
 # set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
 # check AVX2 support
 
@@ -76,25 +80,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
     # Set Flags according to check results
     if (MSVC)
         if (HAVE_AVX2_EXTENSIONS AND NOT MSVC_VERSION LESS 1800)
-            set(AVX_FLAGS "${AVX_FLAGS} /arch:AVX2")
+            list(APPEND AVX_FLAGS /arch:AVX2)
         elseif (HAVE_AVX_EXTENSIONS AND NOT MSVC_VERSION LESS 1600)
-            set(AVX_FLAGS "${AVX_FLAGS} /arch:AVX")
+            list(APPEND AVX_FLAGS /arch:AVX)
         endif ()
     else ()
         if (HAVE_AVX2_EXTENSIONS)
-            set(AVX_FLAGS "${AVX_FLAGS} -mavx2")
+            list(APPEND AVX_FLAGS -mavx2)
             message(STATUS "AVX2 is supported")
         elseif (HAVE_AVX_EXTENSIONS)
-            set(AVX_FLAGS "${AVX_FLAGS} -mavx")
+            list(APPEND AVX_FLAGS -mavx)
             message(STATUS "AVX is supported")
         else()
             message(WARNING "AVX is not supported")
         endif ()
     endif ()
 #===============================================================================
-
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native ")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=auto -DEIGEN_STACK_ALLOCATION_LIMIT=0 -O3 -Wall -fPIC ${AVX_FLAGS}")
 
 # add_definitions(-DCOMPILEDWITHC11)
 message(STATUS "Using flag -std=c++20")
@@ -103,6 +104,7 @@ find_package(Eigen3 REQUIRED)
 # find_package(OsqpEigen REQUIRED)
 find_package(lcm REQUIRED)
 
+include(CheckIPOSupported)
 include(FetchContent)
 
 FetchContent_Declare(
@@ -113,14 +115,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(yaml-cpp)
 
 include(${LCM_USE_FILE})
+set(LCM_MSGS_DIR "${CMAKE_CURRENT_LIST_DIR}/../lcm_msgs")
 include_directories("include/")
 include_directories("../common/include/")
-include_directories("/home/$ENV{USER}/lcm_msgs/")
+include_directories("${LCM_MSGS_DIR}")
 include_directories(include /home/$ENV{USER}/vbcontrol/include)
 
 # Put all message definition files in the type directory in one list
-# FILE(GLOB message_definitions "${CMAKE_CURRENT_LIST_DIR}/lcm_msgs/mors_msgs/*.lcm")
-FILE(GLOB message_definitions "/home/$ENV{USER}/lcm_msgs/mors_msgs/*.lcm")
+FILE(GLOB message_definitions "${LCM_MSGS_DIR}/*.lcm")
 
 # Generate headers from message definition
 lcm_wrap_types(CPP_HEADERS cpp_headers
@@ -141,9 +143,25 @@ set(LOGGER_SOURCES src/main.cpp
             ../common/src/system_functions.cpp
 )
 add_executable(mors_logger ${LOGGER_SOURCES})
+
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+
+target_compile_options(mors_logger PRIVATE
+  $<$<CONFIG:Release>:-O3 -march=native -mtune=native ${AVX_FLAGS}>
+)
+
+target_compile_definitions(mors_logger PRIVATE
+  $<$<CONFIG:Release>:NDEBUG EIGEN_NO_DEBUG EIGEN_DONT_PARALLELIZE>
+)
+
+if(ipo_supported)
+  set_property(TARGET mors_logger PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+else()
+  message(STATUS "IPO/LTO is not supported: ${ipo_error}")
+endif()
+
 # target_link_libraries(mors_logger OsqpEigen::OsqpEigen)
 target_link_libraries(mors_logger vbcontrol)
 target_link_libraries(mors_logger Eigen3::Eigen)
 target_link_libraries(mors_logger yaml-cpp::yaml-cpp)
 lcm_target_link_libraries(mors_logger messages-cpp ${LCM_NAMESPACE}lcm)
-

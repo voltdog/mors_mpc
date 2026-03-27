@@ -45,7 +45,7 @@ using namespace YAML;
 class LCMExchanger
 {
     public:
-        LCMExchanger();
+        explicit LCMExchanger(bool debug_mode = false);
         ~LCMExchanger();
 
         void start_exchanger();
@@ -185,6 +185,7 @@ class LCMExchanger
         bool locomotion_enable, locomotion_reset;
         bool action_ctr_enable, action_ctr_reset;
         double gear_ratio;
+        bool debug_mode;
 };
 
 #endif //_lcm_data_exchange_ml_hpp_

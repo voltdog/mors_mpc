@@ -163,79 +163,52 @@ void SimpleGaitScheduler::setMpcParams(double dt_mpc, int n_horizon)
     this->n_horizon_ = n_horizon;
 }
 
-vector<int> SimpleGaitScheduler::getMpcTable(double phi0, bool standing, const std::vector<int>& current_leg_state, vector<bool> active_legs)
+void SimpleGaitScheduler::getMpcTable(double phi0, bool standing, const std::vector<int>& current_leg_state,
+                                      const vector<bool>& active_legs, vector<int>& gait_table)
 {
-    vector<int> gait_table(num_legs_ * n_horizon_);
-    // double t = t0;
+    if (static_cast<int>(gait_table.size()) != num_legs_ * n_horizon_) {
+        gait_table.resize(num_legs_ * n_horizon_);
+    }
 
-    // if (pre_standing == true && standing == false)
-    // {
-    //     phi = 0.0;
-    //     // t_offset = t;
-    //     // cout << t_offset << endl;
-    // }
-    
-    // if (current_leg_phase == standing_phase)
-    // {
-    //     std::fill(gait_table.begin(), gait_table.end(), STANCE);
-    // }
-    // else
-    // {
-    // cout << "---" << endl;
-    // cout << stride_freq << " " << duty_factor_ << " " << dt_mpc_ << endl;
-    // cout << "---" << endl;
     phi = phi0;
-        for (int i = 0; i < n_horizon_; i++) {
-            phi = std::fmod((phi + stride_freq * dt_mpc_), 1.0);
-            // if (i == 0)
-            //     pre_phi = phi;
+    for (int i = 0; i < n_horizon_; i++) {
+        phi = std::fmod((phi + stride_freq * dt_mpc_), 1.0);
 
-            for (int leg = 0; leg < num_legs_; leg++) {
-                if (active_legs[leg] == false)
+        for (int leg = 0; leg < num_legs_; leg++) {
+            if (active_legs[leg] == false)
+            {
+                gait_table[i * num_legs_ + leg] = SWING;
+            }
+            else
+            {
+                phi_[leg] = std::fmod((phi + phase_offsets_[leg]), 1.0);
+
+                if (standing == true)
                 {
-                    gait_table[i * num_legs_ + leg] = SWING;
+                    if ((phi_[leg] < duty_factor_) && (current_leg_state[leg] != SWING))
+                        mpc_leg_state_[leg] = STANCE;
                 }
                 else
                 {
-                    // double augmented_time = t + phase_offsets_[leg] * full_cycle_period_ - t_offset;
-                    // double phase_in_full_cycle = std::fmod(augmented_time, full_cycle_period_) / full_cycle_period_;
-                    // double ratio = initial_state_ratio_in_cycle_[leg];
-                    phi_[leg] = std::fmod((phi + phase_offsets_[leg]), 1.0);
-                    
-                    if (standing == true)
-                    {
-                        if ((phi_[leg] < duty_factor_) && (current_leg_state[leg] != SWING)) 
-                            mpc_leg_state_[leg] = STANCE;//phase_init_[leg];
-                    }
-                    else
-                    {
-                        if (phi_[leg] < duty_factor_) {
-                            mpc_leg_state_[leg] = STANCE;//phase_init_[leg];
-                        } else {
-                            mpc_leg_state_[leg] = SWING;//next_leg_state_[leg];
-                        }
-                    }
-        
-                    if (current_leg_state[leg] == EARLY_CONTACT) {
+                    if (phi_[leg] < duty_factor_) {
                         mpc_leg_state_[leg] = STANCE;
+                    } else {
+                        mpc_leg_state_[leg] = SWING;
                     }
-                    
-                    if (i == 0)
-                    {
-                        if (current_leg_state[leg] == LATE_CONTACT) {
-                            mpc_leg_state_[leg] = SWING;
-                        }
-                    }
-        
-                    gait_table[i * num_legs_ + leg] = mpc_leg_state_[leg]; //current_leg_state[leg];//
                 }
-            }
-            
-            // t += dt_mpc_;
-        }
-    // }
-    pre_standing = standing;
-    
 
-    return gait_table;
+                if (current_leg_state[leg] == EARLY_CONTACT) {
+                    mpc_leg_state_[leg] = STANCE;
+                }
+
+                if (i == 0 && current_leg_state[leg] == LATE_CONTACT) {
+                    mpc_leg_state_[leg] = SWING;
+                }
+
+                gait_table[i * num_legs_ + leg] = mpc_leg_state_[leg];
+            }
+        }
+    }
+
+    pre_standing = standing;
 }

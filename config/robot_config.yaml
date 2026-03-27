@@ -64,5 +64,8 @@ I_b: [[ 0.012838176, -0.000006851,  0.000156493],
 
 # motor params
 tau_max: [6.0, 6.0, 12.0]
+vel_max: [28.0, 28.0, 14.0]
 gear_ratio: 10.0
 kt: 0.74
+
+debug_mode: True

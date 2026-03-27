@@ -1,5 +1,7 @@
 #include "Robot.hpp"
 
+#include <stdexcept>
+
 Robot::Robot()
 {
     ef_frames.resize(4);
@@ -29,12 +31,6 @@ void Robot::BuildPinocchioModel()
     string config_address = mors_sys::GetEnv("CONFIGPATH");
     const std::string urdf_filename = config_address + "/../common/urdf/mors.urdf";
 
-    pinocchio::SE3 config1 = pinocchio::SE3::Identity(); //(0, 0, 0);
-    pinocchio::SE3 config2 = pinocchio::SE3::Identity(); //(0, 0, 0);
-    // pinocchio::JointModelComposite root_joint;
-    // root_joint.addJoint(pinocchio::JointModelTranslation(), config1);
-    // root_joint.addJoint(pinocchio::JointModelSphericalZYX(), config2);
-    // root_joint.setIndexes(0, 0, 0);
     pinocchio::JointModelFreeFlyer root_joint;
 
     // std::cout << "root_joint nv: " << root_joint.nv() << std::endl;
@@ -43,6 +39,7 @@ void Robot::BuildPinocchioModel()
 
     pinocchio::urdf::buildModel(urdf_filename, root_joint, model_);
     data_ = std::make_unique<pinocchio::Data>(model_);
+    dynamics_data_ = std::make_unique<pinocchio::Data>(model_);
 
     // std::cout << "Model name: " << model_.name << std::endl;
     // std::cout << "  model nq  = " << model_.nq << " (dimension of configuration space)" << std::endl;
@@ -344,13 +341,48 @@ void Robot::update(RobotData& body_state,
     v.segment(PIN_START_IDX+PIN_R2*3-1, 3) = joint_vel.segment(R2*3, 3);
     v.segment(PIN_START_IDX+PIN_L2*3-1, 3) = joint_vel.segment(L2*3, 3);
 
-    // Вычисление прямой кинематики and jacobians
-    pinocchio::forwardKinematics(model_, *data_, q, v); 
-    pinocchio::computeJointJacobians(model_, *data_, q);
-    pinocchio::computeJointJacobiansTimeVariation(model_, *data_, q, v);
-    
-    // Обновление позиций фреймов
-    pinocchio::updateFramePlacements(model_, *data_);
+    try {
+        pinocchio::forwardKinematics(model_, *data_, q, v);
+    } catch (const std::exception& ex) {
+        throw std::runtime_error(std::string("forwardKinematics failed: ") + ex.what());
+    }
+
+    try {
+        pinocchio::updateFramePlacements(model_, *data_);
+    } catch (const std::exception& ex) {
+        throw std::runtime_error(std::string("updateFramePlacements failed: ") + ex.what());
+    }
+
+    try {
+        pinocchio::crba(model_, *dynamics_data_, q);  // вычисляет M(q) в data.M
+    } catch (const std::exception& ex) {
+        throw std::runtime_error(
+            std::string("crba failed: ") + ex.what() +
+            " | q=[" + std::to_string(q.transpose()[0]));
+    }
+    dynamics_data_->M.triangularView<Eigen::StrictlyLower>() =
+        dynamics_data_->M.transpose().triangularView<Eigen::StrictlyLower>();
+
+    try {
+        pinocchio::nonLinearEffects(model_, *dynamics_data_, q, v); // вычисляет nle = C(q,qdot)*qdot + g(q) в data.nle
+    } catch (const std::exception& ex) {
+        throw std::runtime_error(std::string("nonLinearEffects failed: ") + ex.what());
+    }
+
+    M = dynamics_data_->M;
+    nle = dynamics_data_->nle;
+
+    try {
+        pinocchio::computeJointJacobians(model_, *data_, q);
+    } catch (const std::exception& ex) {
+        throw std::runtime_error(std::string("computeJointJacobians failed: ") + ex.what());
+    }
+
+    try {
+        pinocchio::computeJointJacobiansTimeVariation(model_, *data_, q, v);
+    } catch (const std::exception& ex) {
+        throw std::runtime_error(std::string("computeJointJacobiansTimeVariation failed: ") + ex.what());
+    }
 
     // compute joint Jacobians
     int i = 0;
@@ -363,22 +395,30 @@ void Robot::update(RobotData& body_state,
         wbic_types::Matrix6_18d J_full;
         J_full.setZero();
 
-        pinocchio::getFrameJacobian(
-            model_, 
-            *data_, 
-            frame_id, 
-            pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED, 
-            J_full);
+        try {
+            pinocchio::getFrameJacobian(
+                model_,
+                *data_,
+                frame_id,
+                pinocchio::ReferenceFrame::LOCAL_WORLD_ALIGNED,
+                J_full);
+        } catch (const std::exception& ex) {
+            throw std::runtime_error(std::string("getFrameJacobian failed for frame ") + frame_name + ": " + ex.what());
+        }
 
         J_leg[i] = J_full.topRows(3);
 
         Jd_leg_time_variation_buf.setZero();
-        pinocchio::getFrameJacobianTimeVariation(
-            model_,
-            *data_,
-            frame_id,
-            pinocchio::LOCAL_WORLD_ALIGNED,
-            Jd_leg_time_variation_buf);
+        try {
+            pinocchio::getFrameJacobianTimeVariation(
+                model_,
+                *data_,
+                frame_id,
+                pinocchio::LOCAL_WORLD_ALIGNED,
+                Jd_leg_time_variation_buf);
+        } catch (const std::exception& ex) {
+            throw std::runtime_error(std::string("getFrameJacobianTimeVariation failed for frame ") + frame_name + ": " + ex.what());
+        }
         Jdqd_leg_cache[i].noalias() = Jd_leg_time_variation_buf.topRows(3) * v;
 
         // cout << "J_leg[" << i << "]: " << endl << J_full.topRows(3) << endl;
@@ -386,17 +426,6 @@ void Robot::update(RobotData& body_state,
 
         i++;
     }
-
-    // mass and nle matrices
-    pinocchio::crba(model_, *data_, q);  // вычисляет M(q) в data.M
-    data_->M.triangularView<Eigen::StrictlyLower>() =
-        data_->M.transpose().triangularView<Eigen::StrictlyLower>();
-
-    pinocchio::nonLinearEffects(model_, *data_, q, v); // вычисляет nle = C(q,qdot)*qdot + g(q) в data.nle
-
-    M = data_->M;
-    nle = data_->nle;
-
     // pinocchio::computeAllTerms(model_, *data_, q, v);
     // M = data_->M.selfadjointView<Eigen::Upper>();
     // nle = data_->nle;

@@ -30,7 +30,7 @@ private:
     double c_freq;
     double dt;
     LowPassFilter lpf_x_vel, lpf_y_vel, lpf_z_vel;
-    LowPassFilter lpf_pitch_vel, lpf_yaw_vel;
+    LowPassFilter lpf_pitch_pos, lpf_z_pos, lpf_yaw_vel;
 
     // State variables
     std::vector<int> pre_phase_signal;
@@ -43,6 +43,8 @@ private:
     double ref_yaw_pos;
     double ref_x_pos;
     double ref_y_pos;
+    double saved_x_pos, saved_y_pos;
+    double prev_x_vel, prev_y_vel;
     int body_adapt_mode;
 
     // Helper methods
@@ -63,6 +65,7 @@ private:
 
     double ref_z_pos, ref_pitch_pos;
     int test_cnt;
+    double support_mean_z;
 };
 
 #endif // REFERENCE_GENERATOR_HPP

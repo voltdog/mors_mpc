@@ -4,7 +4,8 @@
 // #define KT 0.74
 // #define GEAR_RATIO 10.0
 
-LCMExchanger::LCMExchanger()
+LCMExchanger::LCMExchanger(bool debug_mode)
+    : debug_mode(debug_mode)
 {
     if(!mpc_cmd_subscriber.good())
         return;
@@ -106,8 +107,12 @@ LCMExchanger::LCMExchanger()
 
 void LCMExchanger::start_exchanger()
 {
-    thMpcCmd = make_unique<thread> (&LCMExchanger::mpcCmdThread, this);
-    thWbcCmd = make_unique<thread> (&LCMExchanger::wbcCmdThread, this);
+    if (debug_mode)
+    {
+        thMpcCmd = make_unique<thread> (&LCMExchanger::mpcCmdThread, this);
+        thWbcCmd = make_unique<thread> (&LCMExchanger::wbcCmdThread, this);
+        thGaitPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
+    }
     thImu = make_unique<thread> (&LCMExchanger::imuThread, this);
     thServoState = make_unique<thread> (&LCMExchanger::servoStateThread, this);
     thServoCmd = make_unique<thread> (&LCMExchanger::servoCmdThread, this);
@@ -118,7 +123,6 @@ void LCMExchanger::start_exchanger()
     thRobotState = make_unique<thread> (&LCMExchanger::robotStateThread, this);
     thRobotStateCheck = make_unique<thread> (&LCMExchanger::robotStateCheckThread, this);
     thRobotCmd = make_unique<thread> (&LCMExchanger::robotCmdThread, this);
-    thGaitPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
     thContactSensor = make_unique<thread> (&LCMExchanger::contactSensorThread, this);
 }
 

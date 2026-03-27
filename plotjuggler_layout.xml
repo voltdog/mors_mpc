@@ -3,10 +3,10 @@
  <tabbed_widget parent="main_window" name="Main Window">
   <Tab containers="1" tab_name="base pos">
    <Container>
-    <DockSplitter sizes="0.333513;0.332974;0.333513" count="3" orientation="-">
+    <DockSplitter orientation="-" count="3" sizes="0.333514;0.332972;0.333514">
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="1.525685" left="0.000000" bottom="-0.038170" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.188900" top="7.731306" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/0"/>
        <curve color="#d62728" name="robot_cmd/pos/0"/>
@@ -14,8 +14,8 @@
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.001455" left="0.000000" bottom="-0.029435" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.277883" top="0.062723" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/1"/>
        <curve color="#d62728" name="robot_cmd/pos/1"/>
@@ -23,8 +23,8 @@
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.230590" left="0.000000" bottom="-0.005624" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.010468" top="0.429174" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/2"/>
        <curve color="#d62728" name="robot_cmd/pos/2"/>
@@ -36,18 +36,18 @@
   </Tab>
   <Tab containers="1" tab_name="base rpy">
    <Container>
-    <DockSplitter sizes="0.25;0.25;0.25;0.25" count="4" orientation="-">
+    <DockSplitter orientation="-" count="4" sizes="0.250271;0.249729;0.250271;0.249729">
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.230590" left="0.000000" bottom="-0.005624" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.006134" top="0.251481" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/2"/>
        <curve color="#d62728" name="robot_cmd/pos/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.024819" left="0.000000" bottom="-0.020990" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.278540" top="0.687369" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/rpy/0"/>
        <curve color="#d62728" name="robot_cmd/rpy/0"/>
@@ -55,8 +55,8 @@
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.037015" left="0.000000" bottom="-0.018170" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.299334" top="0.313830" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/rpy/1"/>
        <curve color="#d62728" name="robot_cmd/rpy/1"/>
@@ -64,8 +64,8 @@
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.007105" left="0.000000" bottom="-0.029863" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.985864" top="0.114117" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/rpy/2"/>
        <curve color="#d62728" name="robot_cmd/rpy/2"/>
@@ -77,34 +77,34 @@
   </Tab>
   <Tab containers="1" tab_name="base vel">
    <Container>
-    <DockSplitter sizes="0.25;0.25;0.25;0.25" count="4" orientation="-">
+    <DockSplitter orientation="-" count="4" sizes="0.250271;0.249729;0.250271;0.249729">
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.230590" left="0.000000" bottom="-0.005624" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.010468" top="0.429174" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/2"/>
        <curve color="#1ac938" name="wbc_cmd/body_pos/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.501342" left="0.000000" bottom="-0.055428" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-1.016834" top="1.334238" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/lin_vel/0"/>
        <curve color="#d62728" name="wbc_cmd/body_lin_vel/0"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.122748" left="0.000000" bottom="-0.115823" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-1.252166" top="0.521320" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/lin_vel/1"/>
        <curve color="#d62728" name="wbc_cmd/body_lin_vel/1"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.713047" left="0.000000" bottom="-0.273746" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-1.050289" top="0.841340" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/lin_vel/2"/>
        <curve color="#d62728" name="wbc_cmd/body_lin_vel/2"/>
@@ -115,34 +115,34 @@
   </Tab>
   <Tab containers="1" tab_name="base angvel">
    <Container>
-    <DockSplitter sizes="0.25;0.25;0.25;0.25" count="4" orientation="-">
+    <DockSplitter orientation="-" count="4" sizes="0.250271;0.249729;0.250271;0.249729">
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.230590" left="0.000000" bottom="-0.005624" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.010468" top="0.429174" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/2"/>
        <curve color="#1ac938" name="wbc_cmd/body_pos/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.477700" left="0.000000" bottom="-0.410378" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-6.935227" top="7.142627" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/ang_vel/0"/>
        <curve color="#d62728" name="wbc_cmd/body_ang_vel/0"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.360297" left="0.000000" bottom="-0.587151" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-4.920879" top="5.532049" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/ang_vel/1"/>
        <curve color="#d62728" name="wbc_cmd/body_ang_vel/1"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.352277" left="0.000000" bottom="-0.372239" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-5.922647" top="3.265567" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/ang_vel/2"/>
        <curve color="#d62728" name="wbc_cmd/body_ang_vel/2"/>
@@ -153,42 +153,42 @@
   </Tab>
   <Tab containers="1" tab_name="r1 pos">
    <Container>
-    <DockSplitter sizes="0.199892;0.199892;0.200432;0.199892;0.199892" count="5" orientation="-">
+    <DockSplitter orientation="-" count="5" sizes="0.199892;0.199892;0.200432;0.199892;0.199892">
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.230590" left="0.000000" bottom="-0.005624" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.006134" top="0.251481" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/2"/>
        <curve color="#d62728" name="robot_cmd/pos/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="1.699429" left="0.000000" bottom="-0.041449" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.191881" top="7.867111" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/r1_pos/0"/>
        <curve color="#d62728" name="wbc_cmd/r1_pos/0"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.004745" left="0.000000" bottom="-0.194560" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.546460" top="0.013328" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/r1_pos/1"/>
        <curve color="#d62728" name="wbc_cmd/r1_pos/1"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.079315" left="0.000000" bottom="-0.001935" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.019702" top="0.230565" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/r1_pos/2"/>
        <curve color="#d62728" name="wbc_cmd/r1_pos/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="3.075000" left="0.000000" bottom="-0.075000" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.075000" top="3.075000" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="gait_phase/phase/0"/>
       </plot>
@@ -198,42 +198,42 @@
   </Tab>
   <Tab containers="1" tab_name="r1 motor pos">
    <Container>
-    <DockSplitter sizes="0.2;0.2;0.2;0.2;0.2" count="5" orientation="-">
+    <DockSplitter orientation="-" count="5" sizes="0.199892;0.199892;0.200432;0.199892;0.199892">
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.230590" left="0.000000" bottom="-0.005624" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.006134" top="0.251481" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/2"/>
        <curve color="#d62728" name="robot_cmd/pos/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.362259" left="0.000000" bottom="-0.019825" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-1.050000" top="1.050000" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="servo_state/pos/0"/>
        <curve color="#d62728" name="servo_cmd/pos/0"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.041469" left="0.000000" bottom="-1.700239" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-2.130832" top="2.100752" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="servo_state/pos/1"/>
        <curve color="#d62728" name="servo_cmd/pos/1"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="3.218500" left="0.000000" bottom="-0.078500" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-3.151756" top="3.222017" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="servo_state/pos/2"/>
        <curve color="#d62728" name="servo_cmd/pos/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="1.025000" left="0.000000" bottom="-0.025000" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.025000" top="1.025000" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="contact_sensor/r1"/>
       </plot>
@@ -243,35 +243,37 @@
   </Tab>
   <Tab containers="1" tab_name="r1 motor vel">
    <Container>
-    <DockSplitter sizes="0.250271;0.249729;0.250271;0.249729" count="4" orientation="-">
+    <DockSplitter orientation="-" count="4" sizes="0.25;0.25;0.25;0.25">
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.230590" left="0.000000" bottom="-0.005624" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.006134" top="0.251481" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/2"/>
        <curve color="#d62728" name="robot_cmd/pos/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="5.380455" left="0.000000" bottom="-3.227634" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-51.582780" top="37.380780" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="servo_state/vel/0"/>
        <curve color="#d62728" name="servo_cmd/vel/0"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="12.715352" left="0.000000" bottom="-12.293653" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-303.908400" top="650.180400" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="servo_state/vel/1"/>
        <curve color="#d62728" name="servo_cmd/vel/1"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="1.000000" left="0.000000" bottom="0.000000" right="1.000000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-356.603325" top="526.376325" left="0.000000" right="29.980000"/>
        <limitY/>
+       <curve color="#1f77b4" name="servo_state/vel/2"/>
+       <curve color="#d62728" name="servo_cmd/vel/2"/>
       </plot>
      </DockArea>
     </DockSplitter>
@@ -279,42 +281,42 @@
   </Tab>
   <Tab containers="1" tab_name="r1 motor torque">
    <Container>
-    <DockSplitter sizes="0.199892;0.199892;0.200432;0.199892;0.199892" count="5" orientation="-">
+    <DockSplitter orientation="-" count="5" sizes="0.199892;0.199892;0.200432;0.199892;0.199892">
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.230590" left="0.000000" bottom="-0.005624" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.010468" top="0.429174" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/pos/2"/>
        <curve color="#d62728" name="wbc_cmd/body_pos/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="38.861752" left="0.000000" bottom="-8.592042" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-85.135155" top="85.135155" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="servo_state/torq/0"/>
        <curve color="#d62728" name="servo_cmd/torq/0"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="44.357238" left="0.000000" bottom="-25.994337" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-85.135155" top="85.135155" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="servo_state/torq/1"/>
        <curve color="#d62728" name="servo_cmd/torq/1"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="2.255959" left="0.000000" bottom="-56.100438" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-170.270100" top="170.270100" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="servo_state/torq/2"/>
        <curve color="#d62728" name="servo_cmd/torq/2"/>
       </plot>
      </DockArea>
      <DockArea name="...">
-      <plot flip_y="false" mode="TimeSeries" line_width="1.0" flip_x="false">
-       <range top="0.079315" left="0.000000" bottom="-0.001935" right="11.535000"/>
+      <plot line_width="1.0" flip_x="false" mode="TimeSeries" flip_y="false">
+       <range bottom="-0.019702" top="0.230565" left="0.000000" right="29.980000"/>
        <limitY/>
        <curve color="#1f77b4" name="robot_state/r1_pos/2"/>
        <curve color="#d62728" name="wbc_cmd/r1_pos/2"/>
@@ -323,14 +325,14 @@
     </DockSplitter>
    </Container>
   </Tab>
-  <currentTabIndex index="4"/>
+  <currentTabIndex index="6"/>
  </tabbed_widget>
  <use_relative_time_offset enabled="1"/>
  <!-- - - - - - - - - - - - - - - -->
  <!-- - - - - - - - - - - - - - - -->
  <Plugins>
   <plugin ID="DataLoad CSV">
-   <parameters time_axis="time" delimiter="0"/>
+   <parameters delimiter="0" time_axis="time"/>
   </plugin>
   <plugin ID="DataLoad MCAP"/>
   <plugin ID="DataLoad ROS2 bags">
@@ -365,2149 +367,2204 @@
  </Plugins>
  <!-- - - - - - - - - - - - - - - -->
  <previouslyLoaded_Datafiles>
+  <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260318_182105/contact_sensor.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="gait_phase" filename="../mors_logs/log_260318_182105/gait_phase.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="imu_data" filename="../mors_logs/log_260318_182105/imu_data.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260318_182105/mpc_cmd.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="odometry" filename="../mors_logs/log_260318_182105/odometry.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260318_182105/robot_cmd.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="robot_state" filename="../mors_logs/log_260318_182105/robot_state.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260318_182105/robot_state_check.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260318_182105/servo_cmd.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="servo_state" filename="../mors_logs/log_260318_182105/servo_state.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260318_182105/wbc_cmd.csv">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_143913/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_143913/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_143913/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_143913/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_143913/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_143913/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_143913/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_143913/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_143913/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_143913/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_143913/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_153602/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_153602/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_153602/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_153602/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_153602/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_153602/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_153602/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_153602/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_153602/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_153602/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_153602/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_145452/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_145452/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_145452/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_145452/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_145452/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_145452/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_145452/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_145452/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_145452/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_145452/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_145452/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_150549/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_150549/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_150549/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_150549/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_150549/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_150549/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_150549/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_150549/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_150549/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_150549/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_150549/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_170321/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_170321/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_170321/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_170321/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_170321/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_170321/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_170321/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_170321/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_170321/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_170321/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_170321/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_170430/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_170430/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_170430/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_170430/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_170430/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_170430/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_170430/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_170430/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_170430/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_170430/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_170430/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_170926/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_170926/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_170926/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_170926/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_170926/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_170926/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_170926/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_170926/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_170926/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_170926/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_170926/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_171127/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_171127/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_171127/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_171127/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_171127/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_171127/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_171127/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_171127/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_171127/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_171127/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_171127/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_171636/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_171636/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_171636/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_171636/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_171636/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_171636/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_171636/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_171636/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_171636/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_171636/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_171636/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_171920/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_171920/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_171920/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_171920/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_171920/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_171920/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_171920/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_171920/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_171920/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_171920/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_171920/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_173558/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_173558/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_173558/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_173558/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_173558/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_173558/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_173558/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_173558/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_173558/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_173558/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_173558/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_173721/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_173721/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_173721/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_173721/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_173721/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_173721/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_173721/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_173721/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_173721/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_173721/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_173721/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260312_174011/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260312_174011/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260312_174011/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260312_174011/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260312_174011/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260312_174011/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260312_174011/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260312_174011/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260312_174011/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260312_174011/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260312_174011/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_153801/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_153801/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_153801/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_153801/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_153801/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_153801/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_153801/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_153801/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_153801/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_153801/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_153801/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_153930/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_153930/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_153930/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_153930/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_153930/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_153930/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_153930/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_153930/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_153930/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_153930/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_153930/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_155533/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_155533/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_155533/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_155533/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_155533/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_155533/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_155533/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_155533/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_155533/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_155533/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_155533/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_160519/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_160519/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_160519/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_160519/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_160519/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_160519/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_160519/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_160519/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_160519/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_160519/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_160519/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_160640/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_160640/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_160640/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_160640/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_160640/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_160640/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_160640/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_160640/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_160640/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_160640/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_160640/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_165243/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_165243/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_165243/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_165243/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_165243/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_165243/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_165243/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_165243/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_165243/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_165243/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_165243/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_165809/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_165809/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_165809/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_165809/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_165809/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_165809/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_165809/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_165809/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_165809/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_165809/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_165809/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_171036/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_171036/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_171036/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_171036/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_171036/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_171036/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_171036/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_171036/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_171036/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_171036/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_171036/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_171339/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_171339/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_171339/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_171339/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_171339/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_171339/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_171339/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_171339/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_171339/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_171339/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_171339/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_181713/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_181713/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_181713/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_181713/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_181713/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_181713/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_181713/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_181713/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_181713/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_181713/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_181713/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_182038/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_182038/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_182038/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_182038/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_182038/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_182038/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_182038/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_182038/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_182038/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_182038/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_182038/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_182410/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_182410/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_182410/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_182410/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_182410/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_182410/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_182410/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_182410/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_182410/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_182410/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_182410/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_182521/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_182521/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_182521/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_182521/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_182521/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_182521/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_182521/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_182521/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_182521/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_182521/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_182521/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260314_182831/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260314_182831/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260314_182831/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260314_182831/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260314_182831/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260314_182831/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260314_182831/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260314_182831/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260314_182831/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260314_182831/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260314_182831/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_144333/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_144333/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_144333/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_144333/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_144333/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_144333/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_144333/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_144333/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_144333/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_144333/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_144333/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_144457/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_144457/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_144457/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_144457/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_144457/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_144457/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_144457/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_144457/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_144457/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_144457/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_144457/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_144603/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_144603/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_144603/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_144603/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_144603/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_144603/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_144603/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_144603/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_144603/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_144603/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_144603/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_144715/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_144715/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_144715/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_144715/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_144715/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_144715/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_144715/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_144715/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_144715/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_144715/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_144715/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_144814/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_144814/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_144814/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_144814/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_144814/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_144814/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_144814/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_144814/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_144814/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_144814/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_144814/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_145201/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_145201/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_145201/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_145201/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_145201/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_145201/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_145201/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_145201/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_145201/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_145201/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_145201/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_145321/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_145321/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_145321/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_145321/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_145321/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_145321/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_145321/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_145321/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_145321/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_145321/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_145321/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_145714/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_145714/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_145714/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_145714/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_145714/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_145714/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_145714/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_145714/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_145714/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_145714/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_145714/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_145828/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_145828/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_145828/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_145828/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_145828/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_145828/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_145828/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_145828/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_145828/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_145828/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_145828/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_150712/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_150712/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_150712/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_150712/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_150712/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_150712/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_150712/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_150712/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_150712/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_150712/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_150712/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_151006/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_151006/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_151006/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_151006/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_151006/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_151006/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_151006/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_151006/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_151006/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_151006/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_151006/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="contact_sensor" filename="../mors_logs/log_260316_151439/contact_sensor.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="gait_phase" filename="../mors_logs/log_260316_151439/gait_phase.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="imu_data" filename="../mors_logs/log_260316_151439/imu_data.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="mpc_cmd" filename="../mors_logs/log_260316_151439/mpc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="odometry" filename="../mors_logs/log_260316_151439/odometry.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_cmd" filename="../mors_logs/log_260316_151439/robot_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state" filename="../mors_logs/log_260316_151439/robot_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="robot_state_check" filename="../mors_logs/log_260316_151439/robot_state_check.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_cmd" filename="../mors_logs/log_260316_151439/servo_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="servo_state" filename="../mors_logs/log_260316_151439/servo_state.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
   <fileInfo prefix="wbc_cmd" filename="../mors_logs/log_260316_151439/wbc_cmd.csv">
    <plugin ID="DataLoad CSV">
-    <parameters time_axis="time" delimiter="0"/>
+    <parameters delimiter="0" time_axis="time"/>
    </plugin>
   </fileInfo>
  </previouslyLoaded_Datafiles>

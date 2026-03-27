@@ -1,6 +1,7 @@
 #include "csv_maintaner.hpp"
 
-CSVMaintainer::CSVMaintainer()
+CSVMaintainer::CSVMaintainer(bool debug_mode)
+    : debug_mode(debug_mode)
 {
 
 }
@@ -139,14 +140,20 @@ void CSVMaintainer::init()
     create_csv(servo_cmd_csv, servo_cmd_head, servo_cmd_addr);
     create_csv(imu_data_csv, imu_data_head, imu_data_addr);
     create_csv(contact_sensor_csv, contact_sensor_head, contact_sensor_addr);
-    create_csv(mpc_cmd_csv, mpc_cmd_head, mpc_cmd_addr);
-    create_csv(wbc_cmd_csv, wbc_cmd_head, wbc_cmd_addr);
+    if (debug_mode)
+    {
+        create_csv(mpc_cmd_csv, mpc_cmd_head, mpc_cmd_addr);
+        create_csv(wbc_cmd_csv, wbc_cmd_head, wbc_cmd_addr);
+    }
     // create_csv(enable_csv, enable_head, enable_addr);
     create_csv(odometry_csv, odometry_head, odometry_addr);
     create_csv(robot_state_csv, robot_state_head, robot_state_addr);
     create_csv(robot_state_check_csv, robot_state_check_head, robot_state_check_addr);
     create_csv(robot_cmd_csv, robot_cmd_head, robot_cmd_addr);
-    create_csv(phase_sig_csv, phase_sig_head, phase_sig_addr);
+    if (debug_mode)
+    {
+        create_csv(phase_sig_csv, phase_sig_head, phase_sig_addr);
+    }
 }
 
 void CSVMaintainer::create_csv(CSVWriter &csv, const vector<string> &head, string &addr)
@@ -250,6 +257,9 @@ void CSVMaintainer::write_servo_cmd(double time, ServoData &servo_cmd)
 
 void CSVMaintainer::write_mpc_cmd(double time, RobotData& robot_cmd)
 {
+    if (!debug_mode)
+        return;
+
     // foot_cmd
     mpc_cmd_csv.resetContent();
     mpc_cmd_csv << time;
@@ -264,6 +274,9 @@ void CSVMaintainer::write_mpc_cmd(double time, RobotData& robot_cmd)
 
 void CSVMaintainer::write_wbc_cmd(double time, LegData& leg_cmd, RobotData& robot_cmd)
 {
+    if (!debug_mode)
+        return;
+
     // foot_cmd
     wbc_cmd_csv.resetContent();
     wbc_cmd_csv << time;
@@ -413,6 +426,9 @@ void CSVMaintainer::write_robot_cmd(double time, RobotData& body_cmd)
 
 void CSVMaintainer::write_phase_sig(double t, Vector4i& phase, Vector4d& phi)
 {
+    if (!debug_mode)
+        return;
+
     // foot_cmd
     phase_sig_csv.resetContent();
     phase_sig_csv << t;

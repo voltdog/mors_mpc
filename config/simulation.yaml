@@ -1,16 +1,25 @@
 frequency: 1000
 mjcf_root: "MJCF/mors.xml"
 
-scene: "stairs" # "stairs" "patch" "boxes" "flat"
+scene: "boards" # "stairs" "patch" "boxes" "ramp" "flat" "boards"
  
+# <<
 # init_motor_angles: [0.0, -1.57, 3.14,
 #                     -0.0, 1.57, -3.14,
 #                     -0.0, -1.57, 3.14,
 #                     0.0, 1.57, -3.14]
+
+# X
 init_motor_angles: [0.0, -1.57, 3.14,
                     -0.0, 1.57, -3.14,
                     -0.0, 1.57, -3.14,
                     0.0,  -1.57, 3.14]
+
+# O
+# init_motor_angles: [0.0,   1.57, -3.14,
+#                     -0.0, -1.57,  3.14,
+#                     -0.0, -1.57,  3.14,
+#                     0.0,   1.57, -3.14]
 
 foot_positions_type: "global" # "global" or "local"
 foot_contacts: True
@@ -18,8 +27,8 @@ full_state: True
 odometry: True
 
 external_disturbance: False
-external_disturbance_value: 80 # newtons
-external_disturbance_duration: 0.002 # seconds
+external_disturbance_value: 600 # newtons
+external_disturbance_duration: 0.01 # seconds
 external_disturbance_interval: 4 # seconds
 
 joint_dir: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]

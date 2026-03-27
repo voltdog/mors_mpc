@@ -113,14 +113,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(yaml-cpp)
 
 include(${LCM_USE_FILE})
+set(LCM_MSGS_DIR "${CMAKE_CURRENT_LIST_DIR}/../lcm_msgs")
 include_directories("include/")
 include_directories("../common/include/")
-include_directories("/home/$ENV{USER}/lcm_msgs/")
+include_directories("${LCM_MSGS_DIR}")
 include_directories(include /home/$ENV{USER}/vbcontrol/include)
 
 # Put all message definition files in the type directory in one list
-# FILE(GLOB message_definitions "${CMAKE_CURRENT_LIST_DIR}/lcm_msgs/mors_msgs/*.lcm")
-FILE(GLOB message_definitions "/home/$ENV{USER}/lcm_msgs/mors_msgs/*.lcm")
+FILE(GLOB message_definitions "${LCM_MSGS_DIR}/*.lcm")
 
 # Generate headers from message definition
 lcm_wrap_types(CPP_HEADERS cpp_headers
@@ -150,4 +150,3 @@ target_link_libraries(${PROJECT_NAME} vbcontrol)
 target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
 target_link_libraries(${PROJECT_NAME} yaml-cpp::yaml-cpp)
 lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)
-

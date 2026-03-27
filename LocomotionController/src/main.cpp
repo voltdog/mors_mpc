@@ -6,6 +6,7 @@
 #include "ReferenceGenerator.hpp"
 #include "ContactStateFSM.hpp"
 #include "ConvexMpcThread.hpp"
+#include "WBICThread.hpp"
 #include "SwingController.hpp"
 #include "LcmDataExchange.hpp"
 #include "SimpleGaitScheduler.hpp"
@@ -35,6 +36,7 @@ int main() {
 
     // robot physical params
     YAML::Node robot_config = YAML::LoadFile(robot_config_address);
+    const bool debug_mode = robot_config["debug_mode"] ? robot_config["debug_mode"].as<bool>() : false;
     RobotPhysicalParams robot;
     robot.bx = robot_config["bx"].as<double>(); 
     robot.by = robot_config["by"].as<double>(); 
@@ -50,12 +52,16 @@ int main() {
     robot.l_cz_2 = robot_config["Pc2"][2].as<double>(); 
     robot.l_cx_3 = robot_config["Pc3"][0].as<double>(); 
     robot.g = robot_config["g"].as<double>(); 
+    robot.kt = robot_config["kt"].as<double>();
+    robot.gear_ratio = robot_config["gear_ratio"].as<double>();
     robot.M_b = robot_config["M"].as<double>(); 
     robot.I_b.resize(3,3);
     for (int i=0; i<3; i++)
     {
         for (int j=0; j<3; j++)
             robot.I_b(i,j) = robot_config["I_b"][i][j].as<double>(); 
+        robot.joint_tau_max_array[i] = robot_config["tau_max"][i].as<double>();
+        robot.joint_vel_max_array[i] = robot_config["vel_max"][i].as<double>();
     }
 
     // mpc params
@@ -85,8 +91,8 @@ int main() {
     // swing controller params
     string swing_controller_config_address = config_address + "/swing_controller.yaml";
     YAML::Node swing_controller_config = YAML::LoadFile(swing_controller_config_address);
-    array<double, 4> interleave_x; 
-    array<double, 4>interleave_y;
+    std::array<double, 4> interleave_x; 
+    std::array<double, 4> interleave_y;
     for (int i=0; i<4; i++)
     {
         interleave_x[i] = swing_controller_config["interleave_x"][i].as<double>(); 
@@ -95,33 +101,48 @@ int main() {
     double dz_near_ground = swing_controller_config["dz_near_ground"].as<double>(); 
     double k1_fsp = swing_controller_config["k1_fsp"].as<double>(); 
 
-    // leg control params
-    string imp_config_address = config_address + "/imp_config.yaml";
-    YAML::Node imp_config = YAML::LoadFile(imp_config_address);
-    VectorXd leg_kp_swing(3);
-    VectorXd leg_kd_swing(3);
-    VectorXd leg_kp_stance(3);
-    VectorXd leg_kd_stance(3);
-    for (int i=0; i<3; i++)
-    {
-        leg_kp_swing[i] = imp_config["Kp_swing"][i].as<double>();
-        leg_kd_swing[i] = imp_config["Kd_swing"][i].as<double>();
-        leg_kp_stance[i] = imp_config["Kp_stance"][i].as<double>();
-        leg_kd_stance[i] = imp_config["Kd_stance"][i].as<double>();
-    }
-
     // timesteps duration
     string dt_config_address = config_address + "/timesteps.yaml";
     YAML::Node dt_config = YAML::LoadFile(dt_config_address);
     double module_dt = dt_config["locomotion_controller"].as<double>(); 
     double mpc_dt = dt_config["stance_controller_dt"].as<double>(); 
-    // double module_freq = 1/module_dt;
-    // double mpc_freq = 1/mpc_dt;
+    double wbic_dt = dt_config["wbic_controller_dt"].as<double>();
+
+    string wbic_config_address = config_address + "/wbic.yaml";
+    YAML::Node wbic_config = YAML::LoadFile(wbic_config_address);
+    WBICThreadConfig wbic_thread_config;
+    wbic_thread_config.timestep = wbic_dt;
+    wbic_thread_config.debug_mode = debug_mode;
+    wbic_thread_config.Qf_entry = wbic_config["Qf_entry"].as<double>();
+    wbic_thread_config.Qa_entry = wbic_config["Qa_entry"].as<double>();
+    wbic_thread_config.body_ori_task_kp = wbic_config["body_ori_task_kp"].as<double>();
+    wbic_thread_config.body_ori_task_kd = wbic_config["body_ori_task_kd"].as<double>();
+    wbic_thread_config.body_pos_task_kp = wbic_config["body_pos_task_kp"].as<double>();
+    wbic_thread_config.body_pos_task_kd = wbic_config["body_pos_task_kd"].as<double>();
+    wbic_thread_config.tip_pos_task_kp = wbic_config["tip_pos_task_kp"].as<double>();
+    wbic_thread_config.tip_pos_task_kd = wbic_config["tip_pos_task_kd"].as<double>();
+    wbic_thread_config.joint_kp_stance = wbic_config["joint_kp_stance"].as<double>();
+    wbic_thread_config.joint_kd_stance = wbic_config["joint_kd_stance"].as<double>();
+    wbic_thread_config.joint_kp_swing = wbic_config["joint_kp_swing"].as<double>();
+    wbic_thread_config.joint_kd_swing = wbic_config["joint_kd_swing"].as<double>();
+    if (wbic_config["realtime_priority"]) {
+        wbic_thread_config.realtime_priority = wbic_config["realtime_priority"].as<int>();
+    }
+    if (wbic_config["cpu_index"]) {
+        wbic_thread_config.cpu_index = wbic_config["cpu_index"].as<int>();
+    }
+    if (wbic_config["spin_guard_us"]) {
+        wbic_thread_config.spin_guard_us = wbic_config["spin_guard_us"].as<int>();
+    }
 
     auto dt = std::chrono::duration<double>(module_dt);//1ms;
 
     // init LCM
     LCMExchanger lcmExch;
+    if (!lcmExch.initialized) {
+        cerr << "[LocomotionController]: Failed to initialize LCM exchanger" << endl;
+        return -1;
+    }
     lcmExch.start_exchanger();
 
     // init data variables
@@ -129,6 +150,8 @@ int main() {
     RobotData robot_cmd, robot_ref;
     LegData leg_state;
     LegData leg_cmd;
+    Vector2d robot_pos_offset = Vector2d::Zero();
+    double robot_yaw_offset = 0.0;
 
     // gait generator params
     double t_sw = 0.2;
@@ -147,7 +170,6 @@ int main() {
     vector<int> gait_table(4 * horizon);
     vector<int> gait_phase(4);
     vector<double> gait_phi(4);
-    // double t_gait;
 
     VectorXd phi;
     vector<double> phi_cur;
@@ -186,6 +208,8 @@ int main() {
                                     interleave_y,
                                     dz_near_ground, 
                                     k1_fsp);
+    
+    // other variables
     std::vector<Eigen::Vector3d> p_ref(4), dp_ref(4), ddp_ref(4);
     std::vector<Eigen::Vector3d> p_ref_stance(4);
     std::vector<Eigen::Vector3d> dp_ref_stance(4);
@@ -198,21 +222,23 @@ int main() {
     Vector3d ref_body_vel;
     Vector3d base_pos;
     Vector3d base_lin_vel;
+    WbcDesiredCommand wbic_command;
+    wbic_command.phase_signal = {STANCE, STANCE, STANCE, STANCE};
+    wbic_command.active_legs = {true, true, true, true};
+    wbic_command.body_cmd.orientation_quaternion << 0.0, 0.0, 0.0, 1.0;
 
     double t = 0.0;
     vector<bool> active_legs = {true, true, true, true};
     bool enable = false;
     double cos_yaw, sin_yaw;
 
-    // ConvexMPC mpc;
     VectorXd x0(13);
     VectorXd mpc_cmd(13);
     MatrixXd foot_positions(3, 4);
-    // MatrixXd R_body(3,3);
-    // MatrixXd inv_R_body(3,3);
     VectorXd grf_cmd(12);
     double phi0 = 0.0;
-    // ConvexMPC mpc_thread;
+
+    // Init MPC thread
     ConvexMPCThread mpc_thread;
     mpc_thread.set_physical_params(robot);
     mpc_thread.set_gait_params(t_st, t_sw, phase_offsets, phase_init);
@@ -228,21 +254,24 @@ int main() {
                                     active_legs);
     
     mpc_thread.start_thread();
+    
+    // init WBIC thread
+    WBICThread wbic_thread;
+    wbic_thread.configure(robot, wbic_thread_config);
+    wbic_thread.start_thread(lcmExch);
 
     // gait transition
     GaitTransition gait_transition;
     gait_transition.set_gait_params(t_st, t_sw, phase_offsets, stride_height);
     gait_transition.set_transition_duration(1.0);
+    const auto tick_period = std::chrono::duration_cast<std::chrono::steady_clock::duration>(dt);
+    auto next_tick = now();
 
     cout << "[LocomotionController]: Started" << endl;
 
     while(true)
     {
-        // Calculating current time
-        const auto start{ now() };
-
-        // Put your code here
-        // -----------------------------------------------
+        next_tick += tick_period;
 
         // ------------------
         // READ LCM
@@ -286,6 +315,8 @@ int main() {
                                 foot_pos_global,
                                 robot_cmd,
                                 robot_state);
+            // mpc_cmd.segment<2>(3) += robot_pos_offset;
+            // mpc_cmd(2) += robot_yaw_offset;
             // ------------------
             // STANCE CONTROLLER
             // ------------------
@@ -340,8 +371,6 @@ int main() {
             // ------------------
             // SWING CONTROLLER
             // ------------------
-            // v << robot_state.ang_vel(X), robot_state.ang_vel(Y), robot_state.ang_vel(Z);
-            // base_rpy_rate = R_body_yaw_align.transpose() * v;
             base_rpy_rate << robot_state.ang_vel(X), robot_state.ang_vel(Y), robot_state.ang_vel(Z);
 
             foot_pos_global[0] = leg_state.r1_pos;
@@ -379,7 +408,7 @@ int main() {
             if (active_legs[L2] == false) leg_cmd.l2_grf.setZero();
             else leg_cmd.l2_grf = grf_cmd.segment(9, 3);
 
-            // convert desired leg pos, vel and acc           
+            // choose leg pos, vel and acc depending on swing/stance state
             if (phase_signal[R1] == SWING || phase_signal[R1] == LATE_CONTACT)
             {
                 leg_cmd.r1_pos = p_ref[R1];
@@ -436,32 +465,53 @@ int main() {
             robot_ref.pos = mpc_cmd.segment(3, 3);
             robot_ref.ang_vel = mpc_cmd.segment(6, 3);
             robot_ref.lin_vel = mpc_cmd.segment(9, 3);
+            {
+                const Eigen::Quaterniond q_ref =
+                    Eigen::AngleAxisd(robot_ref.orientation[Z], Eigen::Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(robot_ref.orientation[Y], Eigen::Vector3d::UnitY()) *
+                    Eigen::AngleAxisd(robot_ref.orientation[X], Eigen::Vector3d::UnitX());
+                robot_ref.orientation_quaternion << q_ref.x(), q_ref.y(), q_ref.z(), q_ref.w();
+            }
+
+            for (int i = 0; i < NUM_LEGS; ++i)
+            {
+                wbic_command.phase_signal[i] = phase_signal[i];
+                wbic_command.active_legs[i] = active_legs[i];
+            }
+            wbic_command.body_cmd = robot_ref;
+            wbic_command.leg_cmd = leg_cmd;
+            wbic_command.locomotion_enabled = true;
+            wbic_thread.set_desired_command(wbic_command);
 
             // ------------------
             // SEND LCM
             // ------------------
-            lcmExch.sendMpcCmd(robot_ref, active_legs);
-            lcmExch.sendWbcCmd(robot_ref, leg_cmd);
-            lcmExch.sendPhaseSig(phase_signal, leg_phi, t);
+            if (debug_mode)
+            {
+                lcmExch.sendMpcCmd(robot_ref, active_legs);
+                lcmExch.sendWbcCmd(robot_ref, leg_cmd);
+                lcmExch.sendPhaseSig(phase_signal, leg_phi, t);
+            }
 
             t += module_dt;
         }
-
-        // cout << mpc_cmd << endl;
-        // -----------------------------------------------
-        // std::chrono::duration<double, std::milli> elapsed_{now() - start};
-        // cout << "[LocomotionController]: Waited for : " << elapsed_.count() << " ms" << endl;
-
-        // Wait until spinning time
-        while(true)
+        else
         {
-            std::chrono::duration<double, std::milli> elapsed{now() - start};
-            if (elapsed >= dt)
-            {
-                // if (elapsed.count() > 1000*module_dt+0.05)
-                //     cout << "[LocomotionController]: Waited for : " << elapsed.count() << " ms" << endl;
-                break;
-            }
+            wbic_command.locomotion_enabled = false;
+            wbic_thread.set_desired_command(wbic_command);
+
+            // robot_pos_offset = robot_state.pos.segment<2>(0);
+            // robot_yaw_offset = robot_state.orientation(Z);
+        }
+
+        const auto current_time = now();
+        if (current_time < next_tick) {
+            std::this_thread::sleep_until(next_tick);
+            continue;
+        }
+
+        while (next_tick <= current_time) {
+            next_tick += tick_period;
         }
     }
 

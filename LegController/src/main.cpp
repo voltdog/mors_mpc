@@ -81,7 +81,7 @@ int main() {
     robot.kt = robot_config["kt"].as<double>(); 
     robot.gear_ratio = robot_config["gear_ratio"].as<double>(); 
     for (int i = 0; i < 3; i++)
-        robot.tau_max_array[i] = robot_config["tau_max"][i].as<double>(); 
+        robot.joint_tau_max_array[i] = robot_config["tau_max"][i].as<double>(); 
 
     string leg_config_address = config_address + "/imp_config.yaml";
     YAML::Node leg_config = YAML::LoadFile(leg_config_address);
@@ -110,14 +110,14 @@ int main() {
     auto dt = std::chrono::duration<double>(module_dt);//1ms;
     VectorXd tau_max(12);
     VectorXd tau_min(12);
-    tau_max <<  robot.tau_max_array[0], robot.tau_max_array[1], robot.tau_max_array[2],
-                robot.tau_max_array[0], robot.tau_max_array[1], robot.tau_max_array[2],
-                robot.tau_max_array[0], robot.tau_max_array[1], robot.tau_max_array[2],
-                robot.tau_max_array[0], robot.tau_max_array[1], robot.tau_max_array[2];
-    tau_min <<  -robot.tau_max_array[0], -robot.tau_max_array[1], -robot.tau_max_array[2],
-                -robot.tau_max_array[0], -robot.tau_max_array[1], -robot.tau_max_array[2],
-                -robot.tau_max_array[0], -robot.tau_max_array[1], -robot.tau_max_array[2],
-                -robot.tau_max_array[0], -robot.tau_max_array[1], -robot.tau_max_array[2];
+    tau_max <<  robot.joint_tau_max_array[0], robot.joint_tau_max_array[1], robot.joint_tau_max_array[2],
+                robot.joint_tau_max_array[0], robot.joint_tau_max_array[1], robot.joint_tau_max_array[2],
+                robot.joint_tau_max_array[0], robot.joint_tau_max_array[1], robot.joint_tau_max_array[2],
+                robot.joint_tau_max_array[0], robot.joint_tau_max_array[1], robot.joint_tau_max_array[2];
+    tau_min <<  -robot.joint_tau_max_array[0], -robot.joint_tau_max_array[1], -robot.joint_tau_max_array[2],
+                -robot.joint_tau_max_array[0], -robot.joint_tau_max_array[1], -robot.joint_tau_max_array[2],
+                -robot.joint_tau_max_array[0], -robot.joint_tau_max_array[1], -robot.joint_tau_max_array[2],
+                -robot.joint_tau_max_array[0], -robot.joint_tau_max_array[1], -robot.joint_tau_max_array[2];
 
     LCMExchanger lcmExch;
     lcmExch.start_exchanger();

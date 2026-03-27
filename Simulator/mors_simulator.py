@@ -1,6 +1,14 @@
+import sys
 import time
+from pathlib import Path
 from threading import Thread
+
 import lcm
+
+BASE_DIR = Path(__file__).resolve().parent
+LCM_MSG_ROOT = BASE_DIR.parent / "lcm_msgs"
+sys.path.insert(0, str(BASE_DIR))
+sys.path.insert(0, str(LCM_MSG_ROOT))
 
 from mors_msgs.servo_cmd_msg import servo_cmd_msg
 from mors_msgs.servo_state_msg import servo_state_msg 
@@ -14,11 +22,7 @@ from additional.mors_env import MorsMujocoEnv
 import yaml
 import numpy as np
 import math
-from pathlib import Path
 from scipy.spatial.transform import Rotation
-
-BASE_DIR = Path(__file__).resolve().parent
-print(f"Simulator base directory: {BASE_DIR}")
 
 class Hardware_Level_Sim():
     def __init__(self):
@@ -50,7 +54,7 @@ class Hardware_Level_Sim():
         self.lc_robot_state = lcm.LCM()
         self.lc_odom = lcm.LCM()
         self.lc_contact = lcm.LCM()
-
+        
         self.lcm_imu_msg.orientation_covariance = [2.603e-07, 0.0, 0.0, 0.0, 2.603e-07, 0.0, 0.0, 0.0, 0.0]
         self.lcm_imu_msg.angular_velocity_covariance = [2.5e-05, 0.0, 0.0, 0.0, 2.5e-05, 0.0, 0.0, 0.0, 2.5e-05]
         self.lcm_imu_msg.linear_acceleration_covariance = [2.5e-05, 0.0, 0.0, 0.0, 2.5e-05, 0.0, 0.0, 0.0, 2.5e-05]
@@ -58,6 +62,7 @@ class Hardware_Level_Sim():
         self.sim_it = 0
         self.init_simulation()
 
+        # init variables
         self.body_quaternion = [0.0, 0.0, 0.0, 1.0]
         self.body_lin_pos = [0.0]*3
         self.body_ang_vel = [0.0]*3
@@ -71,7 +76,6 @@ class Hardware_Level_Sim():
                                     1,  1,  1,
                                     1,  1,  1,
                                     1,  1,  1]
-        # self.leg_data_order = [6, 8, 7, 9, 11, 10, 0, 2, 1, 3, 5, 4]
         self.leg_data_order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
         # yaw transformation stuff
@@ -143,7 +147,6 @@ class Hardware_Level_Sim():
                  motor_kp=0.0,
                  motor_kd=0.0,
                  ext_disturbance_enabled=self.external_disturbance_enabled,
-                #  motor_torque_limit=self.tau_max,
                  init_motor_angles=self.init_motor_angles)
 
         if self.external_disturbance_enabled:
@@ -171,11 +174,6 @@ class Hardware_Level_Sim():
         
         self.body_lin_pos = self.env.get_base_position()
         self.body_lin_vel = self.env.get_base_lin_vel()
-
-        # if self.first_step:
-        #     self.first_step = False
-        #     self.yaw_offset = self.imu_data[12]
-        # self.imu_data[12] -= self.yaw_offset
 
         if self.foot_positions_type == "global":
             self.foot_pos = self.env.get_global_foot_positions()
@@ -221,7 +219,6 @@ class Hardware_Level_Sim():
         self.lc_servo_state.publish(self.lcm_servo_state_channel, self.servo_state_msg.encode())
 
     def __pub_imu_msg(self, imu_data : list):
-        # imu_data[2] -= 9.81 # compensate gravity
         self.lcm_imu_msg.linear_acceleration = imu_data[:3]
         self.lcm_imu_msg.angular_velocity = imu_data[7:10]
         self.lcm_imu_msg.orientation_euler = imu_data[10:]
@@ -238,7 +235,7 @@ class Hardware_Level_Sim():
 
         self.lcm_robot_state_msg.body.position = base_pos[:]
         self.lcm_robot_state_msg.body.orientation = rpy[:]
-        self.lcm_robot_state_msg.body.orientation_quaternion = quat_xyzw #imu_data[3:7]
+        self.lcm_robot_state_msg.body.orientation_quaternion = quat_xyzw
         self.lcm_robot_state_msg.body.lin_vel = base_vel[:]
         self.lcm_robot_state_msg.body.ang_vel = imu_data[7:10]
 
@@ -282,8 +279,6 @@ class Hardware_Level_Sim():
 
     def cmd_handler(self, channel, data):
         msg = servo_cmd_msg.decode(data)
-        # print(msg.kp)
-        # print(f"Received message: {msg.position}")
         for i in range(12):
             self.ref_joint_pos[i] = self.joint_dir[i] * msg.position[i] - self.joint_offset[i]
             self.ref_joint_vel[i] = self.joint_dir[i] * msg.velocity[i]

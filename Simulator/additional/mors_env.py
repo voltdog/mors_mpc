@@ -13,7 +13,7 @@ from scipy.spatial.transform import Rotation
 from transforms3d.quaternions import quat2mat
 
 from additional.mjcf import load_mjmodel
-from additional.motor_accurate import MotorAccurate
+from additional.motor_accurate import MotorModel
 
 
 NUM_SUBSTEPS = 2
@@ -39,8 +39,6 @@ class MorsMujocoEnv():
                  motor_kp=30.0,
                  motor_kd=0.1,
                  ext_disturbance_enabled=False,
-                #  motor_torque_limit=MOTOR_TORQUE_MAX,
-                #  motor_velocity_limit=MOTOR_VELOCITY_MAX,
                  init_motor_angles=[ 0.0, -1.57,  3.14,
                                     -0.0,  1.57, -3.14,
                                     -0.0, -1.57,  3.14,
@@ -48,7 +46,6 @@ class MorsMujocoEnv():
         
         self._motor_kp = motor_kp
         self._motor_kd = motor_kd
-        # self._motor_torque_limit = motor_torque_limit
         self._xml_path = xml_path
         self._scene = scene
         self._sim_freq = sim_freq
@@ -74,12 +71,25 @@ class MorsMujocoEnv():
                                for name in MOTOR_NAMES]
         
         # --------------- Init motors ---------------
-        self._motor_model = MotorAccurate(NUM_MOTORS)
+        self._motor_model = MotorModel(NUM_MOTORS)
         self._motor_model.set_kp(self._motor_kp)
         self._motor_model.set_kd(self._motor_kd)
 
-        # --------------- External disturbance ---------------
+        # --------------- External disturbance params ---------------
         self._force_dir = 1
+        self._force_arrow_length = 0.6
+        self._force_arrow_width = 0.01
+
+    def _clear_force_visualization(self):
+        if self.viewer is None:
+            return
+
+        with self.viewer.lock():
+            scn = self.viewer.user_scn
+            if scn is not None:
+                scn.ngeom = 0
+
+    
 
       
     def step(self, 
@@ -143,23 +153,17 @@ class MorsMujocoEnv():
 
     def get_base_orientation(self):
         quat = self.data.qpos[3:7].copy()
-        # quat[0] *= -1
-        # quat[2] *= -1
-        # нормализация
+        # normalization
         w, x, y, z = quat
         n = math.sqrt(w*w + x*x + y*y + z*z)
         w, x, y, z = w/n, x/n, y/n, z/n
-        # присваеваем обратно в порядке x y z w
+        # set in order x y z w
         quat = [x, y, z, w]
 
         return quat
 
     def get_base_orientation_euler(self):
         quat = self.get_base_orientation()
-        # quat[0] *= -1
-        # quat[2] *= -1
-        # euler = Rotation.from_quat(quat).as_euler('xyz', degrees=False)
-        # euler_correct = np.array([euler[2], -euler[1], -euler[0]])
         euler = Rotation.from_quat(quat, scalar_first=False).as_euler('xyz', degrees=False)
         euler_correct = np.array([euler[0], euler[1], euler[2]])
 
@@ -173,13 +177,6 @@ class MorsMujocoEnv():
 
     def get_base_ang_vel(self):
         ang_vel = self.data.qvel[3:6].copy()
-        # ang_vel[2] *= -1  # correct yaw direction
-
-        # quat = self.get_base_orientation()
-        # R_world_to_base = quat2mat(quat)
-        # ang_vel_base = R_world_to_base @ ang_vel_world
-
-        # return ang_vel_base.copy()
         return ang_vel.copy()
     
     def get_contact_flags(self):
@@ -205,46 +202,11 @@ class MorsMujocoEnv():
                     contact_flags[leg_index] = True
 
         return contact_flags
-        # contact_flags = [False] * 4
-
-        # # предполагаем, что геометрии стоп имеют имена:
-        # # foot_R1, foot_L1, foot_R2, foot_L2
-        # foot_body_names = ["ef_R1", "ef_L1", "ef_R2", "ef_L2"]
-        # foot_body_ids = [
-        #     mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, name)
-        #     for name in foot_body_names
-        # ]
-
-        # for i in range(self.data.ncon):
-        #     contact = self.data.contact[i]
-
-        #     geom1 = contact.geom1
-        #     geom2 = contact.geom2
-
-        #     contact_info = {
-        #         "geom1": geom1,
-        #         "geom2": geom2,
-        #         "pos": contact.pos.copy(),
-        #         "frame": contact.frame.copy(),
-        #         "force": None
-        #     }
-
-        #     # вычисляем контактную силу
-        #     force = np.zeros(6)
-        #     mujoco.mj_contactForce(self.model, self.data, i, force)
-        #     contact_info["force"] = force.copy()
-
-        #     # проверяем, есть ли контакт стоп
-        #     for leg_index, foot_id in enumerate(foot_body_ids):
-        #         if geom1 == foot_id or geom2 == foot_id:
-        #             contact_flags[leg_index] = True
-
-        # return contact_flags
     
     def get_global_foot_positions(self):
         """
         Args:
-            leg_index: 0 - R1, 1 - L1, 2 - R2, 3 - L2
+            None
         Returns:
             foot_pos: [x, y, z] position of the foot in world frame
         """
@@ -315,44 +277,71 @@ class MorsMujocoEnv():
         self._ext_force_duration = int(duration / self._time_step)
         self._ext_force_interval = int(interval / self._time_step)
 
+    def _draw_force_visualization(self, point, force):
+        if self.viewer is None:
+            return
+
+        force_norm = np.linalg.norm(force)
+        with self.viewer.lock():
+            scn = self.viewer.user_scn
+            if scn is None:
+                return
+
+            scn.ngeom = 0
+            if force_norm < 1e-9:
+                return
+
+            geom = scn.geoms[0]
+            mujoco.mjv_initGeom(
+                geom,
+                mujoco.mjtGeom.mjGEOM_ARROW,
+                np.array([0.01, 0.01, 0.01]),
+                np.zeros(3),
+                np.eye(3).reshape(-1),
+                np.array([1.0, 0.2, 0.2, 0.9], dtype=np.float32),
+            )
+            geom.category = mujoco.mjtCatBit.mjCAT_DECOR
+            geom.objtype = mujoco.mjtObj.mjOBJ_UNKNOWN
+            geom.objid = -1
+            geom.segid = -1
+            geom.emission = 1.0
+            tip = point + (force / force_norm) * self._force_arrow_length
+            mujoco.mjv_connector(
+                geom,
+                mujoco.mjtGeom.mjGEOM_ARROW,
+                self._force_arrow_width,
+                point,
+                tip,
+            )
+            scn.ngeom = 1
+
     def _apply_force(self):
-        if 100 < (self._env_step_counter%self._ext_force_interval) <= (100+self._ext_force_duration):
-            if (self._env_step_counter%self._ext_force_interval) < 102:
+        # mj_applyFT adds its contribution into qfrc_target, so we must clear the
+        # previously applied external force each step before adding a new one.
+        self.data.qfrc_applied[:] = 0.0
+
+        step_in_interval = self._env_step_counter % self._ext_force_interval
+        if 100 < step_in_interval <= (100 + self._ext_force_duration):
+            if step_in_interval == 101:
                 self._force_dir = -self._force_dir
-            force = [0, self._force_dir*self._ext_force_magn, 0]
+
+            body_id = self.model.body("base").id
+            point = self.data.xpos[body_id] + np.array([0.0, 0.0, 0.01])  # applying force slightly above the center of mass
+            force = np.array([0.0, self._force_dir * self._ext_force_magn, 0.0])
+            torque = np.zeros(3)
+
+            self._draw_force_visualization(point, force)
+
+            mujoco.mj_applyFT(
+                self.model,
+                self.data,
+                force,
+                torque,
+                point,
+                body_id,
+                self.data.qfrc_applied
+            )
 
             print(force)
-            body_id = self.model.body("base").id
-            point = self.data.xpos[body_id] + np.array([0.0, 0.0, 0.01])  # applying force slightly above the center of mass
-            force = np.array(force)
-            torque = np.zeros(3)
-
-            mujoco.mj_applyFT(
-                self.model,
-                self.data,
-                force,
-                torque,
-                point,
-                body_id,
-                self.data.qfrc_applied
-            )
         else:
-            force = [0, 0, 0]
-
-            # print(force)
-            body_id = self.model.body("base").id
-            point = self.data.xpos[body_id] + np.array([0.0, 0.0, 0.01])  # applying force slightly above the center of mass
-            force = np.array(force)
-            torque = np.zeros(3)
-
-            mujoco.mj_applyFT(
-                self.model,
-                self.data,
-                force,
-                torque,
-                point,
-                body_id,
-                self.data.qfrc_applied
-            )
-
-
+            self._clear_force_visualization()

@@ -5,10 +5,6 @@
 
 // Constructor
 ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
-    // : c_freq(c_freq), dt(dt), pre_phase_signal(4, STANCE),
-    //   foot_pos_global_just_stance(Eigen::Matrix<double, 4, 3>::Zero()),
-    //   foot_pos_local_just_stance(Eigen::Matrix<double, 4, 3>::Zero()),
-    //   x_ref(12), ref_yaw_pos(0.0), ref_x_pos(0.0), ref_y_pos(0.0), body_adapt_mode(INCL_ADAPT) {
 {
     this->c_freq = c_freq;
     this->dt = dt;
@@ -26,13 +22,11 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     ref_y_pos = 0.0;
     body_adapt_mode = INCL_ADAPT;
 
-    // for (int i = 0; i < pre_phase_signal.size(); i++) 
-    //     cout << pre_phase_signal[0] << endl;
-
     lpf_x_vel.reconfigureFilter(dt, c_freq);
     lpf_y_vel.reconfigureFilter(dt, c_freq);
     lpf_z_vel.reconfigureFilter(dt, c_freq);
-    lpf_pitch_vel.reconfigureFilter(dt, c_freq);
+    lpf_pitch_pos.reconfigureFilter(dt, c_freq);
+    lpf_z_pos.reconfigureFilter(dt, c_freq);
     lpf_yaw_vel.reconfigureFilter(dt, c_freq);
 
     // Initialize foot positions in local frame
@@ -59,6 +53,11 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     ref_pitch_pos = 0.0;
 
     test_cnt = 0;
+
+    saved_x_pos = 0;
+    saved_y_pos = 0;
+    prev_x_vel = 0;
+    prev_y_vel = 0;
 }
 
 // Destructor
@@ -84,17 +83,40 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
     ref_body_yaw_vel_filtered = lpf_yaw_vel.update(robot_cmd.ang_vel(Z)); 
     
     // Update reference position
-    ref_x_pos += ref_body_vel_filtered(X) * dt;
-    ref_y_pos += ref_body_vel_filtered(Y) * dt;
+    if (abs(ref_body_vel_filtered(X)) < 0.01 && abs(prev_x_vel) >= 0.01)
+        saved_x_pos = robot_state.pos(X);
+    if (abs(ref_body_vel_filtered(Y)) < 0.01 && abs(prev_y_vel) >= 0.01)
+        saved_y_pos = robot_state.pos(Y);
+
+    ref_x_pos = (abs(ref_body_vel_filtered(X)) < 0.01) ? saved_x_pos : (robot_state.pos(X) + ref_body_vel_filtered(X) * dt);
+    ref_y_pos = (abs(ref_body_vel_filtered(Y)) < 0.01) ? saved_y_pos : (robot_state.pos(Y) + ref_body_vel_filtered(Y) * dt);
 
     update_support_foot_states(phase_signal, foot_pos_global, robot_state);
 
+    // pitch pos adaptation
+    bool has_pitch_support = false;
+    const double raw_ref_pitch_pos = compute_ref_pitch_pos(phase_signal, has_pitch_support);
+    if (body_adapt_mode == INCL_ADAPT) {
+        if (has_pitch_support) {
+            ref_pitch_pos = lpf_pitch_pos.update(raw_ref_pitch_pos);
+        }
+    } else {
+        ref_pitch_pos = 0.0;
+    }
+    ref_yaw_pos += ref_body_yaw_vel_filtered * dt;
+    
+    // Z pos adaptation
     bool has_support = false;
-    const double support_mean_z = compute_ref_z_pos(phase_signal, has_support);
-    // cout << body_adapt_mode << endl;
+    double support_mean_z_raw = compute_ref_z_pos(phase_signal, has_support);
     if (body_adapt_mode == INCL_ADAPT || body_adapt_mode == HEIGHT_ADAPT) {
         if (has_support) {
+            if (ref_pitch_pos > 0.05)
+                support_mean_z_raw -= 0.02;
+            else if (ref_pitch_pos > 0.05)
+                support_mean_z_raw += 0.02;
+            support_mean_z = lpf_z_pos.update(support_mean_z_raw);
             ref_z_pos = support_mean_z + robot_cmd.pos(Z);
+            
         } else if (std::abs(ref_z_pos) < 1e-9) {
             ref_z_pos = robot_cmd.pos(Z);
         }
@@ -102,17 +124,6 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
         ref_z_pos = robot_cmd.pos(Z);
     }
 
-    bool has_pitch_support = false;
-    const double raw_ref_pitch_pos = -compute_ref_pitch_pos(phase_signal, has_pitch_support);
-    if (body_adapt_mode == INCL_ADAPT) {
-        if (has_pitch_support) {
-            ref_pitch_pos = lpf_pitch_vel.update(raw_ref_pitch_pos);
-        }
-    } else {
-        ref_pitch_pos = 0.0;
-    }
-    ref_yaw_pos += ref_body_yaw_vel_filtered * dt;
-    
     // Update reference vector
     x_ref << robot_cmd.orientation(X),                  // roll
             ref_pitch_pos + robot_cmd.orientation(Y),   // pitch
@@ -130,6 +141,8 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
 
     // Update previous phase signal
     pre_phase_signal = phase_signal;
+    prev_x_vel = ref_body_vel_filtered(X);
+    prev_y_vel = ref_body_vel_filtered(Y);
 
     return x_ref;
 }
@@ -255,5 +268,5 @@ double ReferenceGenerator::compute_ref_pitch_pos(const std::vector<int>& phase_s
     }
 
     const double dz = front_mean(Z) - rear_mean(Z);
-    return std::atan2(dz, dx);
+    return -std::atan2(dz, dx);
 }

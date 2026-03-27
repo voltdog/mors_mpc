@@ -20,7 +20,7 @@ using namespace YAML;
 class CSVMaintainer
 {
     public:
-        CSVMaintainer();
+        explicit CSVMaintainer(bool debug_mode = false);
         ~CSVMaintainer();
 
         void init();
@@ -60,6 +60,7 @@ class CSVMaintainer
         string servo_state_addr, servo_cmd_addr, imu_data_addr, mpc_cmd_addr, wbc_cmd_addr, grf_cmd_addr;
         string enable_addr, odometry_addr, contact_sensor_addr;
         string servo_state_filt_addr, robot_state_addr, robot_state_check_addr, robot_cmd_addr, phase_sig_addr;
+        bool debug_mode;
 
 };
 

@@ -118,7 +118,7 @@ SwingTrajectoryGenerator::step(const std::vector<double>& it, const std::vector<
             dd_p_ref[3 * i + 1] = dd_p_y_val;
             dd_p_ref[3 * i + 2] = dd_p_z_val;
         } else if (leg_phase[i] == LATE_CONTACT) {
-            double dz = -0.6;//dz_near_ground < -0.1 ? dz_near_ground : -0.1;
+            double dz = dz_near_ground;// -0.6;//dz_near_ground < -0.1 ? dz_near_ground : -0.1;
             p_ref[3 * i + 2] += dz * inc;
             d_p_ref[3 * i + 2] = dz;
         }

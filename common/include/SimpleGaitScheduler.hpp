@@ -31,7 +31,8 @@ public:
     void reset_mpc_table();
     void step(double t, bool standing, std::vector<int>& leg_state, std::vector<double>& leg_phase);
     void setMpcParams(double dt_mpc, int n_horizon);
-    vector<int> getMpcTable(double phi0, bool standing, const std::vector<int>& current_leg_state, vector<bool> active_legs);
+    void getMpcTable(double phi0, bool standing, const std::vector<int>& current_leg_state,
+                     const vector<bool>& active_legs, vector<int>& gait_table);
     double get_phi();
 
 private:

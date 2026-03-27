@@ -1,13 +1,17 @@
 .vscode/
 .mpc_venv/
 build/
+build-safe/
 install/
 log/
 __pycache__/
 ros_ws/build/
 ros_ws/install/
 ros_ws/log/
-ros_ws/
+# ros_ws/
+# mors_sim/
+# radiolink_teleop/
 
 *.csv
 *.zip
+MUJOCO_LOG.TXT

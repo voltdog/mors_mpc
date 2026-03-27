@@ -100,29 +100,13 @@ SwingController::step(const std::vector<int>& phase_signal,
     swing_traj_gen.set_points(p_start, p_rise, p_finish, d_p_start);
     auto [x_ref_global, d_p_ref, dd_p_ref] = swing_traj_gen.step(it_swing, cnt, phase_signal);
 
-    // Eigen::Matrix3d inv_R_body = R_body.transpose();
-
-    // std::vector<Eigen::Vector3d> x_ref_local(4), dx_ref(4), ddx_ref(4);
-    // for (int i = 0; i < 4; ++i) {
-    //     Eigen::Vector3d x_global(&x_ref_global[i * 3]);
-    //     Eigen::Vector3d dx_global(&d_p_ref[i * 3]);
-    //     Eigen::Vector3d ddx_global(&dd_p_ref[i * 3]);
-
-    //     x_ref_local[i] = inv_R_body * (x_global);// - base_pos);
-    //     dx_ref[i] = inv_R_body * dx_global;
-    //     ddx_ref[i] = inv_R_body * ddx_global;
-    // }
-
-    // pre_phase_signal = phase_signal;
-    // return {x_ref_local, dx_ref, ddx_ref};
-
     std::vector<Eigen::Vector3d> x_ref_glob_out(4), dx_ref(4), ddx_ref(4);
     for (int i = 0; i < 4; ++i) {
         Eigen::Vector3d x_global(&x_ref_global[i * 3]);
         Eigen::Vector3d dx_global(&d_p_ref[i * 3]);
         Eigen::Vector3d ddx_global(&dd_p_ref[i * 3]);
 
-        x_ref_glob_out[i] = x_global;// - base_pos);
+        x_ref_glob_out[i] = x_global;
         dx_ref[i] = dx_global;
         ddx_ref[i] = ddx_global;
     }

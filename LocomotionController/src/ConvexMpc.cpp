@@ -1,5 +1,43 @@
 #include "ConvexMpc.hpp"
+#include <vector>
 
+namespace {
+bool update_solver_data(OsqpEigen::Solver& solver,
+                        const Sparse_Matrix& hessian,
+                        const std::vector<OSQPInt>& hessian_update_indices,
+                        const VectorXd& gradient,
+                        const VectorXd& lower_bound,
+                        const VectorXd& upper_bound)
+{
+#ifdef OSQP_EIGEN_OSQP_IS_V1
+    const auto& osqp_solver = solver.solver();
+    if (!osqp_solver) {
+        return false;
+    }
+
+    if (osqp_update_data_mat(osqp_solver.get(),
+                             hessian.valuePtr(),
+                             hessian_update_indices.data(),
+                             static_cast<OSQPInt>(hessian_update_indices.size()),
+                             OSQP_NULL,
+                             OSQP_NULL,
+                             0)
+        != 0) {
+        return false;
+    }
+
+    return osqp_update_data_vec(osqp_solver.get(),
+                                gradient.data(),
+                                lower_bound.data(),
+                                upper_bound.data())
+        == 0;
+#else
+    return solver.updateHessianMatrix(hessian)
+        && solver.updateGradient(gradient)
+        && solver.updateBounds(lower_bound, upper_bound);
+#endif
+}
+}
 
 // #include "osqp.h"
 // #include "workspace.h"
@@ -8,18 +46,13 @@
 ConvexMPC::ConvexMPC()
 {
     num_legs = NUM_LEGS;
-    // Q.resize(13);
-    // R.resize(12);
     cur_rpy.resize(3);
     A.resize(13, 13);
     B.resize(13, 12);
     Ad.resize(13, 13);
     Bd.resize(13, 12);
-    // solver_inited = false;
     ref_grf.resize(12);
     ref_grf_yaw_aligned.resize(12);
-    R_body.resize(3,3);
-    R_body.setZero();
 }
 
 ConvexMPC::~ConvexMPC()
@@ -48,31 +81,36 @@ void ConvexMPC::set_mpc_params(double timestep, int horizon, double friction_coe
     Ac_dense.resize(5 * num_legs * horizon, 12 * horizon);
     Ac.resize(5 * num_legs * horizon, 12 * horizon);
 
-    Qqp.resize(13*horizon, 13*horizon);
-    Rqp.resize(12*horizon, 12*horizon);
-
-    VectorXd q_weights_mpc(13 * horizon);
-    VectorXd r_weights_mpc(12 * horizon);
+    Qqp_diag.resize(13 * horizon);
+    Rqp_diag.resize(12 * horizon);
+    A_qp.resize(13 * horizon, 13);
+    B_qp.resize(13 * horizon, 12 * horizon);
+    H_dense.resize(12 * horizon, 12 * horizon);
+    weighted_B_qp.resize(13 * horizon, 12 * horizon);
+    Xref.resize(13 * horizon);
+    state_error.resize(13 * horizon);
+    weighted_state_error.resize(13 * horizon);
 
     for (int i = 0; i < horizon; ++i)
     {
-        q_weights_mpc.segment(i * 13, 13) = Q;
+        Qqp_diag.segment(i * 13, 13) = Q;
     }
-    Qqp.diagonal() = q_weights_mpc;
     for (int i = 0; i < horizon; ++i)
     {
-        r_weights_mpc.segment(i * 12, 12) = R;
+        Rqp_diag.segment(i * 12, 12) = R;
     }
-    Rqp.diagonal() = r_weights_mpc;
 
     H.resize(12*horizon, 12*horizon);
     q.resize(12*horizon);
 
     lb.resize(5*num_legs*horizon);
     ub.resize(5*num_legs*horizon);
+
+    init_hessian_pattern();
+    calc_constraint_matrix(horizon, this->friction_coeff, Ac);
 }
 
-void ConvexMPC::calc_AB_matrices(VectorXd& body_rpy, MatrixXd& foot_positions,
+void ConvexMPC::calc_AB_matrices(const VectorXd& body_rpy, const MatrixXd& foot_positions,
                                 MatrixXd& A_mat, MatrixXd &B_mat)
 {
     // The CoM dynamics can be written as:
@@ -89,44 +127,27 @@ void ConvexMPC::calc_AB_matrices(VectorXd& body_rpy, MatrixXd& foot_positions,
     // calculate A
     cos_yaw = cos(body_rpy(2));
     sin_yaw = sin(body_rpy(2));
-    // cos_pitch = cos(body_rpy(1));
-    // tan_pitch = tan(body_rpy(1));
-
-    // R_xyz << cos_yaw / cos_pitch, sin_yaw / cos_pitch, 0, 
-    //         -sin_yaw,             cos_yaw,             0, 
-    //          cos_yaw * tan_pitch, sin_yaw * tan_pitch, 1;
-
     R_z   << cos_yaw, sin_yaw, 0, 
              -sin_yaw,  cos_yaw, 0, 
              0,              0, 1;
 
     A_mat.setZero();
-    A_mat.block<3, 3>(0, 6) = R_z; //R_xyz; // put R_z
+    A_mat.block<3, 3>(0, 6) = R_z;
     A_mat.block<3, 3>(3, 9) = Eigen::Matrix3d::Identity();
     A_mat(11, 12) = 1;
 
     // calculate B
     // B (13x(num_legs*3)) contains non_zero elements only in row 6:12.
-    // R_body = mors_sys::euler2mat(body_rpy(0), body_rpy(1), body_rpy(2));
-    // inv_inertia = R_body * robot_params.I_b.inverse() * R_body.transpose(); // put Rz // first get I_world, than I_inv
     inv_inertia = (R_z * robot_params.I_b * R_z.transpose()).inverse();
     B_mat.setZero();
-    // cout << "---foot_pos0---" << endl;
-    // cout << foot_positions.col(0) << endl;
     for (int i = 0; i < num_legs; i++)
     {
-        B_mat.block<3, 3>(6, i * 3) = inv_inertia * mors_sys::skew(foot_positions.col(i)); // r x f torque
-        B_mat.block<3, 3>(9, i * 3) = inv_mass * Eigen::Matrix3d::Identity(); // f = ma
-        
+        B_mat.block<3, 3>(6, i * 3) = inv_inertia * mors_sys::skew(foot_positions.col(i));
+        B_mat.block<3, 3>(9, i * 3) = inv_mass * Eigen::Matrix3d::Identity();
     }
-
-    // cout << "---A_mat---" << endl;
-    // cout << A_mat << endl;
-    // cout << "---B_mat---" << endl;
-    // cout << B_mat << endl;
 }
 
-void ConvexMPC::calc_discrete_matrices(MatrixXd& A_mat, MatrixXd& B_mat, double& planning_timestep,
+void ConvexMPC::calc_discrete_matrices(const MatrixXd& A_mat, const MatrixXd& B_mat, const double planning_timestep,
                                         MatrixXd& Ad_mat, MatrixXd& Bd_mat)
 {
     // Calculates the discretized space-time dynamics. Given the dynamics
@@ -144,33 +165,21 @@ void ConvexMPC::calc_discrete_matrices(MatrixXd& A_mat, MatrixXd& B_mat, double&
 }
 
 // Calculate Hessian matrix H and gradient vector q for QP
-void ConvexMPC::calc_QP_matrices(int& planning_horizon_steps, VectorXd& x0, VectorXd& state_ref,
-    MatrixXd& Qqp, MatrixXd& Rqp,
-    MatrixXd& Ad_mat, MatrixXd& Bd_mat, 
+void ConvexMPC::calc_QP_matrices(const int planning_horizon_steps, const VectorXd& x0, const VectorXd& state_ref,
+    const MatrixXd& Ad_mat, const MatrixXd& Bd_mat,
     Sparse_Matrix& H_sparse, VectorXd& q_dense)
 {
     const int state_dim = Ad_mat.cols();
     const int action_dim = Bd_mat.cols();
 
-    MatrixXd A_qp(state_dim*planning_horizon_steps, state_dim);
     A_qp.setZero();
-
-    MatrixXd B_qp(state_dim * planning_horizon_steps, action_dim * planning_horizon_steps);
     B_qp.setZero();
-
-    MatrixXd H_dense(action_dim * planning_horizon_steps, action_dim * planning_horizon_steps);
     H_dense.setZero();
     q_dense.setZero();
 
-    VectorXd Xref(state_dim*planning_horizon_steps);
-    it_Xref = 0;
-    for (int i = 0; i < horizon; i++)
+    for (int i = 0; i < planning_horizon_steps; i++)
     {
-        for (int j = 0; j < state_dim; j++)
-        {
-            Xref(it_Xref) = state_ref(j);
-            it_Xref++;
-        }
+        Xref.segment(i * state_dim, state_dim) = state_ref;
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -211,16 +220,21 @@ void ConvexMPC::calc_QP_matrices(int& planning_horizon_steps, VectorXd& x0, Vect
     }
     ///////////////////////////////////////////////////////////////////////
     // calculate hessian
-    H_dense = 2 * (B_qp.transpose() * Qqp * B_qp + Rqp);
-    H_sparse = H_dense.sparseView();
-    // calculate gradient
-    q_dense = 2 * B_qp.transpose() * Qqp * (A_qp * x0 - Xref);
+    weighted_B_qp = B_qp.array().colwise() * Qqp_diag.array();
+    H_dense.noalias() = 2.0 * (B_qp.transpose() * weighted_B_qp);
+    H_dense.diagonal().array() += 2.0 * Rqp_diag.array();
+    (void)H_sparse;
+    update_hessian_values_from_dense();
+
+    state_error.noalias() = A_qp * x0;
+    state_error -= Xref;
+    weighted_state_error = Qqp_diag.array() * state_error.array();
+    q_dense.noalias() = 2.0 * (B_qp.transpose() * weighted_state_error);
 }
 
-void ConvexMPC::calc_constraint_matrix(int& planning_horizon_steps,
-                                        Vector4d& friction_coeff, Sparse_Matrix& Ac_sparse)
+void ConvexMPC::calc_constraint_matrix(const int planning_horizon_steps,
+                                        const Vector4d& friction_coeff, Sparse_Matrix& Ac_sparse)
 {
-    
     Ac_dense.setZero();
 
     for (int i = 0; i < planning_horizon_steps * num_legs; ++i)
@@ -236,13 +250,10 @@ void ConvexMPC::calc_constraint_matrix(int& planning_horizon_steps,
 }
 
 void ConvexMPC::calc_constraint_bounds(
-                    int& planning_horizon_steps, vector<int>& contact_state,
-                    double& fz_max, double& fz_min,
+                    const int planning_horizon_steps, const vector<int>& contact_state,
+                    const double fz_max, const double fz_min,
                     VectorXd& l, VectorXd& u)
 {
-    VectorXd constraint_lb_C(5 * int(num_legs) *  planning_horizon_steps);
-    VectorXd constraint_ub_C(5 * int(num_legs) *  planning_horizon_steps);
-
     for (int i = 0; i < planning_horizon_steps; i++)
     {
         for (int j = 0; j < num_legs; j++)
@@ -253,25 +264,55 @@ void ConvexMPC::calc_constraint_bounds(
                 friction_l_u = 0.0;
 
             const int row = (i * num_legs + j) * 5;
-            constraint_lb_C(row) = 0.0;
-            constraint_lb_C(row + 1) = 0.0;
-            constraint_lb_C(row + 2) = 0.0;
-            constraint_lb_C(row + 3) = 0.0;
-            constraint_lb_C(row + 4) = fz_min * contact_state[4*i+j];
-            // const double friction_ub = 1000000 * contact_state[4*i+j];
-            constraint_ub_C(row) = friction_l_u * contact_state[4*i+j];
-            constraint_ub_C(row + 1) = friction_l_u * contact_state[4*i+j];
-            constraint_ub_C(row + 2) = friction_l_u * contact_state[4*i+j];
-            constraint_ub_C(row + 3) = friction_l_u * contact_state[4*i+j];
-            constraint_ub_C(row + 4) = fz_max * contact_state[4*i+j];
-            // if (i==1)
-            //     cout << contact_state(j) << endl;
+            l(row) = 0.0;
+            l(row + 1) = 0.0;
+            l(row + 2) = 0.0;
+            l(row + 3) = 0.0;
+            l(row + 4) = fz_min * contact_state[4*i+j];
+            u(row) = friction_l_u * contact_state[4*i+j];
+            u(row + 1) = friction_l_u * contact_state[4*i+j];
+            u(row + 2) = friction_l_u * contact_state[4*i+j];
+            u(row + 3) = friction_l_u * contact_state[4*i+j];
+            u(row + 4) = fz_max * contact_state[4*i+j];
         }
     }
-    // cout << "---" << endl;
+}
 
-    l = constraint_lb_C;
-    u = constraint_ub_C;
+void ConvexMPC::init_hessian_pattern()
+{
+    std::vector<Eigen::Triplet<double>> triplets;
+    const int hessian_dim = H.rows();
+    triplets.reserve((hessian_dim * (hessian_dim + 1)) / 2);
+
+    for (int col = 0; col < hessian_dim; ++col)
+    {
+        for (int row = 0; row <= col; ++row)
+        {
+            triplets.emplace_back(row, col, 0.0);
+        }
+    }
+
+    H.setZero();
+    H.setFromTriplets(triplets.begin(), triplets.end());
+    H.makeCompressed();
+
+    hessian_update_indices.resize(H.nonZeros());
+    for (OSQPInt idx = 0; idx < static_cast<OSQPInt>(hessian_update_indices.size()); ++idx)
+    {
+        hessian_update_indices[idx] = idx;
+    }
+}
+
+void ConvexMPC::update_hessian_values_from_dense()
+{
+    int value_idx = 0;
+    for (int col = 0; col < H_dense.cols(); ++col)
+    {
+        for (int row = 0; row <= col; ++row)
+        {
+            H.valuePtr()[value_idx++] = H_dense(row, col);
+        }
+    }
 }
 
 void ConvexMPC::init_solver()
@@ -319,74 +360,39 @@ void ConvexMPC::init_solver()
 void ConvexMPC::update_solver()
 {
     // update the QP matrices and vectors
-    solver.updateHessianMatrix(H);
-    solver.updateGradient(q);
-    // solver.updateLinearConstraintsMatrix( Ac );
-    // solver.updateLowerBound( lb ) ;
-    // solver.updateUpperBound( ub ) ;
-    solver.updateBounds(lb, ub);
+    if (!update_solver_data(solver, H, hessian_update_indices, q, lb, ub)) {
+        const bool updated = solver.updateHessianMatrix(H)
+            && solver.updateGradient(q)
+            && solver.updateBounds(lb, ub);
+        if (!updated) {
+            std::cerr << "[ConvexMPC]: Failed to update solver data\n";
+        }
+    }
 }
 
-VectorXd ConvexMPC::get_contact_forces(VectorXd x0, VectorXd x_ref, MatrixXd& foot_positions, vector<int>& contact_state)
+VectorXd ConvexMPC::get_contact_forces(const VectorXd& x0, const VectorXd& x_ref,
+                                      const MatrixXd& foot_positions, const vector<int>& contact_state)
 {
-    
-
     cur_rpy << x0(0), x0(1), x0(2);
 
     calc_AB_matrices(cur_rpy, foot_positions, A, B);
     calc_discrete_matrices(A, B, dt, Ad, Bd);
-    calc_QP_matrices(horizon, x0, x_ref, Qqp, Rqp, Ad, Bd, H, q);
-    calc_constraint_matrix(horizon, friction_coeff, Ac);
+    calc_QP_matrices(horizon, x0, x_ref, Ad, Bd, H, q);
     calc_constraint_bounds(horizon, contact_state, f_max, f_min, lb, ub);
 
-    
-    // auto start = std::chrono::steady_clock::now();
     if (!solver.isInitialized())
         init_solver();
     else
         update_solver();
 
-    solver.solveProblem();// != OsqpEigen::ErrorExitFlag::NoError;
-    VectorXd qp_solution = solver.getSolution();
+    solver.solveProblem();
 
-    ref_grf_yaw_aligned = qp_solution.head<12>(); // !!!не забыть минус!!! 
+    ref_grf_yaw_aligned = solver.getSolution().head<12>();
 
-    // auto end = std::chrono::steady_clock::now();
-    // auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    // std::cout << "Elapsed time: " << elapsed.count() << " us\n";
-
-    // ----
-    // with osqp codegen
-    // ----
-    // auto start = std::chrono::steady_clock::now();
-
-    // // osqp_update_P(&workspace, H.valuePtr(), reinterpret_cast<const c_int*>(H.innerIndexPtr()), H.nonZeros());
-    // osqp_update_P(&workspace, H.valuePtr(), OSQP_NULL, 0);
-    // osqp_update_A(&workspace, Ac.valuePtr(), OSQP_NULL, 0);
-    // // memcpy(workspace.Px, H.valuePtr(),
-    // //    H.nonZeros()*sizeof(double));
-    // osqp_update_lin_cost(&workspace, q.data());
-    // osqp_update_bounds(&workspace, lb.data(), ub.data());
-    // // 
-    // osqp_warm_start(&workspace, workspace.solution->x, workspace.solution->y);
-    
-    // osqp_solve(&workspace);
-    
-    // for(int i = 0; i < 12; i++)
-    //     ref_grf_yaw_aligned(i) = -workspace.solution->x[i];
-
-    // auto end = std::chrono::steady_clock::now();
-    // auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    // std::cout << "Elapsed time: " << elapsed.count() << " us\n";
-    // ----
-
-    // R_body = mors_sys::euler2mat(cur_rpy(0), cur_rpy(1), cur_rpy(2));
     for (int i = 0; i < num_legs; i++)
     {
-        ref_grf.segment(i * 3, 3) = ref_grf_yaw_aligned.segment(i * 3, 3); //R_z * !! не забыть!!!
+        ref_grf.segment(i * 3, 3) = ref_grf_yaw_aligned.segment(i * 3, 3);
     }
-
-    
 
     return ref_grf;
 }   
