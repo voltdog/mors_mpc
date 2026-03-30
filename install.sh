@@ -218,7 +218,7 @@ setup_python_venv() {
     python3.12 -m venv --system-site-packages "$VENV_DIR"
   fi
 
-  "$VENV_DIR/bin/python" -m pip install --upgrade pip setuptools wheel
+  "$VENV_DIR/bin/python" -m pip install --upgrade pip "setuptools<80" wheel
   "$VENV_DIR/bin/python" -m pip install --upgrade numpy scipy pyyaml transforms3d mujoco
 
   if ! "$VENV_DIR/bin/python" -c "import lcm" >/dev/null 2>&1; then
@@ -307,6 +307,8 @@ export PYTHONPATH="\$HOME/ProgramFiles/LCM-Grapher/examples/scalar/:\$PYTHONPATH
 export PYTHONPATH="\$HOME/ProgramFiles/LCM-Grapher/examples/scalar/graphing_ex:\$PYTHONPATH"
 
 export CONFIGPATH=\$MORS_MPC_ROOT/config
+source /opt/ros/jazzy/setup.bash
+source "$REPO_ROOT/ros_ws/install/setup.bash"
 $marker_end
 EOF
 

@@ -149,6 +149,7 @@ target_include_directories(messages-cpp INTERFACE
 
 # executable
 add_subdirectory(${VBCONTROL_DIR} ${PROJECT_BINARY_DIR}/build/vbcontrol)
+target_link_libraries(vbcontrol PUBLIC Eigen3::Eigen)
 
 set(EXEC_SOURCES  src/main.cpp 
                   src/ConvexMpc.cpp 

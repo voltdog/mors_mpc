@@ -47,6 +47,7 @@ target_include_directories(messages-cpp INTERFACE
 # executable
 # add_subdirectory(/home/$ENV{USER}/vbcontrol/matplotplusplus)
 add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
+target_link_libraries(vbcontrol PUBLIC Eigen3::Eigen)
 
 add_executable(bhi360_imu "src/bhi360_imu.cpp")
 lcm_target_link_libraries(bhi360_imu messages-cpp ${LCM_NAMESPACE}lcm)
