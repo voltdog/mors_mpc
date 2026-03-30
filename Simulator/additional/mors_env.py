@@ -34,6 +34,7 @@ class MorsMujocoEnv():
 
     def __init__(self,
                  xml_path="../MJCF/mors.xml",
+                 render_quality="high",
                  scene=None,
                  sim_freq=500,
                  motor_kp=30.0,
@@ -47,6 +48,7 @@ class MorsMujocoEnv():
         self._motor_kp = motor_kp
         self._motor_kd = motor_kd
         self._xml_path = xml_path
+        self._render_quality = str(render_quality).strip().lower()
         self._scene = scene
         self._sim_freq = sim_freq
         self._ext_disturbance_enabled = ext_disturbance_enabled
@@ -63,6 +65,7 @@ class MorsMujocoEnv():
                                                    show_right_ui=False)
         self.data.qpos[7:7+NUM_MOTORS] = init_motor_angles[:]
         mujoco.mj_forward(self.model, self.data)
+        self._apply_render_quality()
 
         # motor id mapping
         self._motor_id_list = [mujoco.mj_name2id(self.model,
@@ -79,6 +82,61 @@ class MorsMujocoEnv():
         self._force_dir = 1
         self._force_arrow_length = 0.6
         self._force_arrow_width = 0.01
+
+    def _iter_render_scenes(self):
+        scenes = []
+
+        for attr_name in ("user_scn", "scn", "_scn"):
+            scene = getattr(self.viewer, attr_name, None)
+            if scene is not None:
+                scenes.append(scene)
+
+        get_sim = getattr(self.viewer, "_get_sim", None)
+        if callable(get_sim):
+            sim = get_sim()
+            if sim is not None:
+                for attr_name in ("user_scn", "scn", "_scn"):
+                    scene = getattr(sim, attr_name, None)
+                    if scene is not None:
+                        scenes.append(scene)
+
+        unique_scenes = []
+        seen_ids = set()
+        for scene in scenes:
+            scene_id = id(scene)
+            if scene_id in seen_ids:
+                continue
+            seen_ids.add(scene_id)
+            unique_scenes.append(scene)
+
+        return unique_scenes
+
+    def _apply_render_quality(self):
+        if self.viewer is None:
+            return
+
+        render_features_enabled = self._render_quality != "low"
+        render_flag_names = (
+            "mjRND_SHADOW",
+            "mjRND_REFLECTION",
+            "mjRND_SKYBOX",
+            "mjRND_HAZE",
+            "mjRND_CULL_FACE",
+        )
+
+        with self.viewer.lock():
+            for scene in self._iter_render_scenes():
+                flags = getattr(scene, "flags", None)
+                if flags is None:
+                    continue
+
+                for flag_name in render_flag_names:
+                    render_flag = getattr(mujoco.mjtRndFlag, flag_name, None)
+                    if render_flag is None:
+                        continue
+                    flags[render_flag] = int(render_features_enabled)
+
+        self.viewer.sync()
 
     def _clear_force_visualization(self):
         if self.viewer is None:

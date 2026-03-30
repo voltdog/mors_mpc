@@ -193,7 +193,7 @@ build_osqp_stack() {
   if [[ ! -d "$DEPS_DIR/osqp/.git" ]]; then
     git clone --depth 1 https://github.com/osqp/osqp.git "$DEPS_DIR/osqp"
   fi
-  cmake -S "$DEPS_DIR/osqp" -B "$DEPS_DIR/osqp/build" \
+  cmake -Wno-deprecated -S "$DEPS_DIR/osqp" -B "$DEPS_DIR/osqp/build" \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=ON \
     -DCMAKE_INSTALL_PREFIX=/usr/local
@@ -203,7 +203,7 @@ build_osqp_stack() {
   if [[ ! -d "$DEPS_DIR/osqp-eigen/.git" ]]; then
     git clone --depth 1 https://github.com/robotology/osqp-eigen.git "$DEPS_DIR/osqp-eigen"
   fi
-  cmake -S "$DEPS_DIR/osqp-eigen" -B "$DEPS_DIR/osqp-eigen/build" \
+  cmake -Wno-deprecated -S "$DEPS_DIR/osqp-eigen" -B "$DEPS_DIR/osqp-eigen/build" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH=/usr/local \
     -DCMAKE_INSTALL_PREFIX=/usr/local
@@ -258,17 +258,17 @@ build_ros_workspace() {
 
   (
     cd "$REPO_ROOT/ros_ws"
-    colcon build --symlink-install --packages-select mors_ros_msgs robot_mode_controller mors_keyboard_control
+    colcon build --symlink-install --packages-select mors_ros_msgs robot_mode_controller mors_keyboard_control --cmake-args -Wno-deprecated
   )
 }
 
 build_cpp_modules() {
   log "Building C++ modules (LocomotionController, MorsLogger)..."
 
-  cmake -S "$REPO_ROOT/LocomotionController" -B "$REPO_ROOT/LocomotionController/build" -DCMAKE_BUILD_TYPE=Release
+  cmake -Wno-deprecated -S "$REPO_ROOT/LocomotionController" -B "$REPO_ROOT/LocomotionController/build" -DCMAKE_BUILD_TYPE=Release
   cmake --build "$REPO_ROOT/LocomotionController/build" -j "$NUM_JOBS"
 
-  cmake -S "$REPO_ROOT/MorsLogger" -B "$REPO_ROOT/MorsLogger/build" -DCMAKE_BUILD_TYPE=Release
+  cmake -Wno-deprecated -S "$REPO_ROOT/MorsLogger" -B "$REPO_ROOT/MorsLogger/build" -DCMAKE_BUILD_TYPE=Release
   cmake --build "$REPO_ROOT/MorsLogger/build" -j "$NUM_JOBS"
 }
 

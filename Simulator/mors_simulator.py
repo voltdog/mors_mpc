@@ -91,6 +91,7 @@ class Hardware_Level_Sim():
 
         self.sim_freq = sim_config.get("frequency", 500)
         self.mjcf_root = str((BASE_DIR / sim_config.get("mjcf_root", "MJCF/mors.xml")).resolve())
+        self.render_quality = str(sim_config.get("render_quality", "high")).strip().lower()
         self.scene = self._parse_scene_config(sim_config.get("scene", None))
         self.init_motor_angles = sim_config.get("init_motor_angles", [0.0, -1.57, 3.14,
                                                                       -0.0, 1.57, -3.14,
@@ -142,6 +143,7 @@ class Hardware_Level_Sim():
 
     def init_simulation(self):
         self.env = MorsMujocoEnv(xml_path=self.mjcf_root,
+                 render_quality=self.render_quality,
                  scene=self.scene,
                  sim_freq=self.sim_freq,
                  motor_kp=0.0,

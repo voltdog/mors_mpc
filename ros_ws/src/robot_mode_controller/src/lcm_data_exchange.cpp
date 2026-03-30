@@ -79,6 +79,9 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer* rbuf,
                                     const std::string& chan,
                                     const mors_msgs::robot_state_msg* msg)
 {
+    (void)rbuf;
+    (void)chan;
+
     for (int i=0; i<3; i++)
     {
         leg_state.r1_pos(i) = msg->legs.r1_pos[i];
@@ -110,6 +113,9 @@ void LCMExchanger::servoStateHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const mors_msgs::servo_state_msg* msg)
 {
+    (void)rbuf;
+    (void)chan;
+
     // cout << "I got servo state data!" << endl;
     for (int i=0; i<12; i++)
     {

@@ -1,5 +1,6 @@
 frequency: 1000
 mjcf_root: "MJCF/mors.xml"
+render_quality: "high" # "high" or "low"
 
 scene: "boards" # "stairs" "patch" "boxes" "ramp" "flat" "boards"
  
