@@ -3,7 +3,14 @@ set -euo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 UBUNTU_CODENAME="noble"
-NUM_JOBS="${NUM_JOBS:-$(nproc)}"
+AVAILABLE_CORES="$(nproc)"
+NUM_JOBS="${NUM_JOBS:-$AVAILABLE_CORES}"
+if (( AVAILABLE_CORES > 1 )); then
+  DEFAULT_CPP_NUM_JOBS=$((AVAILABLE_CORES / 2))
+else
+  DEFAULT_CPP_NUM_JOBS=1
+fi
+CPP_NUM_JOBS="${CPP_NUM_JOBS:-$DEFAULT_CPP_NUM_JOBS}"
 VENV_DIR="${REPO_ROOT}/.mpc_venv"
 VBCONTROL_DIR="${HOME}/vbcontrol"
 DEPS_DIR="/tmp/mors_mpc_deps"
@@ -264,12 +271,13 @@ build_ros_workspace() {
 
 build_cpp_modules() {
   log "Building C++ modules (LocomotionController, MorsLogger)..."
+  log "Using $CPP_NUM_JOBS of $AVAILABLE_CORES available CPU cores for C++ compilation."
 
   cmake -Wno-deprecated -S "$REPO_ROOT/LocomotionController" -B "$REPO_ROOT/LocomotionController/build" -DCMAKE_BUILD_TYPE=Release
-  cmake --build "$REPO_ROOT/LocomotionController/build" -j "$NUM_JOBS"
+  cmake --build "$REPO_ROOT/LocomotionController/build" -j "$CPP_NUM_JOBS"
 
   cmake -Wno-deprecated -S "$REPO_ROOT/MorsLogger" -B "$REPO_ROOT/MorsLogger/build" -DCMAKE_BUILD_TYPE=Release
-  cmake --build "$REPO_ROOT/MorsLogger/build" -j "$NUM_JOBS"
+  cmake --build "$REPO_ROOT/MorsLogger/build" -j "$CPP_NUM_JOBS"
 }
 
 update_bashrc() {

@@ -182,6 +182,10 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
   EIGEN_DONT_PARALLELIZE
+  # Keep Eigen ABI/layout compatible with prebuilt Pinocchio binaries when
+  # native AVX flags are enabled for this target.
+  EIGEN_MAX_ALIGN_BYTES=16
+  EIGEN_MAX_STATIC_ALIGN_BYTES=16
   $<$<BOOL:${LOCOMOTION_ENABLE_EIGEN_NODEBUG}>:EIGEN_NO_DEBUG>
 )
 
