@@ -54,8 +54,6 @@ After launch, wait until the following message appears in the console:
 Then run the following in a second terminal:
 
 ```bash
-source /opt/ros/jazzy/setup.bash
-source ros_ws/install/setup.bash
 ros2 run mors_keyboard_control mors_keyboard_control
 ```
 
