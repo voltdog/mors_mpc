@@ -1,14 +1,24 @@
+import os
 import sys
 import time
+import warnings
 from pathlib import Path
 from threading import Thread
 
 import lcm
+import glfw
 
 BASE_DIR = Path(__file__).resolve().parent
 LCM_MSG_ROOT = BASE_DIR.parent / "lcm_msgs"
 sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(LCM_MSG_ROOT))
+
+if os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland":
+    warnings.filterwarnings(
+        "ignore",
+        message=r".*Wayland: The platform does not provide the window position.*",
+        category=glfw.GLFWError,
+    )
 
 from mors_msgs.servo_cmd_msg import servo_cmd_msg
 from mors_msgs.servo_state_msg import servo_state_msg 

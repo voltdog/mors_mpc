@@ -1,7 +1,8 @@
 .vscode/
 .mpc_venv/
 build/
-build-safe/
+# build-safe/
+build*
 install/
 log/
 __pycache__/
@@ -15,5 +16,8 @@ lcm_msgs/mors_msgs/
 
 *.csv
 *.zip
+*.pyc
+
 MUJOCO_LOG.TXT
 plotjuggler_layout.xml
+.codex

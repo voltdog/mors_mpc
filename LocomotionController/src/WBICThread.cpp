@@ -23,6 +23,35 @@ void configure_realtime_thread(const char* thread_name,
                                int priority,
                                int cpu_index)
 {
+    bool affinity_ok = false;
+    const long cpu_count = sysconf(_SC_NPROCESSORS_ONLN);
+    if (cpu_count <= 0) {
+        std::cout << '[' << thread_name << "] sysconf(_SC_NPROCESSORS_ONLN) failed\n";
+    } else if (cpu_index < 0 || cpu_index >= cpu_count) {
+        std::cout << '[' << thread_name << "] requested CPU " << cpu_index
+                  << " is out of range 0-" << (cpu_count - 1) << '\n';
+    } else {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(cpu_index, &cpuset);
+        const int affinity_rc = pthread_setaffinity_np(handle, sizeof(cpuset), &cpuset);
+        if (affinity_rc != 0) {
+            std::cout << '[' << thread_name << "] pthread_setaffinity_np failed: "
+                      << std::strerror(affinity_rc) << '\n';
+        } else {
+            affinity_ok = true;
+            std::cout << '[' << thread_name << "] affinity cpu=" << cpu_index << '\n';
+        }
+    }
+
+    // Avoid unbounded starvation: only switch to SCHED_FIFO when the thread is
+    // pinned to a valid core.
+    if (!affinity_ok) {
+        std::cout << '[' << thread_name
+                  << "] realtime scheduling disabled because CPU affinity is unavailable\n";
+        return;
+    }
+
     sched_param sp{};
     sp.sched_priority = priority;
     const int sched_rc = pthread_setschedparam(handle, SCHED_FIFO, &sp);
@@ -31,29 +60,6 @@ void configure_realtime_thread(const char* thread_name,
                   << std::strerror(sched_rc) << '\n';
     } else {
         std::cout << '[' << thread_name << "] SCHED_FIFO priority=" << priority << '\n';
-    }
-
-    const long cpu_count = sysconf(_SC_NPROCESSORS_ONLN);
-    if (cpu_count <= 0) {
-        std::cout << '[' << thread_name << "] sysconf(_SC_NPROCESSORS_ONLN) failed\n";
-        return;
-    }
-
-    if (cpu_index < 0 || cpu_index >= cpu_count) {
-        std::cout << '[' << thread_name << "] requested CPU " << cpu_index
-                  << " is out of range 0-" << (cpu_count - 1) << '\n';
-        return;
-    }
-
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(cpu_index, &cpuset);
-    const int affinity_rc = pthread_setaffinity_np(handle, sizeof(cpuset), &cpuset);
-    if (affinity_rc != 0) {
-        std::cout << '[' << thread_name << "] pthread_setaffinity_np failed: "
-                  << std::strerror(affinity_rc) << '\n';
-    } else {
-        std::cout << '[' << thread_name << "] affinity cpu=" << cpu_index << '\n';
     }
 }
 #endif
@@ -103,7 +109,11 @@ void WBICThread::configure(const RobotPhysicalParams& robot, const WBICThreadCon
     dt_ = std::chrono::duration<double>(config_.timestep);
     tick_period_ = std::chrono::duration_cast<std::chrono::steady_clock::duration>(dt_);
     if (config_.spin_guard_us < 0) {
-        spin_guard_ = tick_period_;
+        // Default to a short spin window. Full-period busy spin causes
+        // starvation on some systems and can freeze other control threads.
+        const auto default_spin_guard = std::chrono::microseconds(50);
+        spin_guard_ = std::chrono::duration_cast<std::chrono::steady_clock::duration>(default_spin_guard);
+        spin_guard_ = std::min(spin_guard_, tick_period_ / 4);
     } else {
         spin_guard_ = std::chrono::duration_cast<std::chrono::steady_clock::duration>(
             std::chrono::microseconds(std::max(config_.spin_guard_us, 0)));
@@ -186,6 +196,9 @@ void WBICThread::callback()
     bool locomotion_enable = false;
     bool leg_controller_enable = false;
     bool run_wbic = false;
+    auto last_overrun_log_time = now();
+    int overrun_counter = 0;
+    double overrun_max_ms = 0.0;
 
     auto next_tick = now() + tick_period_;
 
@@ -327,8 +340,19 @@ void WBICThread::callback()
 
         const std::chrono::duration<double, std::milli> lateness{current_time - next_tick};
         if (lateness.count() > 0.05) {
-            std::cout << "[LocomotionController->WBICThread]: Overrun: "
-                      << lateness.count() << " ms\n";
+            ++overrun_counter;
+            overrun_max_ms = std::max(overrun_max_ms, lateness.count());
+        }
+
+        if ((current_time - last_overrun_log_time) >= std::chrono::seconds(1)) {
+            if (overrun_counter > 0) {
+                std::cout << "[LocomotionController->WBICThread]: Overrun events: "
+                          << overrun_counter << ", max lateness: "
+                          << overrun_max_ms << " ms\n";
+            }
+            last_overrun_log_time = current_time;
+            overrun_counter = 0;
+            overrun_max_ms = 0.0;
         }
 
         do {
@@ -356,7 +380,7 @@ void WBICThread::wait_until(const Clock::time_point deadline) const
 
 void WBICThread::publish_zero_command(const bool force)
 {
-    if (lcm_exchanger == nullptr || zero_command_published_ == false) {
+    if (lcm_exchanger == nullptr || (!force && zero_command_published_)) {
         return;
     }
     zero_command_published_ = true;

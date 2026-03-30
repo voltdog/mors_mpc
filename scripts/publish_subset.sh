@@ -25,6 +25,7 @@ PATHS=(
   README.md
   README_rus.md
   LICENSE
+  .gitignore
 )
 
 mkdir -p "$TMP_DIR/export"

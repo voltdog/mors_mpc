@@ -93,6 +93,10 @@ It is not recommended to modify the the other config files.
 
 The path to the configs is defined by the `CONFIGPATH` variable (it is configured automatically by `install.sh`).
 
+## Render Quality
+
+If Mujoco simulation works too slow, you can choose render quality in the file `config\simulation.yaml`. Simply change the parameter `render_quality` from `low` to `high`. This parameter turns off rendering shadows, reflections and sky box. 
+
 ## Choose the Robot Environment
 
 The environment type is loaded by the `scene` parameter in `config\simulation.yaml`. You can choose one of the following environments:
