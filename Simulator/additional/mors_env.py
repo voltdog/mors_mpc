@@ -403,3 +403,10 @@ class MorsMujocoEnv():
             print(force)
         else:
             self._clear_force_visualization()
+
+    # ==========================================================
+    # DEPTH IMAGE
+    # ==========================================================
+
+    def get_depth_image(self):
+        pass

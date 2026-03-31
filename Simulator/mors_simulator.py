@@ -277,6 +277,8 @@ class Hardware_Level_Sim():
         self.lcm_contact_sensor_msg.contact_states = contact_flags[:]
         self.lc_contact.publish(self.lcm_contact_sensor_channel, self.lcm_contact_sensor_msg.encode())
 
+    def __pub_depth_image(self, image):
+        pass
 
     def get_cmd(self):
         # init LCM

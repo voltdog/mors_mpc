@@ -21,3 +21,4 @@ lcm_msgs/mors_msgs/
 MUJOCO_LOG.TXT
 plotjuggler_layout.xml
 .codex
+tech_req.md

@@ -39,3 +39,8 @@ tau_max: [6.0, 6.0, 12.0]
 vel_max: [28.0, 28.0, 14.0]
 gear_ratio: 10.0
 kt: 0.74
+
+depth_image: True # True of False
+depth_image_size: [848, 480] # options: [1280, 720], [848, 480], [640, 480], [424, 240]
+depth_image_fps: 60 # up to 90 fps
+
