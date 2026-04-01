@@ -1,9 +1,12 @@
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -20,9 +23,11 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
 #include <tf2_ros/transform_broadcaster.h>
+#include <yaml-cpp/yaml.h>
 #include <zlib.h>
 
 #include "mors_msgs/depth_image_msg.hpp"
+#include "mors_msgs/heightmap_msg.hpp"
 #include "mors_msgs/pointcloud_msg.hpp"
 #include "mors_msgs/robot_state_msg.hpp"
 #include "mors_msgs/servo_state_msg.hpp"
@@ -54,6 +59,11 @@ public:
     pointcloud_frame_id_ =
       this->declare_parameter<std::string>("pointcloud_frame_id", world_frame_id_);
     joint_states_topic_ = this->declare_parameter<std::string>("joint_states_topic", "/joint_states");
+    heightmap_ros_topic_ =
+      this->declare_parameter<std::string>("heightmap_ros_topic", "/heightmap/pointcloud");
+    heightmap_config_path_ =
+      this->declare_parameter<std::string>("heightmap_config_path", "");
+    loadHeightmapDecodeConfig(heightmap_config_path_);
 
     depth_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
       depth_ros_topic_, rclcpp::QoS(10).reliable());
@@ -61,6 +71,8 @@ public:
       pointcloud_ros_topic_, rclcpp::QoS(10).reliable());
     joint_state_pub_ = this->create_publisher<sensor_msgs::msg::JointState>(
       joint_states_topic_, rclcpp::QoS(20).reliable());
+    heightmap_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      heightmap_ros_topic_, rclcpp::QoS(10).reliable());
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 
     if (!lcm_.good()) {
@@ -71,6 +83,7 @@ public:
     lcm_.subscribe(pointcloud_lcm_channel_, &RobotStateViewerNode::pointCloudHandler, this);
     lcm_.subscribe(robot_state_lcm_channel_, &RobotStateViewerNode::robotStateHandler, this);
     lcm_.subscribe(servo_state_lcm_channel_, &RobotStateViewerNode::servoStateHandler, this);
+    lcm_.subscribe(heightmap_lcm_channel_, &RobotStateViewerNode::heightmapHandler, this);
     lcm_thread_ = std::thread(&RobotStateViewerNode::lcmLoop, this);
 
     joint_names_ = {
@@ -84,18 +97,27 @@ public:
       this->get_logger(),
       "robot_state_viewer started:"
       " depth LCM='%s' -> ROS='%s', pointcloud LCM='%s' -> ROS='%s',"
-      " robot_state LCM='%s', servo_state LCM='%s', tf('%s'->'%s'),"
-      " cloud_frame='%s', joint_states='%s'",
+      " heightmap LCM='%s' -> ROS='%s', robot_state LCM='%s', servo_state LCM='%s',"
+      " tf('%s'->'%s'), cloud_frame='%s', joint_states='%s',"
+      " heightmap_cfg='%s', heightmap_grid=%dx%d cell=%.4f hmin=%.3f hres=%.4f",
       depth_lcm_channel_.c_str(),
       depth_ros_topic_.c_str(),
       pointcloud_lcm_channel_.c_str(),
       pointcloud_ros_topic_.c_str(),
+      heightmap_lcm_channel_.c_str(),
+      heightmap_ros_topic_.c_str(),
       robot_state_lcm_channel_.c_str(),
       servo_state_lcm_channel_.c_str(),
       world_frame_id_.c_str(),
       base_link_frame_id_.c_str(),
       pointcloud_frame_id_.c_str(),
-      joint_states_topic_.c_str());
+      joint_states_topic_.c_str(),
+      heightmap_config_resolved_path_.c_str(),
+      heightmap_window_cells_x_,
+      heightmap_window_cells_y_,
+      heightmap_cell_size_,
+      heightmap_height_min_,
+      heightmap_height_resolution_);
   }
 
   ~RobotStateViewerNode() override
@@ -130,6 +152,100 @@ private:
     const double qy = cr * sp * cy + sr * cp * sy;
     const double qz = cr * cp * sy - sr * sp * cy;
     return {qx, qy, qz, qw};
+  }
+
+  static std::string resolveHeightmapConfigPath(const std::string & configured_path)
+  {
+    namespace fs = std::filesystem;
+
+    if (!configured_path.empty()) {
+      if (fs::exists(configured_path)) {
+        return configured_path;
+      }
+      throw std::runtime_error(
+              "heightmap_config_path does not exist: " + configured_path);
+    }
+
+    std::vector<std::string> candidates;
+    const char * config_dir = std::getenv("CONFIGPATH");
+    if (config_dir != nullptr && config_dir[0] != '\0') {
+      candidates.emplace_back(std::string(config_dir) + "/heightmap_builder.yaml");
+    }
+    candidates.emplace_back("config/heightmap_builder.yaml");
+    candidates.emplace_back("../config/heightmap_builder.yaml");
+    candidates.emplace_back("../../config/heightmap_builder.yaml");
+    candidates.emplace_back("../../../config/heightmap_builder.yaml");
+    candidates.emplace_back("../../../../config/heightmap_builder.yaml");
+
+    for (const auto & path : candidates) {
+      if (fs::exists(path)) {
+        return path;
+      }
+    }
+
+    throw std::runtime_error(
+            "Cannot locate heightmap_builder.yaml. "
+            "Set parameter 'heightmap_config_path' or environment CONFIGPATH.");
+  }
+
+  void loadHeightmapDecodeConfig(const std::string & configured_path)
+  {
+    const std::string resolved_path = resolveHeightmapConfigPath(configured_path);
+
+    YAML::Node root;
+    try {
+      root = YAML::LoadFile(resolved_path);
+    } catch (const std::exception & e) {
+      throw std::runtime_error(
+              "Failed to load heightmap config '" + resolved_path + "': " + e.what());
+    }
+
+    const YAML::Node channels = root["channels"];
+    if (!channels || !channels["heightmap"]) {
+      throw std::runtime_error(
+              "heightmap config '" + resolved_path +
+              "' missing required key: channels.heightmap");
+    }
+    heightmap_lcm_channel_ = channels["heightmap"].as<std::string>();
+    if (heightmap_lcm_channel_.empty()) {
+      throw std::runtime_error(
+              "heightmap config '" + resolved_path +
+              "': channels.heightmap must be non-empty");
+    }
+
+    const YAML::Node map = root["map"];
+    if (!map) {
+      throw std::runtime_error(
+              "heightmap config '" + resolved_path + "' missing required key: map");
+    }
+    if (!map["local_window_cells_x"] || !map["local_window_cells_y"] ||
+      !map["cell_size"] || !map["height_min"] || !map["height_resolution"])
+    {
+      throw std::runtime_error(
+              "heightmap config '" + resolved_path +
+              "' missing one of required keys: map.local_window_cells_x, "
+              "map.local_window_cells_y, map.cell_size, map.height_min, map.height_resolution");
+    }
+
+    heightmap_window_cells_x_ = map["local_window_cells_x"].as<int>();
+    heightmap_window_cells_y_ = map["local_window_cells_y"].as<int>();
+    heightmap_cell_size_ = map["cell_size"].as<double>();
+    heightmap_height_min_ = map["height_min"].as<double>();
+    heightmap_height_resolution_ = map["height_resolution"].as<double>();
+
+    if (heightmap_window_cells_x_ <= 0 || heightmap_window_cells_y_ <= 0) {
+      throw std::runtime_error(
+              "Invalid map.local_window_cells_x/y in '" + resolved_path + "'");
+    }
+    if (!(heightmap_cell_size_ > 0.0)) {
+      throw std::runtime_error("Invalid map.cell_size in '" + resolved_path + "'");
+    }
+    if (!(heightmap_height_resolution_ > 0.0)) {
+      throw std::runtime_error(
+              "Invalid map.height_resolution in '" + resolved_path + "'");
+    }
+
+    heightmap_config_resolved_path_ = resolved_path;
   }
 
   void lcmLoop()
@@ -316,6 +432,125 @@ private:
     pointcloud_pub_->publish(std::move(cloud_msg));
   }
 
+  void heightmapHandler(
+    const lcm::ReceiveBuffer * /*rbuf*/,
+    const std::string & /*channel*/,
+    const mors_msgs::heightmap_msg * msg)
+  {
+    if (msg == nullptr) {
+      return;
+    }
+
+    const int64_t expected_size_i64 =
+      static_cast<int64_t>(heightmap_window_cells_x_) * static_cast<int64_t>(heightmap_window_cells_y_);
+    if (expected_size_i64 <= 0 || expected_size_i64 > static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 2000,
+        "Invalid configured heightmap window size: %d x %d",
+        heightmap_window_cells_x_, heightmap_window_cells_y_);
+      return;
+    }
+
+    const int32_t expected_size = static_cast<int32_t>(expected_size_i64);
+    if (msg->data_size != expected_size) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 2000,
+        "HEIGHTMAP data_size mismatch: expected=%d got=%d",
+        expected_size, msg->data_size);
+      return;
+    }
+
+    if (msg->data.size() < static_cast<size_t>(expected_size)) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 2000,
+        "HEIGHTMAP payload too small: expected=%d got=%zu",
+        expected_size, msg->data.size());
+      return;
+    }
+
+    size_t valid_points = 0;
+    for (int i = 0; i < expected_size; ++i) {
+      const uint16_t packed = static_cast<uint16_t>(msg->data[static_cast<size_t>(i)]);
+      const bool valid = ((packed >> 15) & 0x1u) != 0u;
+      if (valid) {
+        ++valid_points;
+      }
+    }
+
+    sensor_msgs::msg::PointCloud2 cloud_msg;
+    cloud_msg.header.frame_id = world_frame_id_;
+    cloud_msg.header.stamp = this->now();
+    cloud_msg.height = 1;
+    cloud_msg.width = static_cast<uint32_t>(valid_points);
+    cloud_msg.is_bigendian = false;
+    cloud_msg.is_dense = true;
+    cloud_msg.point_step = static_cast<uint32_t>(4 * sizeof(float));  // x,y,z,intensity
+    cloud_msg.row_step = cloud_msg.point_step * cloud_msg.width;
+
+    cloud_msg.fields.resize(4);
+    cloud_msg.fields[0].name = "x";
+    cloud_msg.fields[0].offset = 0;
+    cloud_msg.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
+    cloud_msg.fields[0].count = 1;
+
+    cloud_msg.fields[1].name = "y";
+    cloud_msg.fields[1].offset = 4;
+    cloud_msg.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
+    cloud_msg.fields[1].count = 1;
+
+    cloud_msg.fields[2].name = "z";
+    cloud_msg.fields[2].offset = 8;
+    cloud_msg.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
+    cloud_msg.fields[2].count = 1;
+
+    cloud_msg.fields[3].name = "intensity";
+    cloud_msg.fields[3].offset = 12;
+    cloud_msg.fields[3].datatype = sensor_msgs::msg::PointField::FLOAT32;
+    cloud_msg.fields[3].count = 1;
+
+    cloud_msg.data.resize(static_cast<size_t>(cloud_msg.row_step));
+    uint8_t * dst = cloud_msg.data.data();
+
+    const double origin_x = static_cast<double>(msg->origin_x);
+    const double origin_y = static_cast<double>(msg->origin_y);
+    const double start_x =
+      origin_x - 0.5 * static_cast<double>(heightmap_window_cells_x_) * heightmap_cell_size_;
+    const double start_y =
+      origin_y - 0.5 * static_cast<double>(heightmap_window_cells_y_) * heightmap_cell_size_;
+
+    size_t out_idx = 0;
+    for (int ly = 0; ly < heightmap_window_cells_y_; ++ly) {
+      for (int lx = 0; lx < heightmap_window_cells_x_; ++lx) {
+        const size_t in_idx = static_cast<size_t>(ly) * static_cast<size_t>(heightmap_window_cells_x_) +
+          static_cast<size_t>(lx);
+        const uint16_t packed = static_cast<uint16_t>(msg->data[in_idx]);
+        const bool valid = ((packed >> 15) & 0x1u) != 0u;
+        if (!valid) {
+          continue;
+        }
+
+        const uint8_t traversability_class = static_cast<uint8_t>((packed >> 13) & 0x3u);
+        const uint16_t height_q = static_cast<uint16_t>(packed & 0x1FFFu);
+
+        const float x = static_cast<float>(
+          start_x + (static_cast<double>(lx) + 0.5) * heightmap_cell_size_);
+        const float y = static_cast<float>(
+          start_y + (static_cast<double>(ly) + 0.5) * heightmap_cell_size_);
+        const float z = static_cast<float>(
+          heightmap_height_min_ + static_cast<double>(height_q) * heightmap_height_resolution_);
+        const float intensity = static_cast<float>(traversability_class);
+
+        std::memcpy(dst + out_idx * cloud_msg.point_step + 0, &x, sizeof(float));
+        std::memcpy(dst + out_idx * cloud_msg.point_step + 4, &y, sizeof(float));
+        std::memcpy(dst + out_idx * cloud_msg.point_step + 8, &z, sizeof(float));
+        std::memcpy(dst + out_idx * cloud_msg.point_step + 12, &intensity, sizeof(float));
+        ++out_idx;
+      }
+    }
+
+    heightmap_pub_->publish(std::move(cloud_msg));
+  }
+
   void servoStateHandler(
     const lcm::ReceiveBuffer * /*rbuf*/,
     const std::string & /*channel*/,
@@ -395,6 +630,10 @@ private:
   std::string depth_ros_topic_;
   std::string pointcloud_lcm_channel_;
   std::string pointcloud_ros_topic_;
+  std::string heightmap_lcm_channel_;
+  std::string heightmap_ros_topic_;
+  std::string heightmap_config_path_;
+  std::string heightmap_config_resolved_path_;
   std::string robot_state_lcm_channel_;
   std::string servo_state_lcm_channel_;
   std::string frame_id_;
@@ -402,6 +641,11 @@ private:
   std::string world_frame_id_;
   std::string base_link_frame_id_;
   std::string joint_states_topic_;
+  int heightmap_window_cells_x_{0};
+  int heightmap_window_cells_y_{0};
+  double heightmap_cell_size_{0.0};
+  double heightmap_height_min_{0.0};
+  double heightmap_height_resolution_{0.0};
 
   std::array<double, 12> joint_positions_{};
   std::vector<std::string> joint_names_;
@@ -409,6 +653,7 @@ private:
 
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr depth_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr heightmap_pub_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 

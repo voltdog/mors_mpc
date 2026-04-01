@@ -1,6 +1,7 @@
 #include "HeightMapBuilder/HeightMapBuilder.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -18,6 +19,10 @@ namespace
 
 constexpr double kMillimetersToMeters = 1e-3;
 constexpr double kSecondsToNanoseconds = 1e9;
+constexpr uint8_t kClassSteppable = 0u;
+constexpr uint8_t kClassUnsteppable = 1u;
+constexpr uint8_t kClassImpassable = 2u;
+constexpr uint16_t kHeightQMax = 0x1FFFu;
 
 }  // namespace
 
@@ -42,7 +47,14 @@ HeightMapBuilderNode::HeightMapBuilderNode(const std::string& config_path)
     std::cout << "[HeightMapBuilder] started\n"
               << "  depth channel: " << config_.channels.depth_image << "\n"
               << "  robot_state channel: " << config_.channels.robot_state << "\n"
-              << "  pointcloud channel: " << config_.channels.pointcloud << std::endl;
+              << "  pointcloud channel: " << config_.channels.pointcloud << "\n"
+              << "  heightmap channel: " << config_.channels.heightmap << "\n"
+              << "  global map cells: " << global_cells_x_ << "x" << global_cells_y_ << "\n"
+              << "  local window cells: " << config_.map.local_window_cells_x
+              << "x" << config_.map.local_window_cells_y << "\n"
+              << "  opening kernel: " << config_.filtering.opening_kernel_shape << " "
+              << config_.filtering.opening_kernel_size << "x"
+              << config_.filtering.opening_kernel_size << std::endl;
 }
 
 int HeightMapBuilderNode::Run()
@@ -159,6 +171,138 @@ double HeightMapBuilderNode::DegToRad(double degrees)
     return degrees * std::numbers::pi_v<double> / 180.0;
 }
 
+uint16_t HeightMapBuilderNode::PackHeightCell(
+    bool valid,
+    uint8_t traversability_class,
+    double height_m,
+    double height_min,
+    double height_resolution)
+{
+    uint16_t cell = 0u;
+    if (valid)
+    {
+        cell |= static_cast<uint16_t>(1u << 15);
+    }
+
+    const uint16_t class_bits =
+        static_cast<uint16_t>((static_cast<uint16_t>(traversability_class) & 0x3u) << 13);
+    cell |= class_bits;
+
+    if (valid && std::isfinite(height_m) && std::isfinite(height_min) &&
+        std::isfinite(height_resolution) && height_resolution > 0.0)
+    {
+        const double q = std::round((height_m - height_min) / height_resolution);
+        const int64_t q_i64 = static_cast<int64_t>(q);
+        const int64_t q_clamped = std::clamp<int64_t>(q_i64, 0, static_cast<int64_t>(kHeightQMax));
+        cell |= static_cast<uint16_t>(q_clamped & 0x1FFF);
+    }
+
+    return cell;
+}
+
+void HeightMapBuilderNode::InitializeGlobalMapStorage()
+{
+    global_cells_x_ = std::max(
+        1,
+        static_cast<int>(std::ceil(config_.map.global_size_x / config_.map.cell_size)));
+    global_cells_y_ = std::max(
+        1,
+        static_cast<int>(std::ceil(config_.map.global_size_y / config_.map.cell_size)));
+
+    map_min_x_ = -0.5 * config_.map.global_size_x;
+    map_min_y_ = -0.5 * config_.map.global_size_y;
+
+    const size_t total_cells =
+        static_cast<size_t>(global_cells_x_) * static_cast<size_t>(global_cells_y_);
+    height_layer_.assign(total_cells, std::numeric_limits<float>::quiet_NaN());
+    validity_layer_.assign(total_cells, static_cast<uint8_t>(0u));
+    timestamp_layer_.assign(total_cells, 0);
+}
+
+void HeightMapBuilderNode::BuildOpeningKernelOffsets()
+{
+    opening_kernel_offsets_.clear();
+
+    const int kernel_size = std::max(1, config_.filtering.opening_kernel_size);
+    const int radius = kernel_size / 2;
+    const bool use_rect_kernel = (config_.filtering.opening_kernel_shape == "rect");
+
+    opening_kernel_offsets_.reserve(static_cast<size_t>(kernel_size * kernel_size));
+
+    for (int dy = -radius; dy <= radius; ++dy)
+    {
+        for (int dx = -radius; dx <= radius; ++dx)
+        {
+            bool use_cell = false;
+            if (use_rect_kernel || radius == 0)
+            {
+                use_cell = true;
+            }
+            else
+            {
+                const double nx = static_cast<double>(dx) / static_cast<double>(radius);
+                const double ny = static_cast<double>(dy) / static_cast<double>(radius);
+                use_cell = (nx * nx + ny * ny) <= 1.0;
+            }
+
+            if (use_cell)
+            {
+                opening_kernel_offsets_.push_back({dx, dy});
+            }
+        }
+    }
+
+    const bool has_center = std::any_of(
+        opening_kernel_offsets_.begin(),
+        opening_kernel_offsets_.end(),
+        [](const std::array<int, 2>& offset)
+        {
+            return offset[0] == 0 && offset[1] == 0;
+        });
+    if (!has_center)
+    {
+        opening_kernel_offsets_.push_back({0, 0});
+    }
+
+    if (opening_kernel_offsets_.empty())
+    {
+        opening_kernel_offsets_.push_back({0, 0});
+    }
+}
+
+int HeightMapBuilderNode::GridXFromWorldX(double x) const
+{
+    if (!std::isfinite(x))
+    {
+        return -1;
+    }
+    const int gx = static_cast<int>(std::floor((x - map_min_x_) / config_.map.cell_size));
+    if (gx < 0 || gx >= global_cells_x_)
+    {
+        return -1;
+    }
+    return gx;
+}
+
+int HeightMapBuilderNode::GridYFromWorldY(double y) const
+{
+    if (!std::isfinite(y))
+    {
+        return -1;
+    }
+    const int gy = static_cast<int>(std::floor((y - map_min_y_) / config_.map.cell_size));
+    if (gy < 0 || gy >= global_cells_y_)
+    {
+        return -1;
+    }
+    return gy;
+}
+
+size_t HeightMapBuilderNode::GridIndex(int gx, int gy) const
+{
+    return static_cast<size_t>(gy) * static_cast<size_t>(global_cells_x_) + static_cast<size_t>(gx);
+}
+
 bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
 {
     YAML::Node root;
@@ -186,6 +330,10 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         if (channels["pointcloud"])
         {
             config_.channels.pointcloud = channels["pointcloud"].as<std::string>();
+        }
+        if (channels["heightmap"])
+        {
+            config_.channels.heightmap = channels["heightmap"].as<std::string>();
         }
     }
 
@@ -266,6 +414,64 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         if (sync["require_recent_robot_state"])
         {
             config_.sync.require_recent_robot_state = sync["require_recent_robot_state"].as<bool>();
+        }
+    }
+
+    if (const YAML::Node map = root["map"])
+    {
+        if (map["cell_size"])
+        {
+            config_.map.cell_size = map["cell_size"].as<double>();
+        }
+        if (map["global_size_x"])
+        {
+            config_.map.global_size_x = map["global_size_x"].as<double>();
+        }
+        if (map["global_size_y"])
+        {
+            config_.map.global_size_y = map["global_size_y"].as<double>();
+        }
+        if (map["local_window_cells_x"])
+        {
+            config_.map.local_window_cells_x = std::max(1, map["local_window_cells_x"].as<int>());
+        }
+        if (map["local_window_cells_y"])
+        {
+            config_.map.local_window_cells_y = std::max(1, map["local_window_cells_y"].as<int>());
+        }
+        if (map["height_min"])
+        {
+            config_.map.height_min = map["height_min"].as<double>();
+        }
+        if (map["height_max"])
+        {
+            config_.map.height_max = map["height_max"].as<double>();
+        }
+        if (map["height_resolution"])
+        {
+            config_.map.height_resolution = map["height_resolution"].as<double>();
+        }
+    }
+
+    if (const YAML::Node filtering = root["filtering"])
+    {
+        if (filtering["opening_kernel_size"])
+        {
+            config_.filtering.opening_kernel_size = filtering["opening_kernel_size"].as<int>();
+        }
+        if (filtering["opening_kernel_shape"])
+        {
+            config_.filtering.opening_kernel_shape =
+                filtering["opening_kernel_shape"].as<std::string>();
+        }
+    }
+
+    if (const YAML::Node traversability = root["traversability"])
+    {
+        if (traversability["unknown_is_impassable"])
+        {
+            config_.traversability.unknown_is_impassable =
+                traversability["unknown_is_impassable"].as<bool>();
         }
     }
 
@@ -384,7 +590,61 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         return false;
     }
 
+    if (!(config_.map.cell_size > 0.0))
+    {
+        std::cerr << "[HeightMapBuilder] map.cell_size must be > 0." << std::endl;
+        return false;
+    }
+    if (!(config_.map.global_size_x > 0.0) || !(config_.map.global_size_y > 0.0))
+    {
+        std::cerr << "[HeightMapBuilder] map.global_size_x/y must be > 0." << std::endl;
+        return false;
+    }
+    if (!(config_.map.height_min < config_.map.height_max))
+    {
+        std::cerr << "[HeightMapBuilder] map.height_min must be < map.height_max." << std::endl;
+        return false;
+    }
+    if (!(config_.map.height_resolution > 0.0))
+    {
+        std::cerr << "[HeightMapBuilder] map.height_resolution must be > 0." << std::endl;
+        return false;
+    }
+    if (config_.filtering.opening_kernel_size < 1)
+    {
+        std::cerr << "[HeightMapBuilder] filtering.opening_kernel_size must be >= 1. "
+                  << "Fallback to 1." << std::endl;
+        config_.filtering.opening_kernel_size = 1;
+    }
+    if ((config_.filtering.opening_kernel_size % 2) == 0)
+    {
+        const int normalized_size = config_.filtering.opening_kernel_size + 1;
+        std::cerr << "[HeightMapBuilder] filtering.opening_kernel_size is even ("
+                  << config_.filtering.opening_kernel_size
+                  << "). Normalized to " << normalized_size << "." << std::endl;
+        config_.filtering.opening_kernel_size = normalized_size;
+    }
+
+    std::transform(
+        config_.filtering.opening_kernel_shape.begin(),
+        config_.filtering.opening_kernel_shape.end(),
+        config_.filtering.opening_kernel_shape.begin(),
+        [](unsigned char c)
+        {
+            return static_cast<char>(std::tolower(c));
+        });
+    if (config_.filtering.opening_kernel_shape != "ellipse" &&
+        config_.filtering.opening_kernel_shape != "rect")
+    {
+        std::cerr << "[HeightMapBuilder] Unknown filtering.opening_kernel_shape='"
+                  << config_.filtering.opening_kernel_shape
+                  << "'. Fallback to 'ellipse'." << std::endl;
+        config_.filtering.opening_kernel_shape = "ellipse";
+    }
+
     ApplyIntrinsicsFallback();
+    InitializeGlobalMapStorage();
+    BuildOpeningKernelOffsets();
     return true;
 }
 
@@ -714,6 +974,495 @@ void HeightMapBuilderNode::PublishPointCloud(
     lcm_.publish(config_.channels.pointcloud, &pointcloud_msg);
 }
 
+void HeightMapBuilderNode::UpdateGlobalHeightMap(
+    const std::vector<float>& world_x,
+    const std::vector<float>& world_y,
+    const std::vector<float>& world_z,
+    int64_t observation_timestamp_ns)
+{
+    if (world_x.size() != world_y.size() || world_x.size() != world_z.size())
+    {
+        std::cerr << "[HeightMapBuilder] Cannot update map: world point vectors size mismatch."
+                  << std::endl;
+        return;
+    }
+
+    size_t skipped_height_count = 0u;
+    size_t skipped_xy_count = 0u;
+    size_t updated_count = 0u;
+    bool has_world_bounds = false;
+    double min_world_x = 0.0;
+    double max_world_x = 0.0;
+    double min_world_y = 0.0;
+    double max_world_y = 0.0;
+    double min_world_z = 0.0;
+    double max_world_z = 0.0;
+    int min_gx = 0;
+    int max_gx = 0;
+    int min_gy = 0;
+    int max_gy = 0;
+    bool has_grid_bounds = false;
+
+    for (size_t i = 0; i < world_x.size(); ++i)
+    {
+        const double x = static_cast<double>(world_x[i]);
+        const double y = static_cast<double>(world_y[i]);
+        const double z = static_cast<double>(world_z[i]);
+
+        if (std::isfinite(x) && std::isfinite(y) && std::isfinite(z))
+        {
+            if (!has_world_bounds)
+            {
+                min_world_x = x;
+                max_world_x = x;
+                min_world_y = y;
+                max_world_y = y;
+                min_world_z = z;
+                max_world_z = z;
+                has_world_bounds = true;
+            }
+            else
+            {
+                min_world_x = std::min(min_world_x, x);
+                max_world_x = std::max(max_world_x, x);
+                min_world_y = std::min(min_world_y, y);
+                max_world_y = std::max(max_world_y, y);
+                min_world_z = std::min(min_world_z, z);
+                max_world_z = std::max(max_world_z, z);
+            }
+        }
+
+        if (!std::isfinite(z) || z < config_.map.height_min || z > config_.map.height_max)
+        {
+            ++skipped_height_count;
+            continue;
+        }
+
+        const int gx = GridXFromWorldX(x);
+        const int gy = GridYFromWorldY(y);
+        if (gx < 0 || gy < 0)
+        {
+            ++skipped_xy_count;
+            continue;
+        }
+
+        const size_t idx = GridIndex(gx, gy);
+        height_layer_[idx] = static_cast<float>(z);
+        validity_layer_[idx] = static_cast<uint8_t>(1u);
+        timestamp_layer_[idx] = observation_timestamp_ns;
+        ++updated_count;
+
+        if (!has_grid_bounds)
+        {
+            min_gx = gx;
+            max_gx = gx;
+            min_gy = gy;
+            max_gy = gy;
+            has_grid_bounds = true;
+        }
+        else
+        {
+            min_gx = std::min(min_gx, gx);
+            max_gx = std::max(max_gx, gx);
+            min_gy = std::min(min_gy, gy);
+            max_gy = std::max(max_gy, gy);
+        }
+    }
+
+    last_update_has_grid_bbox_ = has_grid_bounds;
+    if (has_grid_bounds)
+    {
+        last_update_min_gx_ = min_gx;
+        last_update_max_gx_ = max_gx;
+        last_update_min_gy_ = min_gy;
+        last_update_max_gy_ = max_gy;
+    }
+    last_update_count_ = updated_count;
+
+    if (config_.runtime.verbose && frame_counter_ % 30u == 0u)
+    {
+        std::cout << "[HeightMapBuilder] Map update stats:"
+                  << " total=" << world_x.size()
+                  << " updated=" << updated_count
+                  << " skipped_height=" << skipped_height_count
+                  << " skipped_xy=" << skipped_xy_count;
+        if (has_world_bounds)
+        {
+            std::cout << " world_x=[" << min_world_x << "," << max_world_x << "]"
+                      << " world_y=[" << min_world_y << "," << max_world_y << "]"
+                      << " world_z=[" << min_world_z << "," << max_world_z << "]";
+        }
+        if (has_grid_bounds)
+        {
+            std::cout << " grid_bbox=[(" << min_gx << "," << min_gy
+                      << ")-(" << max_gx << "," << max_gy << ")]";
+        }
+        std::cout << std::endl;
+    }
+}
+
+void HeightMapBuilderNode::ExtractLocalHeightMapWindow(
+    int start_gx,
+    int start_gy,
+    int local_w,
+    int local_h,
+    std::vector<float>* heights,
+    std::vector<uint8_t>* validity) const
+{
+    if (heights == nullptr || validity == nullptr)
+    {
+        return;
+    }
+
+    const int64_t data_size_i64 = static_cast<int64_t>(local_w) * static_cast<int64_t>(local_h);
+    if (local_w <= 0 || local_h <= 0 || data_size_i64 <= 0 ||
+        data_size_i64 > static_cast<int64_t>(std::numeric_limits<size_t>::max()))
+    {
+        heights->clear();
+        validity->clear();
+        return;
+    }
+
+    const size_t data_size = static_cast<size_t>(data_size_i64);
+    heights->assign(data_size, std::numeric_limits<float>::quiet_NaN());
+    validity->assign(data_size, static_cast<uint8_t>(0u));
+
+    for (int ly = 0; ly < local_h; ++ly)
+    {
+        for (int lx = 0; lx < local_w; ++lx)
+        {
+            const size_t out_idx =
+                static_cast<size_t>(ly) * static_cast<size_t>(local_w) + static_cast<size_t>(lx);
+            const int gx = start_gx + lx;
+            const int gy = start_gy + ly;
+
+            if (gx < 0 || gx >= global_cells_x_ || gy < 0 || gy >= global_cells_y_)
+            {
+                continue;
+            }
+
+            const size_t map_idx = GridIndex(gx, gy);
+            const bool valid =
+                validity_layer_[map_idx] != 0u && std::isfinite(height_layer_[map_idx]);
+            if (!valid)
+            {
+                continue;
+            }
+
+            (*validity)[out_idx] = static_cast<uint8_t>(1u);
+            (*heights)[out_idx] = height_layer_[map_idx];
+        }
+    }
+}
+
+void HeightMapBuilderNode::MorphologyPass(
+    const std::vector<float>& input_heights,
+    const std::vector<uint8_t>& input_validity,
+    int width,
+    int height,
+    bool is_erosion,
+    std::vector<float>* output_heights,
+    std::vector<uint8_t>* output_validity) const
+{
+    if (output_heights == nullptr || output_validity == nullptr)
+    {
+        return;
+    }
+
+    const int64_t data_size_i64 = static_cast<int64_t>(width) * static_cast<int64_t>(height);
+    if (width <= 0 || height <= 0 || data_size_i64 <= 0 ||
+        data_size_i64 > static_cast<int64_t>(std::numeric_limits<size_t>::max()))
+    {
+        output_heights->clear();
+        output_validity->clear();
+        return;
+    }
+
+    const size_t data_size = static_cast<size_t>(data_size_i64);
+    if (input_heights.size() != data_size || input_validity.size() != data_size)
+    {
+        output_heights->clear();
+        output_validity->clear();
+        return;
+    }
+
+    output_heights->assign(data_size, std::numeric_limits<float>::quiet_NaN());
+    output_validity->assign(data_size, static_cast<uint8_t>(0u));
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            const size_t center_idx =
+                static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x);
+
+            // Unknown cells should remain unknown after each morphology pass.
+            if (input_validity[center_idx] == 0u || !std::isfinite(input_heights[center_idx]))
+            {
+                continue;
+            }
+
+            float aggregate = input_heights[center_idx];
+
+            for (const auto& offset : opening_kernel_offsets_)
+            {
+                const int nx = x + offset[0];
+                const int ny = y + offset[1];
+                if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+                {
+                    continue;
+                }
+
+                const size_t neighbor_idx =
+                    static_cast<size_t>(ny) * static_cast<size_t>(width) + static_cast<size_t>(nx);
+                if (input_validity[neighbor_idx] == 0u)
+                {
+                    continue;
+                }
+
+                const float neighbor_h = input_heights[neighbor_idx];
+                if (!std::isfinite(neighbor_h))
+                {
+                    continue;
+                }
+
+                aggregate = is_erosion
+                                ? std::min(aggregate, neighbor_h)
+                                : std::max(aggregate, neighbor_h);
+            }
+
+            (*output_validity)[center_idx] = static_cast<uint8_t>(1u);
+            (*output_heights)[center_idx] = aggregate;
+        }
+    }
+}
+
+void HeightMapBuilderNode::ApplyOpeningFilter(
+    const std::vector<float>& input_heights,
+    const std::vector<uint8_t>& input_validity,
+    int width,
+    int height,
+    std::vector<float>* output_heights,
+    std::vector<uint8_t>* output_validity) const
+{
+    if (output_heights == nullptr || output_validity == nullptr)
+    {
+        return;
+    }
+
+    if (config_.filtering.opening_kernel_size <= 1 || opening_kernel_offsets_.empty())
+    {
+        *output_heights = input_heights;
+        *output_validity = input_validity;
+        return;
+    }
+
+    std::vector<float> eroded_heights;
+    std::vector<uint8_t> eroded_validity;
+    MorphologyPass(
+        input_heights,
+        input_validity,
+        width,
+        height,
+        true,
+        &eroded_heights,
+        &eroded_validity);
+
+    MorphologyPass(
+        eroded_heights,
+        eroded_validity,
+        width,
+        height,
+        false,
+        output_heights,
+        output_validity);
+}
+
+void HeightMapBuilderNode::PublishHeightMapWindow()
+{
+    const int local_w = std::max(1, config_.map.local_window_cells_x);
+    const int local_h = std::max(1, config_.map.local_window_cells_y);
+    const int64_t data_size_i64 = static_cast<int64_t>(local_w) * static_cast<int64_t>(local_h);
+    if (data_size_i64 <= 0 || data_size_i64 > static_cast<int64_t>(std::numeric_limits<int32_t>::max()))
+    {
+        std::cerr << "[HeightMapBuilder] Local window size is invalid: "
+                  << local_w << "x" << local_h << std::endl;
+        return;
+    }
+    const size_t data_size = static_cast<size_t>(data_size_i64);
+
+    const double robot_x = latest_robot_state_.position[0];
+    const double robot_y = latest_robot_state_.position[1];
+    const double safe_robot_x = std::isfinite(robot_x) ? robot_x : 0.0;
+    const double safe_robot_y = std::isfinite(robot_y) ? robot_y : 0.0;
+    const int center_gx =
+        static_cast<int>(std::floor((safe_robot_x - map_min_x_) / config_.map.cell_size));
+    const int center_gy =
+        static_cast<int>(std::floor((safe_robot_y - map_min_y_) / config_.map.cell_size));
+    const int clamped_center_gx = std::clamp(center_gx, 0, std::max(0, global_cells_x_ - 1));
+    const int clamped_center_gy = std::clamp(center_gy, 0, std::max(0, global_cells_y_ - 1));
+
+    int start_gx = clamped_center_gx - (local_w / 2);
+    int start_gy = clamped_center_gy - (local_h / 2);
+    if (global_cells_x_ > local_w)
+    {
+        start_gx = std::clamp(start_gx, 0, global_cells_x_ - local_w);
+    }
+    else
+    {
+        start_gx = 0;
+    }
+    if (global_cells_y_ > local_h)
+    {
+        start_gy = std::clamp(start_gy, 0, global_cells_y_ - local_h);
+    }
+    else
+    {
+        start_gy = 0;
+    }
+
+    std::vector<float> window_heights(data_size, std::numeric_limits<float>::quiet_NaN());
+    std::vector<uint8_t> window_validity(data_size, static_cast<uint8_t>(0u));
+    for (int ly = 0; ly < local_h; ++ly)
+    {
+        for (int lx = 0; lx < local_w; ++lx)
+        {
+            const int gx = start_gx + lx;
+            const int gy = start_gy + ly;
+            if (gx < 0 || gx >= global_cells_x_ || gy < 0 || gy >= global_cells_y_)
+            {
+                continue;
+            }
+
+            const size_t map_idx = GridIndex(gx, gy);
+            if (validity_layer_[map_idx] == 0u || !std::isfinite(height_layer_[map_idx]))
+            {
+                continue;
+            }
+
+            const size_t out_idx =
+                static_cast<size_t>(ly) * static_cast<size_t>(local_w) + static_cast<size_t>(lx);
+            window_validity[out_idx] = static_cast<uint8_t>(1u);
+            window_heights[out_idx] = height_layer_[map_idx];
+        }
+    }
+
+    std::vector<float> filtered_heights;
+    std::vector<uint8_t> filtered_validity;
+    ApplyOpeningFilter(
+        window_heights,
+        window_validity,
+        local_w,
+        local_h,
+        &filtered_heights,
+        &filtered_validity);
+
+    const size_t raw_valid_count = static_cast<size_t>(std::count_if(
+        window_validity.begin(),
+        window_validity.end(),
+        [](uint8_t v)
+        {
+            return v != 0u;
+        }));
+    const size_t filtered_valid_count = static_cast<size_t>(std::count_if(
+        filtered_validity.begin(),
+        filtered_validity.end(),
+        [](uint8_t v)
+        {
+            return v != 0u;
+        }));
+    if (filtered_valid_count == 0u && raw_valid_count > 0u)
+    {
+        if (config_.runtime.verbose && frame_counter_ % 30u == 0u)
+        {
+            std::cerr << "[HeightMapBuilder] opening filter removed all valid cells. "
+                      << "Fallback to raw local window for publish." << std::endl;
+        }
+        filtered_heights = window_heights;
+        filtered_validity = window_validity;
+    }
+
+    if (config_.runtime.verbose && frame_counter_ % 30u == 0u)
+    {
+        size_t direct_window_valid_count = 0u;
+        const int end_gx = start_gx + local_w;
+        const int end_gy = start_gy + local_h;
+        for (int gy = start_gy; gy < end_gy; ++gy)
+        {
+            for (int gx = start_gx; gx < end_gx; ++gx)
+            {
+                if (gx < 0 || gx >= global_cells_x_ || gy < 0 || gy >= global_cells_y_)
+                {
+                    continue;
+                }
+                const size_t idx = GridIndex(gx, gy);
+                if (validity_layer_[idx] != 0u && std::isfinite(height_layer_[idx]))
+                {
+                    ++direct_window_valid_count;
+                }
+            }
+        }
+
+        int overlap_min_gx = 0;
+        int overlap_max_gx = -1;
+        int overlap_min_gy = 0;
+        int overlap_max_gy = -1;
+        if (last_update_has_grid_bbox_)
+        {
+            overlap_min_gx = std::max(start_gx, last_update_min_gx_);
+            overlap_max_gx = std::min(end_gx - 1, last_update_max_gx_);
+            overlap_min_gy = std::max(start_gy, last_update_min_gy_);
+            overlap_max_gy = std::min(end_gy - 1, last_update_max_gy_);
+        }
+
+        std::cout << "[HeightMapBuilder] HEIGHTMAP window stats:"
+                  << " raw_valid=" << raw_valid_count
+                  << " filtered_valid=" << filtered_valid_count
+                  << " direct_window_valid=" << direct_window_valid_count
+                  << " last_update_count=" << last_update_count_
+                  << " center_g=(" << center_gx << "," << center_gy << ")"
+                  << " start_g=(" << start_gx << "," << start_gy << ")"
+                  << " overlap=[(" << overlap_min_gx << "," << overlap_min_gy
+                  << ")-(" << overlap_max_gx << "," << overlap_max_gy << ")]"
+                  << std::endl;
+    }
+
+    const uint8_t unknown_class =
+        config_.traversability.unknown_is_impassable ? kClassImpassable : kClassUnsteppable;
+
+    mors_msgs::heightmap_msg msg;
+    msg.origin_x = static_cast<float>(safe_robot_x);
+    msg.origin_y = static_cast<float>(safe_robot_y);
+    msg.yaw = static_cast<float>(latest_robot_state_.yaw);
+    msg.data_size = static_cast<int32_t>(data_size);
+    msg.data.resize(data_size);
+
+    for (int ly = 0; ly < local_h; ++ly)
+    {
+        for (int lx = 0; lx < local_w; ++lx)
+        {
+            const size_t out_idx =
+                static_cast<size_t>(ly) * static_cast<size_t>(local_w) + static_cast<size_t>(lx);
+            const bool valid =
+                out_idx < filtered_validity.size() &&
+                filtered_validity[out_idx] != 0u &&
+                out_idx < filtered_heights.size() &&
+                std::isfinite(filtered_heights[out_idx]);
+            const double h = valid ? static_cast<double>(filtered_heights[out_idx]) : 0.0;
+            const uint8_t cls = valid ? kClassSteppable : unknown_class;
+
+            msg.data[out_idx] = static_cast<int16_t>(PackHeightCell(
+                valid,
+                cls,
+                h,
+                config_.map.height_min,
+                config_.map.height_resolution));
+        }
+    }
+
+    lcm_.publish(config_.channels.heightmap, &msg);
+}
+
 void HeightMapBuilderNode::OnDepthImage(
     const lcm::ReceiveBuffer* /*rbuf*/,
     const std::string& /*chan*/,
@@ -729,10 +1478,10 @@ void HeightMapBuilderNode::OnDepthImage(
         return;
     }
 
-    const int64_t depth_ts = (msg->timestamp > 0) ? msg->timestamp : NowNs();
+    const int64_t depth_receive_ts_ns = NowNs();
     if (latest_robot_state_.valid)
     {
-        const int64_t dt_ns = std::llabs(depth_ts - latest_robot_state_.receive_timestamp_ns);
+        const int64_t dt_ns = std::llabs(depth_receive_ts_ns - latest_robot_state_.receive_timestamp_ns);
         const double dt_sec = static_cast<double>(dt_ns) / kSecondsToNanoseconds;
         if (dt_sec > config_.sync.max_sync_dt_sec && config_.sync.require_recent_robot_state)
         {
@@ -762,6 +1511,12 @@ void HeightMapBuilderNode::OnDepthImage(
         &points_world_y,
         &points_world_z);
     PublishPointCloud(*msg, points_world_x, points_world_y, points_world_z);
+    UpdateGlobalHeightMap(
+        points_world_x,
+        points_world_y,
+        points_world_z,
+        depth_receive_ts_ns);
+    PublishHeightMapWindow();
 
     ++frame_counter_;
     if (config_.runtime.verbose && frame_counter_ % 30u == 0u)

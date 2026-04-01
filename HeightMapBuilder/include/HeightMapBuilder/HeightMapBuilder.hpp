@@ -9,6 +9,7 @@
 #include <lcm/lcm-cpp.hpp>
 
 #include "mors_msgs/depth_image_msg.hpp"
+#include "mors_msgs/heightmap_msg.hpp"
 #include "mors_msgs/pointcloud_msg.hpp"
 #include "mors_msgs/robot_state_msg.hpp"
 
@@ -20,6 +21,7 @@ struct ChannelsConfig
     std::string depth_image{"DEPTH_IMAGE"};
     std::string robot_state{"ROBOT_STATE"};
     std::string pointcloud{"POINCLOUD"};
+    std::string heightmap{"HEIGHTMAP"};
 };
 
 struct CameraConfig
@@ -51,6 +53,29 @@ struct SyncConfig
     bool require_recent_robot_state{true};
 };
 
+struct MapConfig
+{
+    double cell_size{0.015};
+    double global_size_x{15.0};
+    double global_size_y{15.0};
+    int local_window_cells_x{100};
+    int local_window_cells_y{100};
+    double height_min{-2.0};
+    double height_max{2.0};
+    double height_resolution{0.005};
+};
+
+struct FilteringConfig
+{
+    int opening_kernel_size{5};
+    std::string opening_kernel_shape{"ellipse"};
+};
+
+struct TraversabilityConfig
+{
+    bool unknown_is_impassable{true};
+};
+
 struct RuntimeConfig
 {
     bool verbose{false};
@@ -62,6 +87,9 @@ struct HeightMapBuilderConfig
     CameraConfig camera;
     DepthConfig depth;
     SyncConfig sync;
+    MapConfig map;
+    FilteringConfig filtering;
+    TraversabilityConfig traversability;
     RuntimeConfig runtime;
     bool use_camera_pose_params{true};
     std::array<double, 3> camera_frame_position_body_m{0.2565, 0.0, 0.0};
@@ -104,9 +132,19 @@ private:
         const std::array<double, 9>& a,
         const std::array<double, 9>& b);
     static double DegToRad(double degrees);
+    static uint16_t PackHeightCell(
+        bool valid,
+        uint8_t traversability_class,
+        double height_m,
+        double height_min,
+        double height_resolution);
 
     bool LoadConfig(const std::string& config_path);
     void ApplyIntrinsicsFallback();
+    void InitializeGlobalMapStorage();
+    int GridXFromWorldX(double x) const;
+    int GridYFromWorldY(double y) const;
+    size_t GridIndex(int gx, int gy) const;
     bool DecodeDepthImage(const mors_msgs::depth_image_msg& msg, std::vector<uint16_t>* depth_mm) const;
     bool IsValidDepth(double depth_m) const;
     bool IsOutlier(
@@ -135,6 +173,35 @@ private:
         const std::vector<float>& x,
         const std::vector<float>& y,
         const std::vector<float>& z);
+    void UpdateGlobalHeightMap(
+        const std::vector<float>& world_x,
+        const std::vector<float>& world_y,
+        const std::vector<float>& world_z,
+        int64_t observation_timestamp_ns);
+    void BuildOpeningKernelOffsets();
+    void ExtractLocalHeightMapWindow(
+        int start_gx,
+        int start_gy,
+        int local_w,
+        int local_h,
+        std::vector<float>* heights,
+        std::vector<uint8_t>* validity) const;
+    void MorphologyPass(
+        const std::vector<float>& input_heights,
+        const std::vector<uint8_t>& input_validity,
+        int width,
+        int height,
+        bool is_erosion,
+        std::vector<float>* output_heights,
+        std::vector<uint8_t>* output_validity) const;
+    void ApplyOpeningFilter(
+        const std::vector<float>& input_heights,
+        const std::vector<uint8_t>& input_validity,
+        int width,
+        int height,
+        std::vector<float>* output_heights,
+        std::vector<uint8_t>* output_validity) const;
+    void PublishHeightMapWindow();
 
     void OnDepthImage(
         const lcm::ReceiveBuffer* rbuf,
@@ -147,6 +214,22 @@ private:
 
     HeightMapBuilderConfig config_;
     RobotStateSnapshot latest_robot_state_;
+
+    int global_cells_x_{0};
+    int global_cells_y_{0};
+    double map_min_x_{0.0};
+    double map_min_y_{0.0};
+    std::vector<float> height_layer_;
+    std::vector<uint8_t> validity_layer_;
+    std::vector<int64_t> timestamp_layer_;
+    std::vector<std::array<int, 2>> opening_kernel_offsets_;
+    bool last_update_has_grid_bbox_{false};
+    int last_update_min_gx_{0};
+    int last_update_max_gx_{0};
+    int last_update_min_gy_{0};
+    int last_update_max_gy_{0};
+    size_t last_update_count_{0};
+
     lcm::LCM lcm_;
     uint64_t frame_counter_{0};
 };

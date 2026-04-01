@@ -21,8 +21,7 @@ map:
   local_window_cells_y: 100
   height_min: -2.0
   height_max: 2.0
-  ttl_sec: 3.0
-  update_mode: latest
+  height_resolution: 0.005
 
 depth:
   min_depth: 0.10
@@ -65,8 +64,8 @@ traversability:
   grad_thr_steppable: 0.05
   grad_thr_unsteppable: 0.12
   unknown_is_impassable: true
-  use_height_discontinuity_check: true
+  use_height_discontinuity_check: false
   height_step_thr: 0.08
 
 runtime:
-  verbose: false
+  verbose: true

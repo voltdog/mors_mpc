@@ -3,7 +3,7 @@
 <package format="3">
   <name>robot_state_viewer</name>
   <version>0.0.0</version>
-  <description>LCM DEPTH_IMAGE and POINCLOUD to ROS2 Image/PointCloud2 bridge</description>
+  <description>LCM DEPTH_IMAGE/POINCLOUD/HEIGHTMAP and ROBOT_STATE/SERVO_STATE bridge to ROS2</description>
   <maintainer email="vldanilov90@gmail.com">yoggi</maintainer>
   <license>Apache-2.0</license>
 
@@ -13,6 +13,7 @@
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>tf2_ros</depend>
+  <depend>yaml-cpp</depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>rviz2</exec_depend>

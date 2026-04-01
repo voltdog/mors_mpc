@@ -10,6 +10,9 @@ def generate_launch_description():
     pkg_share = get_package_share_directory("robot_state_viewer")
     default_rviz_config = os.path.join(pkg_share, "rviz", "rviz_config.rviz")
     default_urdf = os.path.join(pkg_share, "urdf", "mors.urdf")
+    default_heightmap_config = os.path.abspath(
+        os.path.join(pkg_share, "..", "..", "..", "..", "..", "config", "heightmap_builder.yaml")
+    )
 
     with open(default_urdf, "r", encoding="utf-8") as f:
         robot_description = f.read()
@@ -18,6 +21,11 @@ def generate_launch_description():
         "rviz_config",
         default_value=default_rviz_config,
         description="Path to RViz config file",
+    )
+    heightmap_config_arg = DeclareLaunchArgument(
+        "heightmap_config_path",
+        default_value=default_heightmap_config,
+        description="Path to heightmap_builder.yaml used to decode HEIGHTMAP",
     )
     world_frame_arg = DeclareLaunchArgument(
         "world_frame_id",
@@ -45,6 +53,7 @@ def generate_launch_description():
                 "world_frame_id": LaunchConfiguration("world_frame_id"),
                 "pointcloud_frame_id": LaunchConfiguration("pointcloud_frame_id"),
                 "base_link_frame_id": LaunchConfiguration("base_link_frame_id"),
+                "heightmap_config_path": LaunchConfiguration("heightmap_config_path"),
             }
         ],
     )
@@ -67,6 +76,7 @@ def generate_launch_description():
 
     ld = LaunchDescription()
     ld.add_action(rviz_config_arg)
+    ld.add_action(heightmap_config_arg)
     ld.add_action(world_frame_arg)
     ld.add_action(pointcloud_frame_arg)
     ld.add_action(base_link_frame_arg)
