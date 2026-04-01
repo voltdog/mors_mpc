@@ -2,7 +2,7 @@ frequency: 1000
 mjcf_root: "MJCF/mors.xml"
 render_quality: "low" # "high" or "low"
 
-scene: "flat" # "stairs" "patch" "boxes" "ramp" "flat" "boards"
+scene: "stairs" # "stairs" "patch" "boxes" "ramp" "flat" "boards"
  
 # <<
 # init_motor_angles: [0.0, -1.57, 3.14,
@@ -40,7 +40,6 @@ vel_max: [28.0, 28.0, 14.0]
 gear_ratio: 10.0
 kt: 0.74
 
-depth_image: True # True of False
-depth_image_size: [848, 480] # options: [1280, 720], [848, 480], [640, 480], [424, 240]
-depth_image_fps: 60 # up to 90 fps
-
+depth_image: True
+depth_image_fps: 30
+depth_image_size: [424, 240]

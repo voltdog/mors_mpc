@@ -6,6 +6,7 @@ import os
 import inspect
 import time
 import math
+import threading
 import numpy as np
 import mujoco
 import mujoco.viewer
@@ -30,6 +31,10 @@ MOTOR_VELOCITY_MAX = [28, 28, 14]
 MOTOR_TORQUE_MAX = [6.0, 6.0, 12.0]
 BASE_ORIENTATION_MAX = 1.57
 
+DEPTH_CAMERA_NAME = "depth_camera"
+D435I_DEPTH_FOVY_DEG = 58.0
+D435I_DEPTH_RANGE_M = (0.105, 10.0)
+
 class MorsMujocoEnv():
 
     def __init__(self,
@@ -40,6 +45,8 @@ class MorsMujocoEnv():
                  motor_kp=30.0,
                  motor_kd=0.1,
                  ext_disturbance_enabled=False,
+                 depth_image_enabled=False,
+                 depth_image_size=(424, 240),
                  init_motor_angles=[ 0.0, -1.57,  3.14,
                                     -0.0,  1.57, -3.14,
                                     -0.0, -1.57,  3.14,
@@ -54,6 +61,18 @@ class MorsMujocoEnv():
         self._ext_disturbance_enabled = ext_disturbance_enabled
         self._time_step = 1 / sim_freq
         self._env_step_counter = 0
+        self._sim_data_lock = threading.Lock()
+        self._depth_renderer_lock = threading.Lock()
+
+        self._depth_enabled = bool(depth_image_enabled)
+        self._depth_width = int(depth_image_size[0])
+        self._depth_height = int(depth_image_size[1])
+        self._depth_camera_name = DEPTH_CAMERA_NAME
+        self._depth_camera_id = -1
+        self._depth_renderer = None
+        self._depth_data = None
+        self._depth_min_range_m = D435I_DEPTH_RANGE_M[0]
+        self._depth_max_range_m = D435I_DEPTH_RANGE_M[1]
 
         # ---------------- MuJoCo ----------------
         self.model = load_mjmodel(xml_path, scene=scene)
@@ -66,6 +85,8 @@ class MorsMujocoEnv():
         self.data.qpos[7:7+NUM_MOTORS] = init_motor_angles[:]
         mujoco.mj_forward(self.model, self.data)
         self._apply_render_quality()
+        if self._depth_enabled:
+            self._init_depth_camera()
 
         # motor id mapping
         self._motor_id_list = [mujoco.mj_name2id(self.model,
@@ -82,6 +103,31 @@ class MorsMujocoEnv():
         self._force_dir = 1
         self._force_arrow_length = 0.6
         self._force_arrow_width = 0.01
+
+    def _init_depth_camera(self):
+        self._depth_camera_id = mujoco.mj_name2id(
+            self.model,
+            mujoco.mjtObj.mjOBJ_CAMERA,
+            self._depth_camera_name,
+        )
+        if self._depth_camera_id < 0:
+            raise ValueError(
+                f"Depth camera `{self._depth_camera_name}` is missing in MJCF `{self._xml_path}`"
+            )
+
+        self.model.cam_fovy[self._depth_camera_id] = D435I_DEPTH_FOVY_DEG
+
+    def _ensure_depth_renderer(self):
+        if self._depth_renderer is not None:
+            return
+
+        # OpenGL context must be created and used from the same (depth) thread.
+        self._depth_renderer = mujoco.Renderer(
+            self.model,
+            width=self._depth_width,
+            height=self._depth_height,
+        )
+        self._depth_data = mujoco.MjData(self.model)
 
     def _iter_render_scenes(self):
         scenes = []
@@ -162,11 +208,12 @@ class MorsMujocoEnv():
             raise ValueError(f"Expected {NUM_MOTORS} motor torques, got {len(ref_joint_torque)}")
         self._env_step_counter += 1
 
-        if self._ext_disturbance_enabled:
-            self._apply_force()
+        with self._sim_data_lock:
+            if self._ext_disturbance_enabled:
+                self._apply_force()
 
-        self.__apply_action(ref_joint_angle, ref_joint_velocity, ref_joint_torque)
-        mujoco.mj_step(self.model, self.data)
+            self.__apply_action(ref_joint_angle, ref_joint_velocity, ref_joint_torque)
+            mujoco.mj_step(self.model, self.data)
         self.viewer.sync()
         
     def __apply_action(self, ref_joint_angle, ref_joint_velocity, ref_joint_torque):
@@ -186,6 +233,13 @@ class MorsMujocoEnv():
             self.data.ctrl[i] = torque[i]
 
     def close(self):
+        with self._depth_renderer_lock:
+            if self._depth_renderer is not None:
+                close_depth_renderer = getattr(self._depth_renderer, "close", None)
+                if callable(close_depth_renderer):
+                    close_depth_renderer()
+                self._depth_renderer = None
+                self._depth_data = None
         self.viewer.close()
 
     def set_kpkd(self, kp, kd):
@@ -409,4 +463,56 @@ class MorsMujocoEnv():
     # ==========================================================
 
     def get_depth_image(self):
-        pass
+        if not self._depth_enabled:
+            return None
+
+        if self._depth_data is None:
+            if not self._depth_renderer_lock.acquire(blocking=False):
+                return None
+            try:
+                self._ensure_depth_renderer()
+            finally:
+                self._depth_renderer_lock.release()
+
+        if not self._sim_data_lock.acquire(blocking=False):
+            return None
+
+        try:
+            self._depth_data.time = self.data.time
+            self._depth_data.qpos[:] = self.data.qpos
+            self._depth_data.qvel[:] = self.data.qvel
+            if self.model.na > 0:
+                self._depth_data.act[:] = self.data.act
+            if self.model.nmocap > 0:
+                self._depth_data.mocap_pos[:] = self.data.mocap_pos
+                self._depth_data.mocap_quat[:] = self.data.mocap_quat
+        finally:
+            self._sim_data_lock.release()
+
+        if not self._depth_renderer_lock.acquire(blocking=False):
+            return None
+        try:
+            self._ensure_depth_renderer()
+
+            mujoco.mj_forward(self.model, self._depth_data)
+            self._depth_renderer.update_scene(self._depth_data, camera=self._depth_camera_name)
+
+            if hasattr(self._depth_renderer, "enable_depth_rendering"):
+                self._depth_renderer.enable_depth_rendering()
+                try:
+                    depth = self._depth_renderer.render()
+                finally:
+                    self._depth_renderer.disable_depth_rendering()
+            else:
+                depth = self._depth_renderer.render(depth=True)
+        finally:
+            self._depth_renderer_lock.release()
+
+        depth_image_m = np.asarray(depth, dtype=np.float32)
+        valid_range_mask = np.isfinite(depth_image_m)
+        valid_range_mask &= depth_image_m >= self._depth_min_range_m
+        valid_range_mask &= depth_image_m <= self._depth_max_range_m
+
+        result = np.zeros_like(depth_image_m, dtype=np.float32)
+        result[valid_range_mask] = depth_image_m[valid_range_mask]
+        return result

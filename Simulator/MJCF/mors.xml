@@ -204,11 +204,25 @@
         </body>
       </body>
 
-      <!-- Camera, lidar and IMU frames (kept as empty bodies with inertial placeholder) -->
-      <!-- <body name="camera_frame" pos="0.238 0.0 0.0">
-        <geom type="sphere" size="0.01" rgba="0 0.5 0.8 1"/>
+      <!-- Intel RealSense D435i frame -->
+      <body name="camera_frame" pos="0.2565 0.0 0.00" euler="0 25 90">
+        <inertial
+          pos="0 0 0"
+          mass="0.072"
+          fullinertia="0.000007500 0.000052350 0.000052350 0 0 0"
+        />
+        <geom
+          name="d435i_body"
+          type="box"
+          size="0.045 0.0125 0.0125"
+          rgba="0.7 0.7 0.8 1"
+          contype="0"
+          conaffinity="0"
+        />
+        <camera name="depth_camera" pos="0.0125 0 0" euler="-90 0 180" fovy="58"/>
       </body>
-      <body name="scan" pos="0.15 0.0 0.115">
+
+      <!-- <body name="scan" pos="0.15 0.0 0.115">
         <geom type="sphere" size="0.01" rgba="0.8 0.3 0.3 1"/>
       </body>
       <body name="imu_link" pos="0 0 0">

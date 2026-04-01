@@ -56,7 +56,9 @@ set -euo pipefail
     # ${SCRIPT_DIR}/StateEstimatorLKF/build/state_estimator_lkf &
 
 	# robot control
-	${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC &
+	${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC & 
+    pids+=($!)
+    ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
     pids+=($!)
 
     echo "Robot Controller Started Successfully"

@@ -1,0 +1,72 @@
+channels:
+  depth_image: "DEPTH_IMAGE"
+  robot_state: "ROBOT_STATE"
+  pointcloud: "POINCLOUD"
+  heightmap: "HEIGHTMAP"
+
+camera:
+  width: 424
+  height: 240
+  fx: 216.5
+  fy: 216.5
+  cx: 211.5
+  cy: 119.5
+  fovy_deg: 58.0
+
+map:
+  cell_size: 0.015
+  global_size_x: 15.0
+  global_size_y: 15.0
+  local_window_cells_x: 100
+  local_window_cells_y: 100
+  height_min: -2.0
+  height_max: 2.0
+  ttl_sec: 3.0
+  update_mode: latest
+
+depth:
+  min_depth: 0.10
+  max_depth: 3.00
+  enable_downsampling: true
+  downsample_factor: 2
+  remove_outliers: true
+  outlier_window_radius: 1
+  outlier_threshold_m: 0.12
+  min_neighbors_for_outlier: 3
+
+transforms:
+  use_camera_pose_params: true
+  camera_frame:
+    position_body_m: [0.2565, 0.0, 0.0]
+    euler_deg: [25.0, 0.0, 90.0]
+  depth_camera:
+    position_camera_frame_m: [0.0125, 0.0, 0.0]
+    euler_deg: [-90.0, 0.0, 180.0]
+  T_body_camera: [
+    0.0,       0.0,       1.0,      0.2565,
+   -0.9063078,-0.4226183, 0.0,      0.0113288,
+    0.4226183,-0.9063078, 0.0,     -0.0052827,
+    0.0, 0.0, 0.0, 1.0000
+  ]
+
+sync:
+  max_sync_dt_sec: 0.05
+  require_recent_robot_state: true
+
+filtering:
+  opening_kernel_size: 5
+  opening_kernel_shape: ellipse
+
+gradient:
+  method: sobel
+  sobel_scale: 1.0
+
+traversability:
+  grad_thr_steppable: 0.05
+  grad_thr_unsteppable: 0.12
+  unknown_is_impassable: true
+  use_height_discontinuity_check: true
+  height_step_thr: 0.08
+
+runtime:
+  verbose: false

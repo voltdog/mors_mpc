@@ -2,8 +2,9 @@ import os
 import sys
 import time
 import warnings
+import zlib
 from pathlib import Path
-from threading import Thread
+from threading import Event, Thread
 
 import lcm
 import glfw
@@ -26,6 +27,7 @@ from mors_msgs.imu_lcm_data import imu_lcm_data
 from mors_msgs.robot_state_msg import robot_state_msg
 from mors_msgs.contact_sensor_msg import contact_sensor_msg
 from mors_msgs.odometry_msg import odometry_msg
+from mors_msgs.depth_image_msg import depth_image_msg
 
 from additional.mors_env import MorsMujocoEnv
 
@@ -35,7 +37,13 @@ import math
 from scipy.spatial.transform import Rotation
 
 class Hardware_Level_Sim():
+    DEPTH_IMAGE_CHANNEL = "DEPTH_IMAGE"
+    DEPTH_IMAGE_DEFAULT_FPS = 10
+    DEPTH_IMAGE_DEFAULT_SIZE = [424, 240]
+    DEPTH_IMAGE_ALLOWED_SIZES = {(424, 240), (640, 480)}
+
     def __init__(self):
+        self.shutdown_event = Event()
         self.ref_joint_pos = [0]*12
         self.ref_joint_vel = [0]*12
         self.ref_joint_torq = [0]*12
@@ -58,12 +66,16 @@ class Hardware_Level_Sim():
         self.lcm_robot_state_msg = robot_state_msg()
         self.lcm_odom_msg = odometry_msg()
         self.lcm_contact_sensor_msg = contact_sensor_msg()
+        if self.depth_image_enabled:
+            self.lcm_depth_image_msg = depth_image_msg()
 
         self.lc_servo_state = lcm.LCM()
         self.lc_imu = lcm.LCM()
         self.lc_robot_state = lcm.LCM()
         self.lc_odom = lcm.LCM()
         self.lc_contact = lcm.LCM()
+        if self.depth_image_enabled:
+            self.lc_depth_image = lcm.LCM()
         
         self.lcm_imu_msg.orientation_covariance = [2.603e-07, 0.0, 0.0, 0.0, 2.603e-07, 0.0, 0.0, 0.0, 0.0]
         self.lcm_imu_msg.angular_velocity_covariance = [2.5e-05, 0.0, 0.0, 0.0, 2.5e-05, 0.0, 0.0, 0.0, 2.5e-05]
@@ -71,6 +83,10 @@ class Hardware_Level_Sim():
         
         self.sim_it = 0
         self.init_simulation()
+        if self.depth_image_enabled:
+            self.depth_image_th = Thread(target=self.depth_image_loop, args=())
+            self.depth_image_th.daemon = True
+            self.depth_image_th.start()
 
         # init variables
         self.body_quaternion = [0.0, 0.0, 0.0, 1.0]
@@ -125,6 +141,24 @@ class Hardware_Level_Sim():
         self.gear_ratio = sim_config.get("gear_ratio", 10.0)
         self.kt = sim_config.get("kt", 0.74)
 
+        depth_image_enabled = sim_config.get("depth_image", False)
+        if not isinstance(depth_image_enabled, bool):
+            raise ValueError(
+                f"Invalid `depth_image`: expected boolean True/False, got {depth_image_enabled!r}"
+            )
+
+        self.depth_image_enabled = depth_image_enabled
+        self.depth_image_fps = self.DEPTH_IMAGE_DEFAULT_FPS
+        self.depth_image_size = self.DEPTH_IMAGE_DEFAULT_SIZE[:]
+        self.depth_image_channel = self.DEPTH_IMAGE_CHANNEL
+        if self.depth_image_enabled:
+            depth_image_fps = sim_config.get("depth_image_fps", self.DEPTH_IMAGE_DEFAULT_FPS)
+            depth_image_size = sim_config.get("depth_image_size", self.DEPTH_IMAGE_DEFAULT_SIZE)
+            self._validate_depth_config(depth_image_fps, depth_image_size)
+            self.depth_image_fps = depth_image_fps
+            self.depth_image_size = [depth_image_size[0], depth_image_size[1]]
+            self.depth_image_period = 1.0 / float(self.depth_image_fps)
+
         with open(f"{BASE_DIR}/../config/channels.yaml", "r") as f:
             lcm_config = yaml.safe_load(f)
 
@@ -137,6 +171,31 @@ class Hardware_Level_Sim():
 
         self.sim_period = 1.0/self.sim_freq
         self.first_step = True
+
+    def _validate_depth_config(self, depth_image_fps, depth_image_size):
+        if isinstance(depth_image_fps, bool) or not isinstance(depth_image_fps, int):
+            raise ValueError(
+                f"Invalid `depth_image_fps`: expected positive integer, got {depth_image_fps!r}"
+            )
+        if depth_image_fps <= 0:
+            raise ValueError(
+                f"Invalid `depth_image_fps`: expected > 0, got {depth_image_fps}"
+            )
+
+        if not isinstance(depth_image_size, list) or len(depth_image_size) != 2:
+            raise ValueError(
+                "Invalid `depth_image_size`: expected list of two integers [width, height]"
+            )
+        if any((isinstance(v, bool) or not isinstance(v, int)) for v in depth_image_size):
+            raise ValueError(
+                "Invalid `depth_image_size`: expected list of two integers [width, height]"
+            )
+        depth_image_size_tuple = (depth_image_size[0], depth_image_size[1])
+        if depth_image_size_tuple not in self.DEPTH_IMAGE_ALLOWED_SIZES:
+            raise ValueError(
+                f"Unsupported `depth_image_size`: {depth_image_size}. "
+                f"Allowed values: {sorted(self.DEPTH_IMAGE_ALLOWED_SIZES)}"
+            )
 
     def _parse_scene_config(self, scene_config):
         if isinstance(scene_config, dict):
@@ -159,7 +218,9 @@ class Hardware_Level_Sim():
                  motor_kp=0.0,
                  motor_kd=0.0,
                  ext_disturbance_enabled=self.external_disturbance_enabled,
-                 init_motor_angles=self.init_motor_angles)
+                 init_motor_angles=self.init_motor_angles,
+                 depth_image_enabled=self.depth_image_enabled,
+                 depth_image_size=self.depth_image_size)
 
         if self.external_disturbance_enabled:
             self.env.set_ext_forces_params(self.external_disturbance_value, 
@@ -278,15 +339,64 @@ class Hardware_Level_Sim():
         self.lc_contact.publish(self.lcm_contact_sensor_channel, self.lcm_contact_sensor_msg.encode())
 
     def __pub_depth_image(self, image):
-        pass
+        depth_m = np.asarray(image, dtype=np.float32)
+        if depth_m.ndim != 2:
+            raise ValueError(f"Depth image must be 2D, got shape {depth_m.shape}")
+
+        height, width = depth_m.shape
+        depth_mm = np.zeros((height, width), dtype=np.uint16)
+
+        depth_mm_float = np.rint(depth_m * 1000.0)
+        valid_mask = np.isfinite(depth_m)
+        valid_mask &= depth_mm_float >= 1.0
+        valid_mask &= depth_mm_float <= float(np.iinfo(np.uint16).max)
+        depth_mm[valid_mask] = depth_mm_float[valid_mask].astype(np.uint16)
+
+        raw_payload = depth_mm.astype(np.dtype("<u2"), copy=False).tobytes(order="C")
+        compressed_payload = zlib.compress(raw_payload, level=1)
+
+        if len(compressed_payload) < len(raw_payload):
+            payload = compressed_payload
+            compression = 1
+        else:
+            payload = raw_payload
+            compression = 0
+
+        self.lcm_depth_image_msg.timestamp = time.time_ns()
+        self.lcm_depth_image_msg.width = width
+        self.lcm_depth_image_msg.height = height
+        self.lcm_depth_image_msg.compression = compression
+        self.lcm_depth_image_msg.data_size = len(payload)
+        self.lcm_depth_image_msg.data = payload
+
+        self.lc_depth_image.publish(self.depth_image_channel, self.lcm_depth_image_msg.encode())
+
+    def depth_image_loop(self):
+        next_deadline = time.perf_counter()
+        while not self.shutdown_event.is_set():
+            next_deadline += self.depth_image_period
+            try:
+                image = self.env.get_depth_image()
+                if image is not None:
+                    self.__pub_depth_image(image)
+            except Exception as exc:
+                print(f"[DEPTH_IMAGE] Failed to process frame: {exc}")
+
+            sleep_time = next_deadline - time.perf_counter()
+            if sleep_time > 0.0:
+                if self.shutdown_event.wait(sleep_time):
+                    break
+            else:
+                skipped = int((-sleep_time) / self.depth_image_period) + 1
+                next_deadline += skipped * self.depth_image_period
 
     def get_cmd(self):
         # init LCM
         lc = lcm.LCM()
         subscription = lc.subscribe(self.lcm_servo_cmd_channel, self.cmd_handler)
         try:
-            while True:
-                lc.handle()
+            while not self.shutdown_event.is_set():
+                lc.handle_timeout(100)
         except KeyboardInterrupt:
             pass
 
@@ -326,12 +436,27 @@ class Hardware_Level_Sim():
             self.yaw_final = self.yaw - self.offset_yaw
 
         return self.yaw_final
+
+    def close(self):
+        self.shutdown_event.set()
+
+        if hasattr(self, "depth_image_th") and self.depth_image_th.is_alive():
+            self.depth_image_th.join(timeout=1.0)
+        if self.cmd_th.is_alive():
+            self.cmd_th.join(timeout=1.0)
+
+        self.env.close()
     
 
 def main(args=None):
     hw_lvl_sim = Hardware_Level_Sim()
-    while True:
-        hw_lvl_sim.loop()
+    try:
+        while True:
+            hw_lvl_sim.loop()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        hw_lvl_sim.close()
 
 if __name__ == '__main__':
     main()

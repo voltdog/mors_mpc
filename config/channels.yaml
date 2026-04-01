@@ -16,3 +16,6 @@ servo_state: "SERVO_STATE"
 gait_phase: "GAIT_PHASE"
 gait_params: "GAIT_PARAMS"
 
+depth_image: "DEPTH_IMAGE"
+pointcloud: "POINCLOUD"
+heightmap: "HEIGHTMAP"
