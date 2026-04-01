@@ -24,6 +24,16 @@ constexpr uint8_t kClassUnsteppable = 1u;
 constexpr uint8_t kClassImpassable = 2u;
 constexpr uint16_t kHeightQMax = 0x1FFFu;
 
+int PositiveModulo(int value, int modulus)
+{
+    if (modulus <= 0)
+    {
+        return 0;
+    }
+    const int remainder = value % modulus;
+    return remainder < 0 ? remainder + modulus : remainder;
+}
+
 }  // namespace
 
 namespace hmb
@@ -50,11 +60,18 @@ HeightMapBuilderNode::HeightMapBuilderNode(const std::string& config_path)
               << "  pointcloud channel: " << config_.channels.pointcloud << "\n"
               << "  heightmap channel: " << config_.channels.heightmap << "\n"
               << "  global map cells: " << global_cells_x_ << "x" << global_cells_y_ << "\n"
+              << "  rolling map: " << (config_.map.rolling_enabled ? "enabled" : "disabled")
+              << " margin=(" << rolling_margin_cells_x_ << "," << rolling_margin_cells_y_ << ")\n"
               << "  local window cells: " << config_.map.local_window_cells_x
               << "x" << config_.map.local_window_cells_y << "\n"
               << "  opening kernel: " << config_.filtering.opening_kernel_shape << " "
               << config_.filtering.opening_kernel_size << "x"
-              << config_.filtering.opening_kernel_size << std::endl;
+              << config_.filtering.opening_kernel_size << "\n"
+              << "  gradient: method=" << config_.gradient.method
+              << " sobel_scale=" << config_.gradient.sobel_scale << "\n"
+              << "  traversability thresholds: steppable<="
+              << config_.traversability.grad_thr_steppable
+              << " unsteppable<=" << config_.traversability.grad_thr_unsteppable << std::endl;
 }
 
 int HeightMapBuilderNode::Run()
@@ -211,12 +228,235 @@ void HeightMapBuilderNode::InitializeGlobalMapStorage()
 
     map_min_x_ = -0.5 * config_.map.global_size_x;
     map_min_y_ = -0.5 * config_.map.global_size_y;
+    storage_offset_x_ = 0;
+    storage_offset_y_ = 0;
 
     const size_t total_cells =
         static_cast<size_t>(global_cells_x_) * static_cast<size_t>(global_cells_y_);
     height_layer_.assign(total_cells, std::numeric_limits<float>::quiet_NaN());
     validity_layer_.assign(total_cells, static_cast<uint8_t>(0u));
     timestamp_layer_.assign(total_cells, 0);
+    last_update_has_grid_bbox_ = false;
+    last_update_count_ = 0u;
+}
+
+void HeightMapBuilderNode::ResolveRollingConfig()
+{
+    const auto resolve_margin = [this](
+                                    int configured_margin,
+                                    int local_window_cells,
+                                    int global_cells,
+                                    const char* axis) -> int
+    {
+        int margin = configured_margin;
+        bool auto_margin = false;
+        if (margin < 0)
+        {
+            std::cerr << "[HeightMapBuilder] map.rolling_margin_cells_" << axis
+                      << " must be >= 0. Fallback to auto." << std::endl;
+            margin = 0;
+        }
+        if (margin == 0)
+        {
+            auto_margin = true;
+            margin = std::max(1, local_window_cells / 2);
+        }
+
+        const int max_margin = std::max(0, (global_cells - 1) / 2);
+        if (margin > max_margin)
+        {
+            std::cerr << "[HeightMapBuilder] map.rolling_margin_cells_" << axis
+                      << (auto_margin ? " auto" : "")
+                      << " value=" << margin
+                      << " exceeds max allowed " << max_margin
+                      << " for global_cells=" << global_cells
+                      << ". Clamped." << std::endl;
+            margin = max_margin;
+        }
+        return margin;
+    };
+
+    if (!config_.map.rolling_enabled)
+    {
+        rolling_margin_cells_x_ = 0;
+        rolling_margin_cells_y_ = 0;
+        return;
+    }
+
+    rolling_margin_cells_x_ = resolve_margin(
+        config_.map.rolling_margin_cells_x,
+        config_.map.local_window_cells_x,
+        global_cells_x_,
+        "x");
+    rolling_margin_cells_y_ = resolve_margin(
+        config_.map.rolling_margin_cells_y,
+        config_.map.local_window_cells_y,
+        global_cells_y_,
+        "y");
+}
+
+void HeightMapBuilderNode::ClearAllGlobalMapCells()
+{
+    std::fill(height_layer_.begin(), height_layer_.end(), std::numeric_limits<float>::quiet_NaN());
+    std::fill(validity_layer_.begin(), validity_layer_.end(), static_cast<uint8_t>(0u));
+    std::fill(timestamp_layer_.begin(), timestamp_layer_.end(), 0);
+    last_update_has_grid_bbox_ = false;
+    last_update_count_ = 0u;
+}
+
+void HeightMapBuilderNode::ResetGlobalMapAround(double center_x, double center_y)
+{
+    map_min_x_ = center_x - 0.5 * config_.map.global_size_x;
+    map_min_y_ = center_y - 0.5 * config_.map.global_size_y;
+    storage_offset_x_ = 0;
+    storage_offset_y_ = 0;
+    ClearAllGlobalMapCells();
+}
+
+void HeightMapBuilderNode::ClearLogicalCell(int gx, int gy)
+{
+    if (gx < 0 || gx >= global_cells_x_ || gy < 0 || gy >= global_cells_y_)
+    {
+        return;
+    }
+    const size_t idx = GridIndex(gx, gy);
+    height_layer_[idx] = std::numeric_limits<float>::quiet_NaN();
+    validity_layer_[idx] = static_cast<uint8_t>(0u);
+    timestamp_layer_[idx] = 0;
+}
+
+void HeightMapBuilderNode::ApplyGlobalMapShift(int shift_dx_cells, int shift_dy_cells)
+{
+    if (shift_dx_cells == 0 && shift_dy_cells == 0)
+    {
+        return;
+    }
+
+    const double old_map_min_x = map_min_x_;
+    const double old_map_min_y = map_min_y_;
+
+    map_min_x_ += static_cast<double>(shift_dx_cells) * config_.map.cell_size;
+    map_min_y_ += static_cast<double>(shift_dy_cells) * config_.map.cell_size;
+    storage_offset_x_ = PositiveModulo(storage_offset_x_ + shift_dx_cells, global_cells_x_);
+    storage_offset_y_ = PositiveModulo(storage_offset_y_ + shift_dy_cells, global_cells_y_);
+
+    if (shift_dx_cells > 0)
+    {
+        const int start_x = std::max(0, global_cells_x_ - shift_dx_cells);
+        for (int gy = 0; gy < global_cells_y_; ++gy)
+        {
+            for (int gx = start_x; gx < global_cells_x_; ++gx)
+            {
+                ClearLogicalCell(gx, gy);
+            }
+        }
+    }
+    else if (shift_dx_cells < 0)
+    {
+        const int end_x = std::min(global_cells_x_, -shift_dx_cells);
+        for (int gy = 0; gy < global_cells_y_; ++gy)
+        {
+            for (int gx = 0; gx < end_x; ++gx)
+            {
+                ClearLogicalCell(gx, gy);
+            }
+        }
+    }
+
+    if (shift_dy_cells > 0)
+    {
+        const int start_y = std::max(0, global_cells_y_ - shift_dy_cells);
+        for (int gy = start_y; gy < global_cells_y_; ++gy)
+        {
+            for (int gx = 0; gx < global_cells_x_; ++gx)
+            {
+                ClearLogicalCell(gx, gy);
+            }
+        }
+    }
+    else if (shift_dy_cells < 0)
+    {
+        const int end_y = std::min(global_cells_y_, -shift_dy_cells);
+        for (int gy = 0; gy < end_y; ++gy)
+        {
+            for (int gx = 0; gx < global_cells_x_; ++gx)
+            {
+                ClearLogicalCell(gx, gy);
+            }
+        }
+    }
+
+    if (config_.runtime.verbose)
+    {
+        std::cout << "[HeightMapBuilder] Rolling shift:"
+                  << " d_cells=(" << shift_dx_cells << "," << shift_dy_cells << ")"
+                  << " map_min=(" << old_map_min_x << "," << old_map_min_y << ")"
+                  << " -> (" << map_min_x_ << "," << map_min_y_ << ")"
+                  << " cleared_cols=" << std::abs(shift_dx_cells)
+                  << " cleared_rows=" << std::abs(shift_dy_cells)
+                  << std::endl;
+    }
+}
+
+void HeightMapBuilderNode::ShiftGlobalMapIfNeeded(double robot_x, double robot_y)
+{
+    if (!config_.map.rolling_enabled)
+    {
+        return;
+    }
+    if (!std::isfinite(robot_x) || !std::isfinite(robot_y))
+    {
+        return;
+    }
+    if (global_cells_x_ <= 0 || global_cells_y_ <= 0)
+    {
+        return;
+    }
+
+    const int center_gx =
+        static_cast<int>(std::floor((robot_x - map_min_x_) / config_.map.cell_size));
+    const int center_gy =
+        static_cast<int>(std::floor((robot_y - map_min_y_) / config_.map.cell_size));
+
+    const int safe_min_x = rolling_margin_cells_x_;
+    const int safe_max_x = std::max(safe_min_x, global_cells_x_ - 1 - rolling_margin_cells_x_);
+    const int safe_min_y = rolling_margin_cells_y_;
+    const int safe_max_y = std::max(safe_min_y, global_cells_y_ - 1 - rolling_margin_cells_y_);
+
+    int shift_dx = 0;
+    int shift_dy = 0;
+    const int target_center_x = global_cells_x_ / 2;
+    const int target_center_y = global_cells_y_ / 2;
+    if (center_gx < safe_min_x || center_gx > safe_max_x)
+    {
+        shift_dx = center_gx - target_center_x;
+    }
+    if (center_gy < safe_min_y || center_gy > safe_max_y)
+    {
+        shift_dy = center_gy - target_center_y;
+    }
+    if (shift_dx == 0 && shift_dy == 0)
+    {
+        return;
+    }
+
+    if (std::abs(shift_dx) >= global_cells_x_ || std::abs(shift_dy) >= global_cells_y_)
+    {
+        const double old_map_min_x = map_min_x_;
+        const double old_map_min_y = map_min_y_;
+        ResetGlobalMapAround(robot_x, robot_y);
+        if (config_.runtime.verbose)
+        {
+            std::cout << "[HeightMapBuilder] Rolling reset:"
+                      << " requested_shift=(" << shift_dx << "," << shift_dy << ")"
+                      << " map_min=(" << old_map_min_x << "," << old_map_min_y << ")"
+                      << " -> (" << map_min_x_ << "," << map_min_y_ << ")"
+                      << std::endl;
+        }
+        return;
+    }
+
+    ApplyGlobalMapShift(shift_dx, shift_dy);
 }
 
 void HeightMapBuilderNode::BuildOpeningKernelOffsets()
@@ -300,7 +540,13 @@ int HeightMapBuilderNode::GridYFromWorldY(double y) const
 
 size_t HeightMapBuilderNode::GridIndex(int gx, int gy) const
 {
-    return static_cast<size_t>(gy) * static_cast<size_t>(global_cells_x_) + static_cast<size_t>(gx);
+    if (global_cells_x_ <= 0 || global_cells_y_ <= 0)
+    {
+        return 0u;
+    }
+    const int sx = PositiveModulo(storage_offset_x_ + gx, global_cells_x_);
+    const int sy = PositiveModulo(storage_offset_y_ + gy, global_cells_y_);
+    return static_cast<size_t>(sy) * static_cast<size_t>(global_cells_x_) + static_cast<size_t>(sx);
 }
 
 bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
@@ -431,6 +677,18 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         {
             config_.map.global_size_y = map["global_size_y"].as<double>();
         }
+        if (map["rolling_enabled"])
+        {
+            config_.map.rolling_enabled = map["rolling_enabled"].as<bool>();
+        }
+        if (map["rolling_margin_cells_x"])
+        {
+            config_.map.rolling_margin_cells_x = map["rolling_margin_cells_x"].as<int>();
+        }
+        if (map["rolling_margin_cells_y"])
+        {
+            config_.map.rolling_margin_cells_y = map["rolling_margin_cells_y"].as<int>();
+        }
         if (map["local_window_cells_x"])
         {
             config_.map.local_window_cells_x = std::max(1, map["local_window_cells_x"].as<int>());
@@ -466,8 +724,30 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         }
     }
 
+    if (const YAML::Node gradient = root["gradient"])
+    {
+        if (gradient["method"])
+        {
+            config_.gradient.method = gradient["method"].as<std::string>();
+        }
+        if (gradient["sobel_scale"])
+        {
+            config_.gradient.sobel_scale = gradient["sobel_scale"].as<double>();
+        }
+    }
+
     if (const YAML::Node traversability = root["traversability"])
     {
+        if (traversability["grad_thr_steppable"])
+        {
+            config_.traversability.grad_thr_steppable =
+                traversability["grad_thr_steppable"].as<double>();
+        }
+        if (traversability["grad_thr_unsteppable"])
+        {
+            config_.traversability.grad_thr_unsteppable =
+                traversability["grad_thr_unsteppable"].as<double>();
+        }
         if (traversability["unknown_is_impassable"])
         {
             config_.traversability.unknown_is_impassable =
@@ -610,6 +890,18 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         std::cerr << "[HeightMapBuilder] map.height_resolution must be > 0." << std::endl;
         return false;
     }
+    if (config_.map.rolling_margin_cells_x < 0)
+    {
+        std::cerr << "[HeightMapBuilder] map.rolling_margin_cells_x must be >= 0. "
+                  << "Fallback to auto." << std::endl;
+        config_.map.rolling_margin_cells_x = 0;
+    }
+    if (config_.map.rolling_margin_cells_y < 0)
+    {
+        std::cerr << "[HeightMapBuilder] map.rolling_margin_cells_y must be >= 0. "
+                  << "Fallback to auto." << std::endl;
+        config_.map.rolling_margin_cells_y = 0;
+    }
     if (config_.filtering.opening_kernel_size < 1)
     {
         std::cerr << "[HeightMapBuilder] filtering.opening_kernel_size must be >= 1. "
@@ -642,8 +934,41 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         config_.filtering.opening_kernel_shape = "ellipse";
     }
 
+    std::transform(
+        config_.gradient.method.begin(),
+        config_.gradient.method.end(),
+        config_.gradient.method.begin(),
+        [](unsigned char c)
+        {
+            return static_cast<char>(std::tolower(c));
+        });
+    if (config_.gradient.method != "sobel")
+    {
+        std::cerr << "[HeightMapBuilder] gradient.method must be 'sobel'. got='"
+                  << config_.gradient.method << "'" << std::endl;
+        return false;
+    }
+    if (!std::isfinite(config_.gradient.sobel_scale) || config_.gradient.sobel_scale <= 0.0)
+    {
+        std::cerr << "[HeightMapBuilder] gradient.sobel_scale must be > 0." << std::endl;
+        return false;
+    }
+    if (!std::isfinite(config_.traversability.grad_thr_steppable) ||
+        !std::isfinite(config_.traversability.grad_thr_unsteppable))
+    {
+        std::cerr << "[HeightMapBuilder] traversability thresholds must be finite." << std::endl;
+        return false;
+    }
+    if (config_.traversability.grad_thr_steppable > config_.traversability.grad_thr_unsteppable)
+    {
+        std::cerr << "[HeightMapBuilder] traversability.grad_thr_steppable must be <= "
+                  << "traversability.grad_thr_unsteppable." << std::endl;
+        return false;
+    }
+
     ApplyIntrinsicsFallback();
     InitializeGlobalMapStorage();
+    ResolveRollingConfig();
     BuildOpeningKernelOffsets();
     return true;
 }
@@ -1115,15 +1440,20 @@ void HeightMapBuilderNode::ExtractLocalHeightMapWindow(
     }
 
     const int64_t data_size_i64 = static_cast<int64_t>(local_w) * static_cast<int64_t>(local_h);
-    if (local_w <= 0 || local_h <= 0 || data_size_i64 <= 0 ||
-        data_size_i64 > static_cast<int64_t>(std::numeric_limits<size_t>::max()))
+    if (local_w <= 0 || local_h <= 0 || data_size_i64 <= 0)
     {
         heights->clear();
         validity->clear();
         return;
     }
-
-    const size_t data_size = static_cast<size_t>(data_size_i64);
+    const uint64_t data_size_u64 = static_cast<uint64_t>(data_size_i64);
+    if (data_size_u64 > static_cast<uint64_t>(std::numeric_limits<size_t>::max()))
+    {
+        heights->clear();
+        validity->clear();
+        return;
+    }
+    const size_t data_size = static_cast<size_t>(data_size_u64);
     heights->assign(data_size, std::numeric_limits<float>::quiet_NaN());
     validity->assign(data_size, static_cast<uint8_t>(0u));
 
@@ -1170,15 +1500,20 @@ void HeightMapBuilderNode::MorphologyPass(
     }
 
     const int64_t data_size_i64 = static_cast<int64_t>(width) * static_cast<int64_t>(height);
-    if (width <= 0 || height <= 0 || data_size_i64 <= 0 ||
-        data_size_i64 > static_cast<int64_t>(std::numeric_limits<size_t>::max()))
+    if (width <= 0 || height <= 0 || data_size_i64 <= 0)
     {
         output_heights->clear();
         output_validity->clear();
         return;
     }
-
-    const size_t data_size = static_cast<size_t>(data_size_i64);
+    const uint64_t data_size_u64 = static_cast<uint64_t>(data_size_i64);
+    if (data_size_u64 > static_cast<uint64_t>(std::numeric_limits<size_t>::max()))
+    {
+        output_heights->clear();
+        output_validity->clear();
+        return;
+    }
+    const size_t data_size = static_cast<size_t>(data_size_u64);
     if (input_heights.size() != data_size || input_validity.size() != data_size)
     {
         output_heights->clear();
@@ -1276,6 +1611,130 @@ void HeightMapBuilderNode::ApplyOpeningFilter(
         false,
         output_heights,
         output_validity);
+}
+
+void HeightMapBuilderNode::ComputeSobelGradient(
+    const std::vector<float>& input_heights,
+    const std::vector<uint8_t>& input_validity,
+    int width,
+    int height,
+    std::vector<float>* output_gradient,
+    std::vector<uint8_t>* output_validity) const
+{
+    if (output_gradient == nullptr || output_validity == nullptr)
+    {
+        return;
+    }
+
+    const int64_t data_size_i64 = static_cast<int64_t>(width) * static_cast<int64_t>(height);
+    if (width <= 0 || height <= 0 || data_size_i64 <= 0)
+    {
+        output_gradient->clear();
+        output_validity->clear();
+        return;
+    }
+    const uint64_t data_size_u64 = static_cast<uint64_t>(data_size_i64);
+    if (data_size_u64 > static_cast<uint64_t>(std::numeric_limits<size_t>::max()))
+    {
+        output_gradient->clear();
+        output_validity->clear();
+        return;
+    }
+    const size_t data_size = static_cast<size_t>(data_size_u64);
+    if (input_heights.size() != data_size || input_validity.size() != data_size)
+    {
+        output_gradient->clear();
+        output_validity->clear();
+        return;
+    }
+
+    output_gradient->assign(data_size, std::numeric_limits<float>::quiet_NaN());
+    output_validity->assign(data_size, static_cast<uint8_t>(0u));
+
+    const double denom = 8.0 * config_.map.cell_size;
+    if (!(denom > 0.0) || !std::isfinite(denom))
+    {
+        return;
+    }
+
+    for (int y = 1; y < height - 1; ++y)
+    {
+        for (int x = 1; x < width - 1; ++x)
+        {
+            const size_t center_idx =
+                static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x);
+            if (input_validity[center_idx] == 0u || !std::isfinite(input_heights[center_idx]))
+            {
+                continue;
+            }
+
+            double h[3][3]{};
+            bool neighborhood_valid = true;
+            for (int ky = -1; ky <= 1 && neighborhood_valid; ++ky)
+            {
+                for (int kx = -1; kx <= 1; ++kx)
+                {
+                    const int nx = x + kx;
+                    const int ny = y + ky;
+                    const size_t idx =
+                        static_cast<size_t>(ny) * static_cast<size_t>(width) + static_cast<size_t>(nx);
+                    if (input_validity[idx] == 0u || !std::isfinite(input_heights[idx]))
+                    {
+                        neighborhood_valid = false;
+                        break;
+                    }
+                    h[ky + 1][kx + 1] = static_cast<double>(input_heights[idx]);
+                }
+            }
+
+            if (!neighborhood_valid)
+            {
+                continue;
+            }
+
+            const double gx_num =
+                -h[0][0] + h[0][2] - 2.0 * h[1][0] + 2.0 * h[1][2] - h[2][0] + h[2][2];
+            const double gy_num =
+                -h[0][0] - 2.0 * h[0][1] - h[0][2] + h[2][0] + 2.0 * h[2][1] + h[2][2];
+            const double gx = gx_num / denom;
+            const double gy = gy_num / denom;
+            const double grad = config_.gradient.sobel_scale * std::hypot(gx, gy);
+            if (!std::isfinite(grad))
+            {
+                continue;
+            }
+
+            (*output_validity)[center_idx] = static_cast<uint8_t>(1u);
+            (*output_gradient)[center_idx] = static_cast<float>(grad);
+        }
+    }
+}
+
+uint8_t HeightMapBuilderNode::ClassifyTraversability(
+    bool height_valid,
+    double gradient_value,
+    bool gradient_valid) const
+{
+    if (!height_valid)
+    {
+        return config_.traversability.unknown_is_impassable ? kClassImpassable : kClassUnsteppable;
+    }
+    if (!gradient_valid || !std::isfinite(gradient_value))
+    {
+        // Border of the local window may not have a full Sobel neighborhood.
+        // Keep it non-impassable to avoid false hard obstacles.
+        return kClassUnsteppable;
+    }
+
+    if (gradient_value <= config_.traversability.grad_thr_steppable)
+    {
+        return kClassSteppable;
+    }
+    if (gradient_value <= config_.traversability.grad_thr_unsteppable)
+    {
+        return kClassUnsteppable;
+    }
+    return kClassImpassable;
 }
 
 void HeightMapBuilderNode::PublishHeightMapWindow()
@@ -1427,8 +1886,15 @@ void HeightMapBuilderNode::PublishHeightMapWindow()
                   << std::endl;
     }
 
-    const uint8_t unknown_class =
-        config_.traversability.unknown_is_impassable ? kClassImpassable : kClassUnsteppable;
+    std::vector<float> gradient_values;
+    std::vector<uint8_t> gradient_validity;
+    ComputeSobelGradient(
+        filtered_heights,
+        filtered_validity,
+        local_w,
+        local_h,
+        &gradient_values,
+        &gradient_validity);
 
     mors_msgs::heightmap_msg msg;
     msg.origin_x = static_cast<float>(safe_robot_x);
@@ -1449,7 +1915,16 @@ void HeightMapBuilderNode::PublishHeightMapWindow()
                 out_idx < filtered_heights.size() &&
                 std::isfinite(filtered_heights[out_idx]);
             const double h = valid ? static_cast<double>(filtered_heights[out_idx]) : 0.0;
-            const uint8_t cls = valid ? kClassSteppable : unknown_class;
+            const bool gradient_valid =
+                valid &&
+                out_idx < gradient_validity.size() &&
+                gradient_validity[out_idx] != 0u &&
+                out_idx < gradient_values.size() &&
+                std::isfinite(gradient_values[out_idx]);
+            const double gradient_value = gradient_valid
+                                              ? static_cast<double>(gradient_values[out_idx])
+                                              : std::numeric_limits<double>::quiet_NaN();
+            const uint8_t cls = ClassifyTraversability(valid, gradient_value, gradient_valid);
 
             msg.data[out_idx] = static_cast<int16_t>(PackHeightCell(
                 valid,
@@ -1511,6 +1986,9 @@ void HeightMapBuilderNode::OnDepthImage(
         &points_world_y,
         &points_world_z);
     PublishPointCloud(*msg, points_world_x, points_world_y, points_world_z);
+    ShiftGlobalMapIfNeeded(
+        latest_robot_state_.position[0],
+        latest_robot_state_.position[1]);
     UpdateGlobalHeightMap(
         points_world_x,
         points_world_y,

@@ -58,6 +58,9 @@ struct MapConfig
     double cell_size{0.015};
     double global_size_x{15.0};
     double global_size_y{15.0};
+    bool rolling_enabled{true};
+    int rolling_margin_cells_x{0};
+    int rolling_margin_cells_y{0};
     int local_window_cells_x{100};
     int local_window_cells_y{100};
     double height_min{-2.0};
@@ -71,8 +74,16 @@ struct FilteringConfig
     std::string opening_kernel_shape{"ellipse"};
 };
 
+struct GradientConfig
+{
+    std::string method{"sobel"};
+    double sobel_scale{1.0};
+};
+
 struct TraversabilityConfig
 {
+    double grad_thr_steppable{0.05};
+    double grad_thr_unsteppable{0.12};
     bool unknown_is_impassable{true};
 };
 
@@ -89,6 +100,7 @@ struct HeightMapBuilderConfig
     SyncConfig sync;
     MapConfig map;
     FilteringConfig filtering;
+    GradientConfig gradient;
     TraversabilityConfig traversability;
     RuntimeConfig runtime;
     bool use_camera_pose_params{true};
@@ -142,6 +154,12 @@ private:
     bool LoadConfig(const std::string& config_path);
     void ApplyIntrinsicsFallback();
     void InitializeGlobalMapStorage();
+    void ResolveRollingConfig();
+    void ClearAllGlobalMapCells();
+    void ResetGlobalMapAround(double center_x, double center_y);
+    void ClearLogicalCell(int gx, int gy);
+    void ApplyGlobalMapShift(int shift_dx_cells, int shift_dy_cells);
+    void ShiftGlobalMapIfNeeded(double robot_x, double robot_y);
     int GridXFromWorldX(double x) const;
     int GridYFromWorldY(double y) const;
     size_t GridIndex(int gx, int gy) const;
@@ -201,6 +219,17 @@ private:
         int height,
         std::vector<float>* output_heights,
         std::vector<uint8_t>* output_validity) const;
+    void ComputeSobelGradient(
+        const std::vector<float>& input_heights,
+        const std::vector<uint8_t>& input_validity,
+        int width,
+        int height,
+        std::vector<float>* output_gradient,
+        std::vector<uint8_t>* output_validity) const;
+    uint8_t ClassifyTraversability(
+        bool height_valid,
+        double gradient_value,
+        bool gradient_valid) const;
     void PublishHeightMapWindow();
 
     void OnDepthImage(
@@ -219,6 +248,10 @@ private:
     int global_cells_y_{0};
     double map_min_x_{0.0};
     double map_min_y_{0.0};
+    int storage_offset_x_{0};
+    int storage_offset_y_{0};
+    int rolling_margin_cells_x_{0};
+    int rolling_margin_cells_y_{0};
     std::vector<float> height_layer_;
     std::vector<uint8_t> validity_layer_;
     std::vector<int64_t> timestamp_layer_;

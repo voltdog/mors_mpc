@@ -484,10 +484,10 @@ private:
     cloud_msg.width = static_cast<uint32_t>(valid_points);
     cloud_msg.is_bigendian = false;
     cloud_msg.is_dense = true;
-    cloud_msg.point_step = static_cast<uint32_t>(4 * sizeof(float));  // x,y,z,intensity
+    cloud_msg.point_step = static_cast<uint32_t>(5 * sizeof(float));  // x,y,z,intensity,rgb
     cloud_msg.row_step = cloud_msg.point_step * cloud_msg.width;
 
-    cloud_msg.fields.resize(4);
+    cloud_msg.fields.resize(5);
     cloud_msg.fields[0].name = "x";
     cloud_msg.fields[0].offset = 0;
     cloud_msg.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
@@ -507,6 +507,11 @@ private:
     cloud_msg.fields[3].offset = 12;
     cloud_msg.fields[3].datatype = sensor_msgs::msg::PointField::FLOAT32;
     cloud_msg.fields[3].count = 1;
+
+    cloud_msg.fields[4].name = "rgb";
+    cloud_msg.fields[4].offset = 16;
+    cloud_msg.fields[4].datatype = sensor_msgs::msg::PointField::FLOAT32;
+    cloud_msg.fields[4].count = 1;
 
     cloud_msg.data.resize(static_cast<size_t>(cloud_msg.row_step));
     uint8_t * dst = cloud_msg.data.data();
@@ -539,11 +544,32 @@ private:
         const float z = static_cast<float>(
           heightmap_height_min_ + static_cast<double>(height_q) * heightmap_height_resolution_);
         const float intensity = static_cast<float>(traversability_class);
+        // Explicit class colors for RViz RGB8:
+        // 0 (STEPPABLE)   -> [53, 132, 228]
+        // 1 (UNSTEPPABLE) -> [246, 211, 45]
+        // 2 (IMPASSABLE)  -> [224, 27, 36]
+        uint32_t rgb = 0xFF00FFu;  // fallback: magenta for unexpected class value
+        switch (traversability_class) {
+          case 0u:
+            rgb = 0x3584E4u;
+            break;
+          case 1u:
+            rgb = 0xF6D32Du;
+            break;
+          case 2u:
+            rgb = 0xE01B24u;
+            break;
+          default:
+            break;
+        }
+        float rgb_packed = 0.0f;
+        std::memcpy(&rgb_packed, &rgb, sizeof(uint32_t));
 
         std::memcpy(dst + out_idx * cloud_msg.point_step + 0, &x, sizeof(float));
         std::memcpy(dst + out_idx * cloud_msg.point_step + 4, &y, sizeof(float));
         std::memcpy(dst + out_idx * cloud_msg.point_step + 8, &z, sizeof(float));
         std::memcpy(dst + out_idx * cloud_msg.point_step + 12, &intensity, sizeof(float));
+        std::memcpy(dst + out_idx * cloud_msg.point_step + 16, &rgb_packed, sizeof(float));
         ++out_idx;
       }
     }

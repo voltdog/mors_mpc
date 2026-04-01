@@ -17,3 +17,9 @@ python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_boards.py \
   --x-span 10.0 \
   --mixed-materials \
   --seed 7
+
+python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_boxes.py \
+  --first-box-height 0.01 \
+  --last-box-height 0.12 \
+  --box-count 12 \
+  --center-spacing 0.9
