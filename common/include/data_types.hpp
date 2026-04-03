@@ -1,6 +1,7 @@
 #ifndef _data_types_hpp_
 #define _data_types_hpp_
 
+#include <cstdint>
 #include <Eigen/Dense>
 
 namespace mors::wbic
@@ -42,6 +43,12 @@ inline constexpr int kMaxContactLegs = kNumLegs;
 inline constexpr int kMaxContactDim = kMaxContactLegs * kForceDimPerLeg;
 inline constexpr int kMaxSupportIneq = kMaxContactLegs * kSupportIneqPerLeg;
 inline constexpr int kMaxQpVars = kBaseDofs + kMaxContactDim;
+
+// HeightMapBuilder publishes fixed local window size configured project-wide.
+// Keep these compile-time constants synchronized with heightmap_builder.yaml.
+inline constexpr int kHeightmapCellsX = 100;
+inline constexpr int kHeightmapCellsY = 100;
+inline constexpr int kHeightmapCellCount = kHeightmapCellsX * kHeightmapCellsY;
 
 template<int NumSupportLegs>
 inline constexpr int kContactDim = NumSupportLegs * kForceDimPerLeg;
@@ -175,6 +182,18 @@ using QpMaxVectord = Vector18dT<Scalar>;
 template<typename Scalar = double>
 using QpEqMaxMatrixd = Matrix6_18dT<Scalar>;
 
+template<typename Scalar = std::uint16_t>
+using HeightmapPackedMatrixT =
+    Eigen::Matrix<Scalar, kHeightmapCellsY, kHeightmapCellsX, Eigen::RowMajor>;
+
+template<typename Scalar = float>
+using HeightmapMatrixT =
+    Eigen::Matrix<Scalar, kHeightmapCellsY, kHeightmapCellsX, Eigen::RowMajor>;
+
+template<typename Scalar = std::uint8_t>
+using TraversabilityMatrixT =
+    Eigen::Matrix<Scalar, kHeightmapCellsY, kHeightmapCellsX, Eigen::RowMajor>;
+
 using Vector3d = Vector3dT<>;
 using Vector4d = Vector4dT<>;
 using Vector6d = Vector6dT<>;
@@ -196,6 +215,9 @@ using Matrix12_18d = Matrix12_18dT<>;
 using Matrix18_3d = Matrix18_3dT<>;
 using Matrix18_12d = Matrix18_12dT<>;
 using Matrix24_18d = Matrix24_18dT<>;
+using HeightmapPackedMatrix = HeightmapPackedMatrixT<>;
+using HeightmapMatrix = HeightmapMatrixT<>;
+using TraversabilityMatrix = TraversabilityMatrixT<>;
 
 template<int NumSupportLegs, typename Scalar = double>
 using ContactVectord = VectorNd<kContactDim<NumSupportLegs>, Scalar>;

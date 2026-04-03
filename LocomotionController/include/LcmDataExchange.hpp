@@ -21,6 +21,7 @@
 #include "mors_msgs/gait_params_msg.hpp"
 #include "mors_msgs/enable_msg.hpp"
 #include "mors_msgs/phase_signal_msg.hpp"
+#include "mors_msgs/heightmap_msg.hpp"
  
 
 
@@ -60,6 +61,9 @@ class LCMExchanger
         void enableHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const mors_msgs::enable_msg* msg);
+        void heightmapHandler(const lcm::ReceiveBuffer* rbuf,
+                            const std::string& chan,
+                            const mors_msgs::heightmap_msg* msg);
 
         RobotData getRobotCmd();
         RobotData getBodyState();
@@ -75,6 +79,8 @@ class LCMExchanger
         bool get_leg_enable();
         void get_active_legs(vector<bool>& active_legs);
         int get_adaptation_type();
+        void get_heightmap_data(VisionBasedMap& vision_map);
+        void getHeightmapStatus(bool& heightmap_received) const;
         void get_enable_state(bool& locomotion_enable,
                               bool& leg_controller_enable);
 
@@ -96,8 +102,10 @@ class LCMExchanger
         void servoStateThread();
         void gaitParamsThread();
         void enableThread();
+        void heightmapThread();
 
         string robot_cmd_channel, robot_state_channel, servo_state_channel, gait_params_channel, enable_channel;
+        string heightmap_channel;
         string wbc_cmd_channel, wbc_state_channel, phase_signal_channel;
         string mpc_cmd_channel;
         string servo_cmd_channel;
@@ -107,12 +115,14 @@ class LCMExchanger
         lcm::LCM servo_state_subscriber;
         lcm::LCM gait_params_subscriber;
         lcm::LCM enable_subscriber;
+        lcm::LCM heightmap_subscriber;
 
         unique_ptr<thread> thRobotCmd;
         unique_ptr<thread> thRobotState;
         unique_ptr<thread> thServoState;
         unique_ptr<thread> thGaitParams;
         unique_ptr<thread> thEnable;
+        unique_ptr<thread> thHeightmap;
 
         lcm::LCM wbc_cmd_publisher;
         lcm::LCM wbc_state_publisher;
@@ -137,18 +147,23 @@ class LCMExchanger
         double stride_height;
         vector<bool> active_legs;
         int adaptation_type;
+        VisionBasedMap vision_map;
+        float heightmap_height_min;
+        float heightmap_height_resolution;
 
         bool locomotion_enable;
         bool leg_controller_enable;
         bool leg_controller_reset;
         std::atomic<bool> robot_state_received_{false};
         std::atomic<bool> servo_state_received_{false};
+        std::atomic<bool> heightmap_received_{false};
 
         mutable std::mutex robot_cmd_mutex;
         mutable std::mutex robot_state_mutex;
         mutable std::mutex servo_state_mutex;
         mutable std::mutex gait_params_mutex;
         mutable std::mutex enable_mutex;
+        mutable std::mutex heightmap_mutex;
 };
 
 #endif //_lcm_data_exchange_hpp_

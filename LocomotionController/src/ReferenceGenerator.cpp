@@ -14,6 +14,9 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     foot_pos_local_just_stance.resize(4,3);
     foot_pos_local_just_stance.setZero();
     foot_pos_valid_just_stance.fill(false);
+    foot_pos_global_just_swing.resize(4,3);
+    foot_pos_global_just_swing.setZero();
+    foot_pos_valid_just_swing.fill(false);
     R_body_for_vel.resize(3,3);
     x_ref.resize(13);
     x_ref.setZero();
@@ -25,8 +28,8 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     lpf_x_vel.reconfigureFilter(dt, c_freq);
     lpf_y_vel.reconfigureFilter(dt, c_freq);
     lpf_z_vel.reconfigureFilter(dt, c_freq);
-    lpf_pitch_pos.reconfigureFilter(dt, c_freq);
-    lpf_z_pos.reconfigureFilter(dt, c_freq);
+    lpf_pitch_pos.reconfigureFilter(dt, c_freq*2);
+    lpf_z_pos.reconfigureFilter(dt, c_freq*2);
     lpf_yaw_vel.reconfigureFilter(dt, c_freq);
 
     // Initialize foot positions in local frame
@@ -73,9 +76,9 @@ void ReferenceGenerator::set_body_adaptation_mode(int mode) {
 // Step function
 Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
                                     const std::vector<Eigen::Vector3d>& foot_pos_global,
+                                    const std::vector<Eigen::Vector3d>& foot_pos_finish_global,
                                     const RobotData& robot_cmd,
                                     const RobotData& robot_state) { 
-
     // Apply low-pass filters to reference velocities
     ref_body_vel_filtered(X) = lpf_x_vel.update(robot_cmd.lin_vel(X));
     ref_body_vel_filtered(Y) = lpf_y_vel.update(robot_cmd.lin_vel(Y));
@@ -92,10 +95,12 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
     ref_y_pos = (abs(ref_body_vel_filtered(Y)) < 0.01) ? saved_y_pos : (robot_state.pos(Y) + ref_body_vel_filtered(Y) * dt);
 
     update_support_foot_states(phase_signal, foot_pos_global, robot_state);
+    update_swing_foot_states(phase_signal, foot_pos_finish_global, robot_state);
 
     // pitch pos adaptation
     bool has_pitch_support = false;
-    const double raw_ref_pitch_pos = compute_ref_pitch_pos(phase_signal, has_pitch_support);
+    const double raw_ref_pitch_pos =
+        compute_ref_pitch_pos(phase_signal, robot_state, has_pitch_support);
     if (body_adapt_mode == INCL_ADAPT) {
         if (has_pitch_support) {
             ref_pitch_pos = lpf_pitch_pos.update(raw_ref_pitch_pos);
@@ -198,30 +203,70 @@ void ReferenceGenerator::update_support_foot_states(
     }
 }
 
+void ReferenceGenerator::update_swing_foot_states(
+    const std::vector<int>& phase_signal,
+    const std::vector<Eigen::Vector3d>& foot_pos_finish_global,
+    const RobotData& robot_state) {
+    const int leg_count = std::min<int>(NUM_LEGS, phase_signal.size());
+    for (int i = 0; i < leg_count; ++i) {
+        const bool swing_started = (pre_phase_signal[i] == STANCE && phase_signal[i] == SWING);
+        if (swing_started) {
+            // Start a fresh cache window for this swing and wait for the first valid sample.
+            foot_pos_valid_just_swing[i] = false;
+            continue;
+        }
+
+        if (phase_signal[i] != SWING ||
+            foot_pos_valid_just_swing[i] ||
+            i >= static_cast<int>(foot_pos_finish_global.size())) {
+            continue;
+        }
+
+        if (!is_valid_foot_pos(foot_pos_finish_global[i], robot_state)) {
+            continue;
+        }
+
+        foot_pos_global_just_swing.row(i) = foot_pos_finish_global[i].transpose();
+        foot_pos_valid_just_swing[i] = true;
+    }
+}
+
 // Helper method to compute reference z position
 double ReferenceGenerator::compute_ref_z_pos(const std::vector<int>& phase_signal,
                                              bool& has_support) const {
     double mean_z = 0.0;
-    int support_count = 0;
+    int sample_count = 0;
     const int leg_count = std::min<int>(NUM_LEGS, phase_signal.size());
     for (int i = 0; i < leg_count; ++i) {
-        if (!is_support_phase(phase_signal[i]) || !foot_pos_valid_just_stance[i]) {
+        if (is_support_phase(phase_signal[i])) {
+            if (!foot_pos_valid_just_stance[i]) {
+                continue;
+            }
+            mean_z += foot_pos_global_just_stance(i, Z);
+            ++sample_count;
             continue;
         }
-        mean_z += foot_pos_global_just_stance(i, Z);
-        ++support_count;
+
+        if ((phase_signal[i] != SWING && phase_signal[i] != LATE_CONTACT) ||
+            !foot_pos_valid_just_swing[i]) {
+            continue;
+        }
+
+        mean_z += foot_pos_global_just_swing(i, Z);
+        ++sample_count;
     }
 
-    has_support = support_count > 0;
+    has_support = sample_count > 0;
     if (!has_support) {
         return 0.0;
     }
 
-    return mean_z / static_cast<double>(support_count);
+    return mean_z / static_cast<double>(sample_count);
 }
 
 // Helper method to compute reference pitch position
 double ReferenceGenerator::compute_ref_pitch_pos(const std::vector<int>& phase_signal,
+                                                 const RobotData& robot_state,
                                                  bool& has_pitch_support) const {
     Eigen::Vector3d front_mean = Eigen::Vector3d::Zero();
     Eigen::Vector3d rear_mean = Eigen::Vector3d::Zero();
@@ -231,26 +276,36 @@ double ReferenceGenerator::compute_ref_pitch_pos(const std::vector<int>& phase_s
     const int front_legs[2] = {R1, L1};
     const int rear_legs[2] = {R2, L2};
 
-    for (int leg_id : front_legs) {
+    const auto accumulate_leg_local = [&](int leg_id, Eigen::Vector3d& mean, int& count) {
         if (leg_id >= static_cast<int>(phase_signal.size())) {
-            continue;
+            return;
         }
-        if (!is_support_phase(phase_signal[leg_id]) || !foot_pos_valid_just_stance[leg_id]) {
-            continue;
+
+        if (is_support_phase(phase_signal[leg_id])) {
+            if (!foot_pos_valid_just_stance[leg_id]) {
+                return;
+            }
+            mean += foot_pos_local_just_stance.row(leg_id).transpose();
+            ++count;
+            return;
         }
-        front_mean += foot_pos_local_just_stance.row(leg_id).transpose();
-        ++front_count;
+
+        if ((phase_signal[leg_id] != SWING && phase_signal[leg_id] != LATE_CONTACT) ||
+            !foot_pos_valid_just_swing[leg_id]) {
+            return;
+        }
+
+        const Eigen::Vector3d p_swing_global = foot_pos_global_just_swing.row(leg_id).transpose();
+        mean += foot_pos_to_yaw_aligned_local(p_swing_global, robot_state);
+        ++count;
+    };
+
+    for (int leg_id : front_legs) {
+        accumulate_leg_local(leg_id, front_mean, front_count);
     }
 
     for (int leg_id : rear_legs) {
-        if (leg_id >= static_cast<int>(phase_signal.size())) {
-            continue;
-        }
-        if (!is_support_phase(phase_signal[leg_id]) || !foot_pos_valid_just_stance[leg_id]) {
-            continue;
-        }
-        rear_mean += foot_pos_local_just_stance.row(leg_id).transpose();
-        ++rear_count;
+        accumulate_leg_local(leg_id, rear_mean, rear_count);
     }
 
     has_pitch_support = front_count > 0 && rear_count > 0;

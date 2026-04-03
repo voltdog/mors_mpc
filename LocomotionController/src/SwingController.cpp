@@ -34,6 +34,13 @@ void SwingController::set_gait_params(double t_sw, double t_st, double ref_strid
     swing_traj_gen.set_parameters(t_sw, dz_near_ground);
 }
 
+void SwingController::set_heightmap(const VisionBasedMap& vision_map)
+{
+    for (auto& planner : step_planner) {
+        planner.set_heightmap(vision_map);
+    }
+}
+
 std::tuple<std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>>
 SwingController::step(const std::vector<int>& phase_signal,
                          const std::vector<double>& phi_cur,
@@ -76,7 +83,12 @@ SwingController::step(const std::vector<int>& phase_signal,
             for (int j = 0; j < 3; ++j) p_finish[i][j] = p_finish_i[j];
 
             double max_rise_z = step_planner[i].get_hip_location()[Z]  + ref_body_height - 0.05; //
-            double p_rise_z = p_start[i][Z] + ref_stride_height;
+            double p_rise_z = 0.0;
+            if ((p_finish[i][Z] - p_start[i][Z]) > 0) {
+                p_rise_z = p_finish[i][Z] + ref_stride_height + abs(p_finish[i][Z] - p_start[i][Z]) * 0.2;
+            } else {
+                p_rise_z = p_start[i][Z] + ref_stride_height;
+            }
             p_rise_z = std::min(p_rise_z, max_rise_z); 
 
             p_rise[i] = {{
@@ -113,4 +125,13 @@ SwingController::step(const std::vector<int>& phase_signal,
 
     pre_phase_signal = phase_signal;
     return {x_ref_glob_out, dx_ref, ddx_ref};
+}
+
+std::vector<Eigen::Vector3d> SwingController::get_p_finish() const {
+    std::vector<Eigen::Vector3d> p_finish_out(NUM_LEGS, Eigen::Vector3d::Zero());
+    const int leg_count = std::min<int>(NUM_LEGS, static_cast<int>(p_finish.size()));
+    for (int i = 0; i < leg_count; ++i) {
+        p_finish_out[i] << p_finish[i][X], p_finish[i][Y], p_finish[i][Z];
+    }
+    return p_finish_out;
 }

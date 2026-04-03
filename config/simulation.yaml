@@ -2,19 +2,19 @@ frequency: 1000
 mjcf_root: "MJCF/mors.xml"
 render_quality: "low" # "high" or "low"
 
-scene: "boards" # "stairs" "patch" "boxes" "ramp" "flat" "boards"
+scene: "boxes" # "stairs" "patch" "boxes" "ramp" "flat" "boards" "stumps" "swing"
  
 # <<
-# init_motor_angles: [0.0, -1.57, 3.14,
-#                     -0.0, 1.57, -3.14,
-#                     -0.0, -1.57, 3.14,
-#                     0.0, 1.57, -3.14]
-
-# X
 init_motor_angles: [0.0, -1.57, 3.14,
                     -0.0, 1.57, -3.14,
-                    -0.0, 1.57, -3.14,
-                    0.0,  -1.57, 3.14]
+                    -0.0, -1.57, 3.14,
+                    0.0, 1.57, -3.14]
+
+# X
+# init_motor_angles: [0.0, -1.57, 3.14,
+#                     -0.0, 1.57, -3.14,
+#                     -0.0, 1.57, -3.14,
+#                     0.0,  -1.57, 3.14]
 
 # O
 # init_motor_angles: [0.0,   1.57, -3.14,

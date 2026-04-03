@@ -23,3 +23,17 @@ python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_boxes.py \
   --last-box-height 0.12 \
   --box-count 12 \
   --center-spacing 0.9
+
+python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_stumps.py \
+  --platform-width 2.0 \
+  --step-count 5 \
+  --step-height 0.05 \
+  --step-depth 0.3 \
+  --top-platform-length 0.8 \
+  --stump-zone-length 1.8 \
+  --max-stump-gap 0.25 \
+  --min-stump-gap 0.05 \
+  --stump-height-variation 0.08 \
+  --min-stump-diameter 0.08 \
+  --max-stump-diameter 0.2 \
+  --seed 7

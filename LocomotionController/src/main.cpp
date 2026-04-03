@@ -150,6 +150,8 @@ int main() {
     RobotData robot_cmd, robot_ref;
     LegData leg_state;
     LegData leg_cmd;
+    VisionBasedMap vision_map;
+    bool heightmap_received = false;
     Vector2d robot_pos_offset = Vector2d::Zero();
     double robot_yaw_offset = 0.0;
 
@@ -211,6 +213,7 @@ int main() {
     
     // other variables
     std::vector<Eigen::Vector3d> p_ref(4), dp_ref(4), ddp_ref(4);
+    std::vector<Eigen::Vector3d> p_finish_swing(4, Eigen::Vector3d::Zero());
     std::vector<Eigen::Vector3d> p_ref_stance(4);
     std::vector<Eigen::Vector3d> dp_ref_stance(4);
     std::vector<Eigen::Vector3d> ddp_ref_stance(4);
@@ -284,6 +287,12 @@ int main() {
         lcmExch.get_active_legs(active_legs);
         adaptation_type = lcmExch.get_adaptation_type();
         
+        lcmExch.getHeightmapStatus(heightmap_received);
+        if (heightmap_received) {
+            lcmExch.get_heightmap_data(vision_map);
+            swing_controller.set_heightmap(vision_map);
+        }
+        
         if (enable == true)
         {
             cos_yaw = cos(robot_state.orientation(Z));
@@ -302,6 +311,11 @@ int main() {
             gait_scheduler.step(t, standing, desired_leg_state, leg_phi);
             phase_signal = contact_fsm.step(leg_state.contacts, leg_phi, desired_leg_state);
 
+            foot_pos_global[0] = leg_state.r1_pos;
+            foot_pos_global[1] = leg_state.l1_pos;
+            foot_pos_global[2] = leg_state.r2_pos;
+            foot_pos_global[3] = leg_state.l2_pos;
+
             // ------------------
             // REFERENCE GENERATOR
             // ------------------
@@ -313,6 +327,7 @@ int main() {
             ref_generator.set_body_adaptation_mode(adaptation_type);
             mpc_cmd = ref_generator.step(phase_signal, 
                                 foot_pos_global,
+                                p_finish_swing,
                                 robot_cmd,
                                 robot_state);
             // mpc_cmd.segment<2>(3) += robot_pos_offset;
@@ -372,11 +387,6 @@ int main() {
             // SWING CONTROLLER
             // ------------------
             base_rpy_rate << robot_state.ang_vel(X), robot_state.ang_vel(Y), robot_state.ang_vel(Z);
-
-            foot_pos_global[0] = leg_state.r1_pos;
-            foot_pos_global[1] = leg_state.l1_pos;
-            foot_pos_global[2] = leg_state.r2_pos;
-            foot_pos_global[3] = leg_state.l2_pos;
  
             // convert data to swing controller format
             ref_body_vel << mpc_cmd(9), mpc_cmd(10), mpc_cmd(11);
@@ -394,6 +404,7 @@ int main() {
                                                                     base_rpy_rate,
                                                                     R_body_yaw_align,
                                                                     foot_pos_global);
+            p_finish_swing = swing_controller.get_p_finish();
 
             // convert grf_cmd to convinient format
             if (active_legs[R1] == false) leg_cmd.r1_grf.setZero();

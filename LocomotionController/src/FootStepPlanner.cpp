@@ -1,6 +1,8 @@
 #include "FootStepPlanner.hpp"
 #include <algorithm>
 #include <cmath>
+#include <yaml-cpp/yaml.h>
+#include "system_functions.hpp"
 
 FootStepPlanner::FootStepPlanner()
     : p0_b(0.1655, -0.067, 0.0),
@@ -9,7 +11,24 @@ FootStepPlanner::FootStepPlanner()
       h(0.22),
       k1(0.03),
       max_leg_length(0.3),
-      dp_hip_sum(Eigen::Vector3d::Zero()) {}
+      has_vision_map_(false),
+      cell_size_(0.015),
+      dp_hip_sum(Eigen::Vector3d::Zero())
+{
+    try {
+        std::string config_address = mors_sys::GetEnv("CONFIGPATH");
+        config_address += "/heightmap_builder.yaml";
+        const YAML::Node cfg = YAML::LoadFile(config_address);
+        if (cfg["map"] && cfg["map"]["cell_size"]) {
+            const double cell = cfg["map"]["cell_size"].as<double>();
+            if (std::isfinite(cell) && cell > 0.0) {
+                cell_size_ = cell;
+            }
+        }
+    } catch (const std::exception&) {
+        // Keep fallback cell size.
+    }
+}
  
 void FootStepPlanner::set_robot_params(const Eigen::Vector3d& p0_b_) {
     p0_b = p0_b_;
@@ -33,7 +52,12 @@ void FootStepPlanner::set_start_position(const Eigen::Vector3d& base_pos_,
     base_orient = base_orient_;
 }
 
-Eigen::Vector3d FootStepPlanner::get_hip_location() const {
+void FootStepPlanner::set_heightmap(const VisionBasedMap& vision_map) {
+    vision_map_ = vision_map;
+    has_vision_map_ = true;
+}
+
+Eigen::Vector3d FootStepPlanner::get_hip_location() const { 
     return hip_location;
 }
 
@@ -112,5 +136,71 @@ Eigen::Vector3d FootStepPlanner::step(const Eigen::Vector3d& body_pos,
         p_ef_cmd(Z) = avg_z_foothold_pos;
     }
 
-    return p_ef_cmd;
+    p_ef_cmd_updated = update_footstep_location(p_ef_cmd);
+
+    return p_ef_cmd_updated;
+    // return p_ef_cmd;
+}
+
+Eigen::Vector3d FootStepPlanner::update_footstep_location(const Eigen::Vector3d& p_ef_cmd_nominal) const
+{
+    if (!has_vision_map_ || !(cell_size_ > 0.0)) {
+        return p_ef_cmd_nominal;
+    }
+
+    const int rows = static_cast<int>(vision_map_.heightmap.rows());
+    const int cols = static_cast<int>(vision_map_.heightmap.cols());
+    if (rows <= 0 || cols <= 0) {
+        return p_ef_cmd_nominal;
+    }
+
+    const int center_row =
+        static_cast<int>(std::floor((p_ef_cmd_nominal(Y) - static_cast<double>(vision_map_.origin_y)) / cell_size_)) +
+        rows / 2;
+    const int center_col =
+        static_cast<int>(std::floor((p_ef_cmd_nominal(X) - static_cast<double>(vision_map_.origin_x)) / cell_size_)) +
+        cols / 2;
+
+    int selected_row = center_row;
+    int selected_col = center_col;
+    if (!search_foothold(center_row, center_col, selected_row, selected_col)) {
+        return p_ef_cmd_nominal;
+    }
+
+    Eigen::Vector3d foothold = p_ef_cmd_nominal;
+    const double start_x =
+        static_cast<double>(vision_map_.origin_x) - 0.5 * static_cast<double>(cols) * cell_size_;
+    const double start_y =
+        static_cast<double>(vision_map_.origin_y) - 0.5 * static_cast<double>(rows) * cell_size_;
+
+    foothold(X) = start_x + (static_cast<double>(selected_col) + 0.5) * cell_size_;
+    foothold(Y) = start_y + (static_cast<double>(selected_row) + 0.5) * cell_size_;
+    foothold(Z) = static_cast<double>(vision_map_.heightmap(selected_row, selected_col));
+    return foothold;
+}
+
+bool FootStepPlanner::search_foothold(int center_row,
+                                      int center_col,
+                                      int& selected_row,
+                                      int& selected_col) const
+{
+    const int rows = static_cast<int>(vision_map_.heightmap.rows());
+    const int cols = static_cast<int>(vision_map_.heightmap.cols());
+    for (const auto& search_idx : search_idxs) {
+        const int row = center_row + search_idx[1];
+        const int col = center_col + search_idx[0];
+        if (row < 0 || row >= rows || col < 0 || col >= cols) {
+            continue;
+        }
+
+        const uint8_t traversability = vision_map_.traversability(row, col);
+        const float height = vision_map_.heightmap(row, col);
+        if (traversability == 0u && std::isfinite(static_cast<double>(height))) {
+            selected_row = row;
+            selected_col = col;
+            return true;
+        }
+    }
+
+    return false;
 }

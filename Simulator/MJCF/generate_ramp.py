@@ -142,11 +142,12 @@ def render_scene(
     ground_half_x = max(15.0, end_x + 2.0)
     ground_half_y = max(15.0, RAMP_WIDTH / 2.0 + 2.0)
     statistic_center_z = max(0.1, height / 2.0)
-    statistic_extent = max(
-        ground_half_x,
-        ground_half_y,
-        height + 2.0,
-    )
+    # statistic_extent = max(
+    #     ground_half_x,
+    #     ground_half_y,
+    #     height + 2.0,
+    # )
+    statistic_extent = 2
 
     return f"""<mujoco model="{{name}} ramp scene">
   <include file="{{path}}" />

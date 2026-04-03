@@ -9,7 +9,7 @@ from pathlib import Path
 
 DEFAULT_OUTPUT = Path(__file__).with_name("boxes.xml")
 FIRST_BOX_CENTER_X = 0.6
-BOX_HALF_SIZE_X = 0.1
+BOX_HALF_SIZE_X = 0.2
 BOX_HALF_SIZE_Y = 1.0
 
 
@@ -120,7 +120,8 @@ def render_scene(
     ground_half_x = max(15.0, last_center_x + BOX_HALF_SIZE_X + 2.0)
     ground_half_y = 15.0
     statistic_center_z = max(0.1, max_height)
-    statistic_extent = max(11.0, last_center_x + BOX_HALF_SIZE_X + 0.4)
+    # statistic_extent = max(11.0, last_center_x + BOX_HALF_SIZE_X + 0.4)
+    statistic_extent = 2
 
     return f"""<mujoco model="{{name}} boxes scene">
   <include file="{{path}}" />

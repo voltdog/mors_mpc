@@ -1,7 +1,7 @@
 <mujoco model="{name} boxes scene">
   <include file="{path}" />
 
-  <statistic center="5.55 0 0.12" extent="11.0" meansize="0.04" />
+  <statistic center="5.55 0 0.12" extent="2.0" meansize="0.04" />
 
   <visual>
     <headlight diffuse="0.0 0.0 0.0" ambient="0.0 0.0 0.0" specular="0.0 0.0 0.0" />

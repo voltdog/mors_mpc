@@ -22,6 +22,7 @@ public:
     void set_body_adaptation_mode(int mode);
     Eigen::VectorXd step(const std::vector<int>& phase_signal,
                          const std::vector<Eigen::Vector3d>& foot_pos_global,
+                         const std::vector<Eigen::Vector3d>& foot_pos_finish_global,
                          const RobotData& robot_cmd,
                          const RobotData& robot_state);
 
@@ -37,6 +38,8 @@ private:
     Eigen::Matrix<double, 4, 3> foot_pos_global_just_stance;
     Eigen::Matrix<double, 4, 3> foot_pos_local_just_stance;
     std::array<bool, NUM_LEGS> foot_pos_valid_just_stance;
+    Eigen::Matrix<double, 4, 3> foot_pos_global_just_swing;
+    std::array<bool, NUM_LEGS> foot_pos_valid_just_swing;
     Eigen::VectorXd x_ref;
 
     // Reference values
@@ -56,8 +59,13 @@ private:
     void update_support_foot_states(const std::vector<int>& phase_signal,
                                     const std::vector<Eigen::Vector3d>& foot_pos_global,
                                     const RobotData& robot_state);
+    void update_swing_foot_states(const std::vector<int>& phase_signal,
+                                  const std::vector<Eigen::Vector3d>& foot_pos_finish_global,
+                                  const RobotData& robot_state);
     double compute_ref_z_pos(const std::vector<int>& phase_signal, bool& has_support) const;
-    double compute_ref_pitch_pos(const std::vector<int>& phase_signal, bool& has_pitch_support) const;
+    double compute_ref_pitch_pos(const std::vector<int>& phase_signal,
+                                 const RobotData& robot_state,
+                                 bool& has_pitch_support) const;
 
     Eigen::VectorXd ref_body_vel_filtered, ref_body_vel_directed;
     double ref_body_yaw_vel_filtered;

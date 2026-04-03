@@ -24,16 +24,16 @@ LAY_DOWN = 2
 BODY_Z_MAX = 0.26
 BODY_Z_MIN = 0.1
 
-KEYBOARD_STRIDE_HEIGHT = 0.12
+KEYBOARD_STRIDE_HEIGHT = 0.04
 KEYBOARD_STRIDE_HEIGHT_STEP = 0.005
 KEYBOARD_STRIDE_HEIGHT_MIN = 0.0
-KEYBOARD_T_SW = 0.21
+KEYBOARD_T_SW = 0.23
 KEYBOARD_T_SW_STEP = 0.01
 KEYBOARD_T_SW_MIN = 0.01
 KEYBOARD_T_ST_MAX = 0.5
 KEYBOARD_T_ST_MIN = 0.2
 KEYBOARD_GAIT_TYPE = [0.0, 0.5, 0.5, 0.0]
-KEYBOARD_BODY_Z = 0.2
+KEYBOARD_BODY_Z = 0.18
 KEYBOARD_BODY_Z_STEP = 0.002
 KEYBOARD_DEFAULT_SPEED = 0.3
 KEYBOARD_MIN_SPEED = 0.1
@@ -545,11 +545,11 @@ class MorsKeyboardControl(Node):
         self.gait_params_msg.gait_offsets = KEYBOARD_GAIT_TYPE
 
         self.cmd_vel_msg.linear.x = linear_dir * self.keyboard_speed
-        self.cmd_vel_msg.linear.y = lateral_dir * self.keyboard_speed * 0.5
+        self.cmd_vel_msg.linear.y = lateral_dir * self.keyboard_speed * 0.6
         self.cmd_vel_msg.linear.z = 0.0
         self.cmd_vel_msg.angular.x = 0.0
         self.cmd_vel_msg.angular.y = 0.0
-        self.cmd_vel_msg.angular.z = angular_dir * self.keyboard_speed
+        self.cmd_vel_msg.angular.z = angular_dir * self.keyboard_speed * 2.0
 
     def timer_callback(self):
         self._handle_keyboard_control()

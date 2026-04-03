@@ -545,13 +545,13 @@ private:
           heightmap_height_min_ + static_cast<double>(height_q) * heightmap_height_resolution_);
         const float intensity = static_cast<float>(traversability_class);
         // Explicit class colors for RViz RGB8:
-        // 0 (STEPPABLE)   -> [53, 132, 228]
+        // 0 (STEPPABLE)   -> [46, 194, 126]
         // 1 (UNSTEPPABLE) -> [246, 211, 45]
         // 2 (IMPASSABLE)  -> [224, 27, 36]
         uint32_t rgb = 0xFF00FFu;  // fallback: magenta for unexpected class value
         switch (traversability_class) {
           case 0u:
-            rgb = 0x3584E4u;
+            rgb = 0x2ec27eu;
             break;
           case 1u:
             rgb = 0xF6D32Du;

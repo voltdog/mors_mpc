@@ -461,11 +461,12 @@ def render_scene(
     ground_half_x = max(15.0, max_reach_x + resolved_x_spacing + 2.0)
     ground_half_y = max(15.0, max_reach_y + 2.0)
     statistic_center_z = max(0.2, max_center_z / 2.0)
-    statistic_extent = max(
-        ground_half_x,
-        ground_half_y,
-        max_center_z + 2.0,
-    )
+    # statistic_extent = max(
+    #     ground_half_x,
+    #     ground_half_y,
+    #     max_center_z + 2.0,
+    # )
+    statistic_extent = 2
 
     return f"""<mujoco model="{{name}} boards scene">
   <include file="{{path}}" />

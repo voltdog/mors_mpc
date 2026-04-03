@@ -3,8 +3,10 @@
 
 #include <array>
 #include <cstdint>
+#include <limits>
 #include <Eigen/Dense>
 #include <iostream>
+#include "data_types.hpp"
 
 using namespace std;
 using namespace Eigen;
@@ -217,6 +219,26 @@ struct ServoStateData
     JointVector12d velocity;
     JointVector12d torque;
     // std::uint64_t sequence = 0;
+};
+
+struct VisionBasedMap
+{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    VisionBasedMap()
+    {
+        heightmap.setConstant(std::numeric_limits<float>::quiet_NaN());
+        traversability.setZero();
+        origin_x = 0.0f;
+        origin_y = 0.0f;
+        yaw = 0.0f;
+    }
+
+    mors::wbic::HeightmapMatrix heightmap;
+    mors::wbic::TraversabilityMatrix traversability;
+    float origin_x;
+    float origin_y;
+    float yaw;
 };
 
 struct WbcDesiredCommand

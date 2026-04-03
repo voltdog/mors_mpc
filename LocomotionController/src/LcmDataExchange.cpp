@@ -2,9 +2,14 @@
 
 #include <cmath>
 #include <Eigen/Geometry>
+#include <limits>
 #include <unistd.h>
 
 namespace {
+
+constexpr uint16_t kHeightCellValidMask = static_cast<uint16_t>(1u << 15);
+constexpr uint16_t kHeightCellClassMask = static_cast<uint16_t>(0x3u << 13);
+constexpr uint16_t kHeightCellHeightMask = static_cast<uint16_t>(0x1FFFu);
 
 RobotData makeZeroRobotData()
 {
@@ -93,6 +98,7 @@ LCMExchanger::LCMExchanger()
         servo_state_subscriber.good() &&
         gait_params_subscriber.good() &&
         enable_subscriber.good() &&
+        heightmap_subscriber.good() &&
         wbc_cmd_publisher.good() &&
         wbc_state_publisher.good() &&
         servo_cmd_publisher.good() &&
@@ -117,6 +123,7 @@ LCMExchanger::LCMExchanger()
     servo_state_channel = channel_config["servo_state"].as<string>();
     gait_params_channel = channel_config["gait_params"].as<string>();
     phase_signal_channel = channel_config["gait_phase"].as<string>();
+    heightmap_channel = channel_config["heightmap"].as<string>();
 
     t_sw = 0.2;
     t_st = 0.3;
@@ -129,6 +136,25 @@ LCMExchanger::LCMExchanger()
     locomotion_enable = false;
     leg_controller_enable = false;
     leg_controller_reset = true;
+    heightmap_height_min = -2.0f;
+    heightmap_height_resolution = 0.005f;
+
+    try {
+        string heightmap_config_address = mors_sys::GetEnv("CONFIGPATH");
+        heightmap_config_address += "/heightmap_builder.yaml";
+        const YAML::Node heightmap_config = YAML::LoadFile(heightmap_config_address);
+        if (heightmap_config["map"]) {
+            const YAML::Node map_config = heightmap_config["map"];
+            if (map_config["height_min"]) {
+                heightmap_height_min = map_config["height_min"].as<float>();
+            }
+            if (map_config["height_resolution"]) {
+                heightmap_height_resolution = map_config["height_resolution"].as<float>();
+            }
+        }
+    } catch (const std::exception&) {
+        // Keep default decode parameters.
+    }
 
     for (int i = 0; i < 3; ++i) {
         wbcStateMsg.r1_grf[i] = 0.0f;
@@ -153,6 +179,7 @@ void LCMExchanger::start_exchanger()
     thServoState = make_unique<thread>(&LCMExchanger::servoStateThread, this);
     thEnable = make_unique<thread>(&LCMExchanger::enableThread, this);
     thGaitParams = make_unique<thread>(&LCMExchanger::gaitParamsThread, this);
+    thHeightmap = make_unique<thread>(&LCMExchanger::heightmapThread, this);
 }
 
 void LCMExchanger::robotCmdHandler(const lcm::ReceiveBuffer*,
@@ -262,6 +289,44 @@ void LCMExchanger::enableHandler(const lcm::ReceiveBuffer*,
     leg_controller_reset = msg->leg_controller_reset;
 }
 
+void LCMExchanger::heightmapHandler(const lcm::ReceiveBuffer*,
+                                    const std::string&,
+                                    const mors_msgs::heightmap_msg* msg)
+{
+    lock_guard<mutex> lock(heightmap_mutex);
+
+    if (msg->data_size != mors::wbic::kHeightmapCellCount ||
+        msg->data.size() < static_cast<size_t>(mors::wbic::kHeightmapCellCount)) {
+        return;
+    }
+
+    vision_map.origin_x = msg->origin_x;
+    vision_map.origin_y = msg->origin_y;
+    vision_map.yaw = msg->yaw;
+
+    for (int row = 0; row < mors::wbic::kHeightmapCellsY; ++row) {
+        for (int col = 0; col < mors::wbic::kHeightmapCellsX; ++col) {
+            const int idx = row * mors::wbic::kHeightmapCellsX + col;
+            const uint16_t packed = static_cast<uint16_t>(msg->data[static_cast<size_t>(idx)]);
+            const bool valid = (packed & kHeightCellValidMask) != 0u;
+            const uint8_t traversability =
+                static_cast<uint8_t>((packed & kHeightCellClassMask) >> 13);
+
+            vision_map.traversability(row, col) = traversability;
+
+            if (valid) {
+                const uint16_t height_q = static_cast<uint16_t>(packed & kHeightCellHeightMask);
+                vision_map.heightmap(row, col) = heightmap_height_min +
+                    static_cast<float>(height_q) * heightmap_height_resolution;
+            } else {
+                vision_map.heightmap(row, col) = std::numeric_limits<float>::quiet_NaN();
+            }
+        }
+    }
+
+    heightmap_received_.store(true, std::memory_order_release);
+}
+
 void LCMExchanger::robotCmdThread()
 {
     robot_cmd_subscriber.subscribe(robot_cmd_channel, &LCMExchanger::robotCmdHandler, this);
@@ -299,6 +364,14 @@ void LCMExchanger::enableThread()
     enable_subscriber.subscribe(enable_channel, &LCMExchanger::enableHandler, this);
     while (true) {
         enable_subscriber.handle();
+    }
+}
+
+void LCMExchanger::heightmapThread()
+{
+    heightmap_subscriber.subscribe(heightmap_channel, &LCMExchanger::heightmapHandler, this);
+    while (true) {
+        heightmap_subscriber.handle();
     }
 }
 
@@ -349,6 +422,11 @@ void LCMExchanger::getWbicObservationStatus(bool& robot_state_received,
     servo_state_received = servo_state_received_.load(std::memory_order_acquire);
 }
 
+void LCMExchanger::getHeightmapStatus(bool& heightmap_received) const
+{
+    heightmap_received = heightmap_received_.load(std::memory_order_acquire); 
+}
+
 void LCMExchanger::get_gait_params(double& t_st,
                                    double& t_sw,
                                    vector<double>& gait_type,
@@ -385,6 +463,12 @@ int LCMExchanger::get_adaptation_type()
 {
     lock_guard<mutex> lock(robot_cmd_mutex);
     return adaptation_type;
+}
+
+void LCMExchanger::get_heightmap_data(VisionBasedMap& vision_map)
+{
+    lock_guard<mutex> lock(heightmap_mutex);
+    vision_map = this->vision_map;
 }
 
 void LCMExchanger::get_enable_state(bool& locomotion_enable,

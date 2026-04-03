@@ -1,7 +1,7 @@
 <mujoco model="{name} patch scene">
   <include file="{path}" />
 
-  <statistic center="0 0 0.1" extent="0.8" meansize="0.04" />
+  <statistic center="0 0 0.1" extent="2" meansize="0.04" />
 
   <visual>
     <headlight diffuse="0.0 0.0 0.0" ambient="0.0 0.0 0.0" specular="0.0 0.0 0.0" />

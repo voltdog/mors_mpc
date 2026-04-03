@@ -28,29 +28,23 @@ map:
   height_resolution: 0.005
 
 depth:
-  min_depth: 0.10
+  min_depth: 0.105
   max_depth: 3.00
-  enable_downsampling: true
+  enable_downsampling: false
   downsample_factor: 2
   remove_outliers: true
-  outlier_window_radius: 1
+  outlier_window_radius: 2
   outlier_threshold_m: 0.12
   min_neighbors_for_outlier: 3
 
 transforms:
   use_camera_pose_params: true
   camera_frame:
-    position_body_m: [0.2565, 0.0, 0.0]
-    euler_deg: [25.0, 0.0, 90.0]
+    position_body_m: [0.23, 0.0, 0.06]
+    euler_deg: [45.0, 0.0, 90.0]
   depth_camera:
     position_camera_frame_m: [0.0125, 0.0, 0.0]
     euler_deg: [-90.0, 0.0, 180.0]
-  T_body_camera: [
-    0.0,       0.0,       1.0,      0.2565,
-   -0.9063078,-0.4226183, 0.0,      0.0113288,
-    0.4226183,-0.9063078, 0.0,     -0.0052827,
-    0.0, 0.0, 0.0, 1.0000
-  ]
 
 sync:
   max_sync_dt_sec: 0.05
@@ -69,11 +63,9 @@ traversability:
   # gradient <= grad_thr_steppable -> STEPPABLE
   # grad_thr_steppable < gradient <= grad_thr_unsteppable -> UNSTEPPABLE
   # gradient > grad_thr_unsteppable -> IMPASSABLE
-  grad_thr_steppable: 0.2
-  grad_thr_unsteppable: 2.4
+  grad_thr_steppable: 0.7
+  grad_thr_unsteppable: 4.0
   unknown_is_impassable: true
-  use_height_discontinuity_check: false
-  height_step_thr: 0.08
 
 runtime:
   verbose: false

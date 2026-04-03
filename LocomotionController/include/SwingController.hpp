@@ -18,6 +18,7 @@ public:
                        double dz_near_ground, double k1_fsp);
 
     void set_gait_params(double t_sw, double t_st, double ref_stride_height);
+    void set_heightmap(const VisionBasedMap& vision_map);
 
     std::tuple<std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>, std::vector<Eigen::Vector3d>>
     step(const std::vector<int>& phase_signal,
@@ -30,6 +31,7 @@ public:
          const Eigen::Vector3d& base_rpy_rate,
          const Eigen::Matrix3d& R_body,
          const std::vector<Eigen::Vector3d>& foot_pos_global);
+    std::vector<Eigen::Vector3d> get_p_finish() const;
 
 private:
     double dz_near_ground;

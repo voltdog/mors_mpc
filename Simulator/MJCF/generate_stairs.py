@@ -112,11 +112,12 @@ def render_scene(
     ground_half_x = max(15.0, center_x + bottom_side / 2.0 + 2.0)
     ground_half_y = max(15.0, bottom_side / 2.0 + 2.0)
     statistic_center_z = max(0.1, pyramid_height / 2.0)
-    statistic_extent = max(
-        ground_half_x,
-        ground_half_y,
-        pyramid_height + 2.0,
-    )
+    # statistic_extent = max(
+    #     ground_half_x,
+    #     ground_half_y,
+    #     pyramid_height + 2.0,
+    # )
+    statistic_extent = 2
 
     return f"""<mujoco model="{{name}} stairs scene">
   <include file="{{path}}" />

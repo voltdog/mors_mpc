@@ -8,6 +8,11 @@
 class FootStepPlanner {
 public:
     static constexpr double k_raibert = 0.5;
+    static constexpr int search_idxs[25][2] = {{ 0,  0}, { 1,  0}, { 1,  1}, { 0,  1}, {-1,  1}, 
+                                               {-1,  0}, {-1, -1}, { 0, -1}, { 1, -1}, { 2, -1}, 
+                                               { 2,  0}, { 2,  1}, { 2,  2}, { 1,  2}, { 0,  2}, 
+                                               {-1,  2}, {-2,  2}, {-2,  1}, {-2,  0}, {-2, -1}, 
+                                               {-2, -2}, {-1, -2}, { 0, -2}, { 1, -2}, { 2, -2}};
 
     FootStepPlanner();
 
@@ -17,6 +22,7 @@ public:
     void set_coefficients(double k1);
     void set_start_position(const Eigen::Vector3d& base_pos,
                             const Eigen::Vector3d& base_orient);
+    void set_heightmap(const VisionBasedMap& vision_map);
     Eigen::Vector3d get_hip_location() const;
 
     Eigen::Vector3d step(const Eigen::Vector3d& body_pos,
@@ -30,12 +36,21 @@ public:
                          double Tst);
 
 private:
+    Eigen::Vector3d update_footstep_location(const Eigen::Vector3d& p_ef_cmd_nominal) const;
+    bool search_foothold(int center_row,
+                         int center_col,
+                         int& selected_row,
+                         int& selected_col) const;
+
     Eigen::Vector3d p0_b;
     Eigen::Vector3d hip_anchor_b;
     Eigen::Vector3d base_pos;
     Eigen::Vector3d base_orient;
     Eigen::Vector3d hip_location;
-    Eigen::Vector3d p_ef_cmd;
+    Eigen::Vector3d p_ef_cmd, p_ef_cmd_updated;
+    VisionBasedMap vision_map_;
+    bool has_vision_map_;
+    double cell_size_;
 
     double g;
     double h;

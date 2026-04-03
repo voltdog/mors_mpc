@@ -37,7 +37,8 @@ set -euo pipefail
         echo "-------------- Simulation Mode Activated --------------" 
         ${SCRIPT_DIR}/.mpc_venv/bin/python ${SCRIPT_DIR}/Simulator/mors_simulator.py &
         pids+=($!)
-        sleep 4s
+        
+        sleep 2s
     else
         # hardware interfaces
         echo "-------------- Hardware Mode Activated --------------"
@@ -50,6 +51,11 @@ set -euo pipefail
         sleep 4s
     fi
 
+    if [ "${2:-}" == "--rviz" ]; then
+        ros2 launch robot_state_viewer robot_state_viewer.launch.py &
+        pids+=($!)
+        sleep 2s
+    fi
     
     # state estimation
     # ${SCRIPT_DIR}/StateEstimator/build/state_estimator &
@@ -64,7 +70,7 @@ set -euo pipefail
     echo "Robot Controller Started Successfully"
 
 	# data logger
-    if [ "${2:-}" == "--log" ]; then
+    if [ "${3:-}" == "--log" ]; then
 	    ${SCRIPT_DIR}/MorsLogger/build/mors_logger &
         logger_pid=$!
         pids+=($logger_pid)
