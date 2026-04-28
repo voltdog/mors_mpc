@@ -115,10 +115,10 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
     double support_mean_z_raw = compute_ref_z_pos(phase_signal, has_support);
     if (body_adapt_mode == INCL_ADAPT || body_adapt_mode == HEIGHT_ADAPT) {
         if (has_support) {
-            if (ref_pitch_pos > 0.05)
-                support_mean_z_raw -= 0.02;
-            else if (ref_pitch_pos > 0.05)
-                support_mean_z_raw += 0.02;
+            // if (ref_pitch_pos > 0.05)
+            //     support_mean_z_raw -= 0.02;
+            // else if (ref_pitch_pos > 0.05)
+            //     support_mean_z_raw += 0.02;
             support_mean_z = lpf_z_pos.update(support_mean_z_raw);
             ref_z_pos = support_mean_z + robot_cmd.pos(Z);
             

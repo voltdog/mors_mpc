@@ -28,12 +28,38 @@ set -euo pipefail
     # Force UDP transport for this local bringup to avoid SHM port conflicts.
     export FASTDDS_BUILTIN_TRANSPORTS="${FASTDDS_BUILTIN_TRANSPORTS:-UDPv4}"
 
+    sim_mode=false
+    rviz_enabled=false
+    logging_enabled=false
+
+    for arg in "$@"; do
+        case "$arg" in
+            --sim)
+                sim_mode=true
+                ;;
+            --rviz)
+                rviz_enabled=true
+                ;;
+            --log)
+                logging_enabled=true
+                ;;
+            -h|--help)
+                echo "Usage: $0 [--sim] [--rviz] [--log]"
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $arg" >&2
+                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
+                exit 1
+                ;;
+        esac
+    done
+
     # ros2 controller
     ros2 launch robot_mode_controller bringup.launch.py &
     pids+=($!)
 
-    # Проверяем аргумент
-    if [ "${1:-}" == "--sim" ]; then
+    if [ "$sim_mode" = true ]; then
         echo "-------------- Simulation Mode Activated --------------" 
         ${SCRIPT_DIR}/.mpc_venv/bin/python ${SCRIPT_DIR}/Simulator/mors_simulator.py &
         pids+=($!)
@@ -51,7 +77,7 @@ set -euo pipefail
         sleep 4s
     fi
 
-    if [ "${2:-}" == "--rviz" ]; then
+    if [ "$rviz_enabled" = true ]; then
         ros2 launch robot_state_viewer robot_state_viewer.launch.py &
         pids+=($!)
         sleep 2s
@@ -62,7 +88,8 @@ set -euo pipefail
     # ${SCRIPT_DIR}/StateEstimatorLKF/build/state_estimator_lkf &
 
 	# robot control
-	${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC & 
+	# ${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC & 
+    ${SCRIPT_DIR}/LocomotionControllerDCM/build/locomotionControllerDCM &
     pids+=($!)
     ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
     pids+=($!)
@@ -70,7 +97,7 @@ set -euo pipefail
     echo "Robot Controller Started Successfully"
 
 	# data logger
-    if [ "${3:-}" == "--log" ]; then
+    if [ "$logging_enabled" = true ]; then
 	    ${SCRIPT_DIR}/MorsLogger/build/mors_logger &
         logger_pid=$!
         pids+=($logger_pid)

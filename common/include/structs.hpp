@@ -51,6 +51,7 @@ struct RobotData
     {
         pos.setZero();
         lin_vel.setZero();
+        lin_acc.setZero();
         orientation.setZero();
         orientation_quaternion << 0.0, 0.0, 0.0, 1.0;
         ang_vel.setZero();
@@ -58,6 +59,7 @@ struct RobotData
 
     Vector3d pos;
     Vector3d lin_vel;
+    Vector3d lin_acc;
     Vector3d orientation;
     Vector4d orientation_quaternion;
     Vector3d ang_vel;
