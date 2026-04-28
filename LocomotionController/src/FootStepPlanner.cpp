@@ -93,13 +93,13 @@ Eigen::Vector3d FootStepPlanner::step(const Eigen::Vector3d& body_pos,
     dp_hip.z() = 0.0;
     dp_hip_cmd.z() = 0.0;
 
-    dp_hip_history.push_back(dp_hip);
-    dp_hip_sum += dp_hip;
-    if (dp_hip_history.size() > dp_hip_window_size) {
-        dp_hip_sum -= dp_hip_history.front();
-        dp_hip_history.pop_front();
-    }
-    dp_hip = dp_hip_sum / static_cast<double>(dp_hip_history.size());
+    // dp_hip_history.push_back(dp_hip);
+    // dp_hip_sum += dp_hip;
+    // if (dp_hip_history.size() > dp_hip_window_size) {
+    //     dp_hip_sum -= dp_hip_history.front();
+    //     dp_hip_history.pop_front();
+    // }
+    // dp_hip = dp_hip_sum / static_cast<double>(dp_hip_history.size());
 
     hip_location = p_hip;
     
@@ -136,6 +136,7 @@ Eigen::Vector3d FootStepPlanner::step(const Eigen::Vector3d& body_pos,
         p_ef_cmd(Z) = avg_z_foothold_pos;
     }
 
+    // search the best position for the footstep on the heightmap and update the command accordingly
     p_ef_cmd_updated = update_footstep_location(p_ef_cmd);
 
     return p_ef_cmd_updated;
@@ -175,7 +176,7 @@ Eigen::Vector3d FootStepPlanner::update_footstep_location(const Eigen::Vector3d&
 
     foothold(X) = start_x + (static_cast<double>(selected_col) + 0.5) * cell_size_;
     foothold(Y) = start_y + (static_cast<double>(selected_row) + 0.5) * cell_size_;
-    foothold(Z) = static_cast<double>(vision_map_.heightmap(selected_row, selected_col));
+    foothold(Z) = static_cast<double>(vision_map_.heightmap(selected_row, selected_col)) + 0.015;
     return foothold;
 }
 

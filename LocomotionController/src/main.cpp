@@ -363,7 +363,6 @@ int main() {
                 if ((phase_signal[L2] == STANCE || phase_signal[L2] == EARLY_CONTACT) &&
                     (pre_phase_signal[L2] == SWING || pre_phase_signal[L2] == LATE_CONTACT))
                     p_ref_stance[L2] = leg_state.l2_pos;
-
             }
             else
             {
