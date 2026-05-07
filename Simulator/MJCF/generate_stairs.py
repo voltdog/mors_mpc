@@ -9,6 +9,14 @@ from pathlib import Path
 
 FIRST_STEP_START_X = 0.5
 DEFAULT_OUTPUT = Path(__file__).with_name("stairs.xml")
+STEP_COLORS = (
+    "0.86 0.26 0.22 1",
+    "0.20 0.63 0.87 1",
+    "0.22 0.70 0.36 1",
+    "0.95 0.66 0.18 1",
+    "0.56 0.36 0.82 1",
+    "0.92 0.38 0.58 1",
+)
 
 
 def positive_float(value: str) -> float:
@@ -28,6 +36,18 @@ def positive_int(value: str) -> int:
 def fmt(value: float) -> str:
     text = f"{value:.6f}".rstrip("0").rstrip(".")
     return text if text else "0"
+
+
+def step_material_name(level: int) -> str:
+    return f"stairs_step_{level % len(STEP_COLORS) + 1}"
+
+
+def make_step_materials(step_count: int) -> str:
+    material_count = min(step_count, len(STEP_COLORS))
+    lines: list[str] = []
+    for level, rgba in enumerate(STEP_COLORS[:material_count]):
+        lines.append(f'    <material name="{step_material_name(level)}" rgba="{rgba}" />')
+    return "\n".join(lines)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -87,7 +107,7 @@ def make_step_geoms(
                 f'      size="{fmt(side / 2.0)} {fmt(side / 2.0)} {fmt(top_height / 2.0)}"',
                 '      contype="1"',
                 '      conaffinity="1"',
-                '      material="stairs_geom"',
+                f'      material="{step_material_name(level)}"',
                 "    />",
             ]
         )
@@ -107,6 +127,7 @@ def render_scene(
         step_count=step_count,
         top_platform_size=top_platform_size,
     )
+    step_materials = make_step_materials(step_count)
 
     pyramid_height = step_height * step_count
     ground_half_x = max(15.0, center_x + bottom_side / 2.0 + 2.0)
@@ -145,7 +166,7 @@ def render_scene(
       width="512"
       height="3072"
     />
-    <material name="stairs_geom" rgba="0.70 0.45 0.20 1" />
+{step_materials}
   </asset>
 
   <worldbody>

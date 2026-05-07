@@ -31,6 +31,7 @@ set -euo pipefail
     sim_mode=false
     rviz_enabled=false
     logging_enabled=false
+    dcm_enabled=false
 
     for arg in "$@"; do
         case "$arg" in
@@ -43,13 +44,16 @@ set -euo pipefail
             --log)
                 logging_enabled=true
                 ;;
+            --dcm)
+                dcm_enabled=true
+                ;;
             -h|--help)
-                echo "Usage: $0 [--sim] [--rviz] [--log]"
+                echo "Usage: $0 [--sim] [--rviz] [--log] [--dcm]" >&2
                 exit 0
                 ;;
             *)
                 echo "Unknown option: $arg" >&2
-                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
+                echo "Usage: $0 [--sim] [--rviz] [--log] [--dcm]" >&2
                 exit 1
                 ;;
         esac
@@ -78,7 +82,12 @@ set -euo pipefail
     fi
 
     if [ "$rviz_enabled" = true ]; then
-        ros2 launch robot_state_viewer robot_state_viewer.launch.py &
+        if [ "$dcm_enabled" = true ]; then
+            rviz_config="$SCRIPT_DIR/ros_ws/src/robot_state_viewer/rviz/rviz_config_dcm.rviz"
+        else
+            rviz_config="$SCRIPT_DIR/ros_ws/src/robot_state_viewer/rviz/rviz_config.rviz"
+        fi
+        ros2 launch robot_state_viewer robot_state_viewer.launch.py "rviz_config:=${rviz_config}" &
         pids+=($!)
         sleep 2s
     fi
@@ -88,9 +97,13 @@ set -euo pipefail
     # ${SCRIPT_DIR}/StateEstimatorLKF/build/state_estimator_lkf &
 
 	# robot control
-	# ${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC & 
-    ${SCRIPT_DIR}/LocomotionControllerDCM/build/locomotionControllerDCM &
+    if [ "$dcm_enabled" = true ]; then
+        ${SCRIPT_DIR}/LocomotionControllerDCM/build/locomotionControllerDCM &
+    else
+        ${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC & 
+    fi
     pids+=($!)
+
     ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
     pids+=($!)
 

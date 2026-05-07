@@ -2,6 +2,7 @@
 #define _data_types_hpp_
 
 #include <cstdint>
+#include <array>
 #include <Eigen/Dense>
 
 namespace mors::wbic
@@ -193,6 +194,10 @@ using HeightmapMatrixT =
 template<typename Scalar = std::uint8_t>
 using TraversabilityMatrixT =
     Eigen::Matrix<Scalar, kHeightmapCellsY, kHeightmapCellsX, Eigen::RowMajor>;
+
+template<int PreviewStridesHorizon>
+using FootSequence =
+    std::array<std::array<std::array<double, 3>, kNumLegs>, PreviewStridesHorizon>;
 
 using Vector3d = Vector3dT<>;
 using Vector4d = Vector4dT<>;

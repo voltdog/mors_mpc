@@ -17,16 +17,21 @@
 
 #include <lcm/lcm-cpp.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
 #include <tf2_ros/transform_broadcaster.h>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 #include <yaml-cpp/yaml.h>
 #include <zlib.h>
 
+#include "mors_msgs/dcm_com_trajectory_msg.hpp"
 #include "mors_msgs/depth_image_msg.hpp"
+#include "mors_msgs/footsteps_msg.hpp"
 #include "mors_msgs/heightmap_msg.hpp"
 #include "mors_msgs/pointcloud_msg.hpp"
 #include "mors_msgs/robot_state_msg.hpp"
@@ -54,6 +59,11 @@ public:
       this->declare_parameter<std::string>("robot_state_lcm_channel", "ROBOT_STATE");
     servo_state_lcm_channel_ =
       this->declare_parameter<std::string>("servo_state_lcm_channel", "SERVO_STATE");
+    footstep_sequence_lcm_channel_ =
+      this->declare_parameter<std::string>("footstep_sequence_lcm_channel", "FOOTSTEP_SEQUENCE");
+    dcm_com_trajectory_lcm_channel_ =
+      this->declare_parameter<std::string>(
+      "dcm_com_trajectory_lcm_channel", "DCM_COM_TRAJECTORY");
 
     frame_id_ = this->declare_parameter<std::string>("frame_id", "camera_depth_optical_frame");
     pointcloud_frame_id_ =
@@ -61,6 +71,26 @@ public:
     joint_states_topic_ = this->declare_parameter<std::string>("joint_states_topic", "/joint_states");
     heightmap_ros_topic_ =
       this->declare_parameter<std::string>("heightmap_ros_topic", "/heightmap/pointcloud");
+    footstep_sequence_markers_topic_ =
+      this->declare_parameter<std::string>(
+      "footstep_sequence_markers_topic", "/footstep_sequence/markers");
+    dcm_com_trajectory_markers_topic_ =
+      this->declare_parameter<std::string>(
+      "dcm_com_trajectory_markers_topic", "/dcm_com_trajectory/markers");
+    footstep_marker_diameter_ =
+      this->declare_parameter<double>("footstep_marker_diameter", 0.03);
+    footstep_marker_height_ =
+      this->declare_parameter<double>("footstep_marker_height", 0.005);
+    footstep_marker_z_offset_ =
+      this->declare_parameter<double>("footstep_marker_z_offset", 0.001);
+    footstep_zero_epsilon_ =
+      this->declare_parameter<double>("footstep_zero_epsilon", 1e-9);
+    dcm_com_trajectory_line_width_ =
+      this->declare_parameter<double>("dcm_com_trajectory_line_width", 0.005);
+    dcm_com_trajectory_point_diameter_ =
+      this->declare_parameter<double>("dcm_com_trajectory_point_diameter", 0.015);
+    dcm_com_trajectory_z_offset_ =
+      this->declare_parameter<double>("dcm_com_trajectory_z_offset", 0.0);
     heightmap_config_path_ =
       this->declare_parameter<std::string>("heightmap_config_path", "");
     loadHeightmapDecodeConfig(heightmap_config_path_);
@@ -73,6 +103,10 @@ public:
       joint_states_topic_, rclcpp::QoS(20).reliable());
     heightmap_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       heightmap_ros_topic_, rclcpp::QoS(10).reliable());
+    footstep_sequence_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
+      footstep_sequence_markers_topic_, rclcpp::QoS(10).reliable());
+    dcm_com_trajectory_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
+      dcm_com_trajectory_markers_topic_, rclcpp::QoS(10).reliable());
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 
     if (!lcm_.good()) {
@@ -84,6 +118,10 @@ public:
     lcm_.subscribe(robot_state_lcm_channel_, &RobotStateViewerNode::robotStateHandler, this);
     lcm_.subscribe(servo_state_lcm_channel_, &RobotStateViewerNode::servoStateHandler, this);
     lcm_.subscribe(heightmap_lcm_channel_, &RobotStateViewerNode::heightmapHandler, this);
+    lcm_.subscribe(
+      footstep_sequence_lcm_channel_, &RobotStateViewerNode::footstepsHandler, this);
+    lcm_.subscribe(
+      dcm_com_trajectory_lcm_channel_, &RobotStateViewerNode::dcmComTrajectoryHandler, this);
     lcm_thread_ = std::thread(&RobotStateViewerNode::lcmLoop, this);
 
     joint_names_ = {
@@ -98,6 +136,7 @@ public:
       "robot_state_viewer started:"
       " depth LCM='%s' -> ROS='%s', pointcloud LCM='%s' -> ROS='%s',"
       " heightmap LCM='%s' -> ROS='%s', robot_state LCM='%s', servo_state LCM='%s',"
+      " footsteps LCM='%s' -> ROS='%s', DCM/CoM LCM='%s' -> ROS='%s',"
       " tf('%s'->'%s'), cloud_frame='%s', joint_states='%s',"
       " heightmap_cfg='%s', heightmap_grid=%dx%d cell=%.4f hmin=%.3f hres=%.4f",
       depth_lcm_channel_.c_str(),
@@ -108,6 +147,10 @@ public:
       heightmap_ros_topic_.c_str(),
       robot_state_lcm_channel_.c_str(),
       servo_state_lcm_channel_.c_str(),
+      footstep_sequence_lcm_channel_.c_str(),
+      footstep_sequence_markers_topic_.c_str(),
+      dcm_com_trajectory_lcm_channel_.c_str(),
+      dcm_com_trajectory_markers_topic_.c_str(),
       world_frame_id_.c_str(),
       base_link_frame_id_.c_str(),
       pointcloud_frame_id_.c_str(),
@@ -136,6 +179,24 @@ private:
     }
     const double n = std::sqrt(x * x + y * y + z * z + w * w);
     return n > 1e-9;
+  }
+
+  static bool footstepPositionValid(double x, double y, double z, double zero_epsilon)
+  {
+    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) {
+      return false;
+    }
+    return std::abs(x) > zero_epsilon ||
+           std::abs(y) > zero_epsilon ||
+           std::abs(z) > zero_epsilon;
+  }
+
+  static bool trajectoryPointValid(const std::vector<double> & point)
+  {
+    return point.size() >= 3u &&
+           std::isfinite(point[0]) &&
+           std::isfinite(point[1]) &&
+           std::isfinite(point[2]);
   }
 
   static std::array<double, 4> eulerToQuaternion(double roll, double pitch, double yaw)
@@ -577,6 +638,193 @@ private:
     heightmap_pub_->publish(std::move(cloud_msg));
   }
 
+  void footstepsHandler(
+    const lcm::ReceiveBuffer * /*rbuf*/,
+    const std::string & /*channel*/,
+    const mors_msgs::footsteps_msg * msg)
+  {
+    if (msg == nullptr) {
+      return;
+    }
+
+    visualization_msgs::msg::MarkerArray marker_array;
+
+    static constexpr int kPreviewStrides = 6;
+    static constexpr int kNumLegs = 4;
+    static constexpr std::array<std::array<float, 3>, kNumLegs> kLegColors{{
+      {0.90f, 0.10f, 0.10f},  // R1
+      {0.10f, 0.35f, 0.95f},  // L1
+      {0.95f, 0.60f, 0.10f},  // R2
+      {0.10f, 0.70f, 0.35f},  // L2
+    }};
+
+    const rclcpp::Time stamp = this->now();
+    const double marker_diameter = std::max(footstep_marker_diameter_, 1e-6);
+    const double marker_height = std::max(footstep_marker_height_, 1e-6);
+    const double zero_epsilon = std::max(footstep_zero_epsilon_, 0.0);
+    size_t valid_marker_count = 0;
+
+    for (int stride = 0; stride < kPreviewStrides; ++stride) {
+      for (int leg = 0; leg < kNumLegs; ++leg) {
+        visualization_msgs::msg::Marker delete_marker;
+        delete_marker.header.frame_id = world_frame_id_;
+        delete_marker.header.stamp = stamp;
+        delete_marker.ns = "footstep_sequence";
+        delete_marker.id = stride * kNumLegs + leg;
+        delete_marker.action = visualization_msgs::msg::Marker::DELETE;
+        marker_array.markers.push_back(delete_marker);
+      }
+    }
+
+    for (int stride = 0; stride < kPreviewStrides; ++stride) {
+      const float alpha = std::max(0.35f, 1.0f - 0.12f * static_cast<float>(stride));
+      for (int leg = 0; leg < kNumLegs; ++leg) {
+        const double x = msg->positions[stride][leg][0];
+        const double y = msg->positions[stride][leg][1];
+        const double z = msg->positions[stride][leg][2];
+        if (!footstepPositionValid(x, y, z, zero_epsilon)) {
+          continue;
+        }
+
+        visualization_msgs::msg::Marker marker;
+        marker.header.frame_id = world_frame_id_;
+        marker.header.stamp = stamp;
+        marker.ns = "footstep_sequence";
+        marker.id = stride * kNumLegs + leg;
+        marker.type = visualization_msgs::msg::Marker::CYLINDER;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+        marker.pose.position.x = x;
+        marker.pose.position.y = y;
+        marker.pose.position.z = z + footstep_marker_z_offset_;
+        marker.pose.orientation.w = 1.0;
+        marker.scale.x = marker_diameter;
+        marker.scale.y = marker_diameter;
+        marker.scale.z = marker_height;
+        marker.color.r = kLegColors[static_cast<size_t>(leg)][0];
+        marker.color.g = kLegColors[static_cast<size_t>(leg)][1];
+        marker.color.b = kLegColors[static_cast<size_t>(leg)][2];
+        marker.color.a = alpha;
+        marker_array.markers.push_back(marker);
+        ++valid_marker_count;
+      }
+    }
+
+    if (valid_marker_count == 0u) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 2000,
+        "FOOTSTEP_SEQUENCE received, but all positions are zero or non-finite; "
+        "no footstep markers will be visible.");
+    } //else {
+    //   RCLCPP_INFO_THROTTLE(
+    //     this->get_logger(), *this->get_clock(), 2000,
+    //     "FOOTSTEP_SEQUENCE received: publishing %zu footstep marker(s).",
+    //     valid_marker_count);
+    // }
+
+    footstep_sequence_pub_->publish(std::move(marker_array));
+  }
+
+  void dcmComTrajectoryHandler(
+    const lcm::ReceiveBuffer * /*rbuf*/,
+    const std::string & /*channel*/,
+    const mors_msgs::dcm_com_trajectory_msg * msg)
+  {
+    if (msg == nullptr) {
+      return;
+    }
+
+    visualization_msgs::msg::MarkerArray marker_array;
+    const rclcpp::Time stamp = this->now();
+
+    visualization_msgs::msg::Marker delete_line;
+    delete_line.header.frame_id = world_frame_id_;
+    delete_line.header.stamp = stamp;
+    delete_line.ns = "dcm_com_trajectory";
+    delete_line.id = 0;
+    delete_line.action = visualization_msgs::msg::Marker::DELETE;
+    marker_array.markers.push_back(delete_line);
+
+    visualization_msgs::msg::Marker delete_points = delete_line;
+    delete_points.id = 1;
+    marker_array.markers.push_back(delete_points);
+
+    if (msg->x_com_count < 0) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 2000,
+        "Invalid DCM_COM_TRAJECTORY x_com_count=%d", msg->x_com_count);
+      dcm_com_trajectory_pub_->publish(std::move(marker_array));
+      return;
+    }
+
+    const size_t expected_points = static_cast<size_t>(msg->x_com_count);
+    if (msg->x_com.size() < expected_points) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 2000,
+        "DCM_COM_TRAJECTORY x_com array smaller than x_com_count (count=%zu, x_com=%zu)",
+        expected_points, msg->x_com.size());
+      dcm_com_trajectory_pub_->publish(std::move(marker_array));
+      return;
+    }
+
+    std::vector<geometry_msgs::msg::Point> points;
+    points.reserve(expected_points);
+    const double z_offset = dcm_com_trajectory_z_offset_;
+    for (size_t i = 0; i < expected_points; ++i) {
+      const auto & source_point = msg->x_com[i];
+      if (!trajectoryPointValid(source_point)) {
+        continue;
+      }
+
+      geometry_msgs::msg::Point point;
+      point.x = source_point[0];
+      point.y = source_point[1];
+      point.z = source_point[2] + z_offset;
+      points.push_back(point);
+    }
+
+    if (points.empty()) {
+      dcm_com_trajectory_pub_->publish(std::move(marker_array));
+      return;
+    }
+
+    visualization_msgs::msg::Marker line_marker;
+    line_marker.header.frame_id = world_frame_id_;
+    line_marker.header.stamp = stamp;
+    line_marker.ns = "dcm_com_trajectory";
+    line_marker.id = 0;
+    line_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+    line_marker.action = visualization_msgs::msg::Marker::ADD;
+    line_marker.pose.orientation.w = 1.0;
+    line_marker.scale.x = std::max(dcm_com_trajectory_line_width_, 1e-6);
+    line_marker.color.r = 0.9f;
+    line_marker.color.g = 0.1f;
+    line_marker.color.b = 0.44f;
+    line_marker.color.a = 0.8f;
+    line_marker.points = points;
+    marker_array.markers.push_back(std::move(line_marker));
+
+    visualization_msgs::msg::Marker points_marker;
+    points_marker.header.frame_id = world_frame_id_;
+    points_marker.header.stamp = stamp;
+    points_marker.ns = "dcm_com_trajectory";
+    points_marker.id = 1;
+    points_marker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
+    points_marker.action = visualization_msgs::msg::Marker::ADD;
+    points_marker.pose.orientation.w = 1.0;
+    const double point_diameter = std::max(dcm_com_trajectory_point_diameter_, 1e-6);
+    points_marker.scale.x = point_diameter;
+    points_marker.scale.y = point_diameter;
+    points_marker.scale.z = point_diameter;
+    points_marker.color.r = 0.95f;
+    points_marker.color.g = 0.1f;
+    points_marker.color.b = 0.44f;
+    points_marker.color.a = 0.8f;
+    points_marker.points = std::move(points);
+    marker_array.markers.push_back(std::move(points_marker));
+
+    dcm_com_trajectory_pub_->publish(std::move(marker_array));
+  }
+
   void servoStateHandler(
     const lcm::ReceiveBuffer * /*rbuf*/,
     const std::string & /*channel*/,
@@ -662,6 +910,10 @@ private:
   std::string heightmap_config_resolved_path_;
   std::string robot_state_lcm_channel_;
   std::string servo_state_lcm_channel_;
+  std::string footstep_sequence_lcm_channel_;
+  std::string dcm_com_trajectory_lcm_channel_;
+  std::string footstep_sequence_markers_topic_;
+  std::string dcm_com_trajectory_markers_topic_;
   std::string frame_id_;
   std::string pointcloud_frame_id_;
   std::string world_frame_id_;
@@ -672,6 +924,13 @@ private:
   double heightmap_cell_size_{0.0};
   double heightmap_height_min_{0.0};
   double heightmap_height_resolution_{0.0};
+  double footstep_marker_diameter_{0.06};
+  double footstep_marker_height_{0.01};
+  double footstep_marker_z_offset_{0.025};
+  double footstep_zero_epsilon_{1e-9};
+  double dcm_com_trajectory_line_width_{0.015};
+  double dcm_com_trajectory_point_diameter_{0.035};
+  double dcm_com_trajectory_z_offset_{0.0};
 
   std::array<double, 12> joint_positions_{};
   std::vector<std::string> joint_names_;
@@ -681,6 +940,8 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr heightmap_pub_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr footstep_sequence_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr dcm_com_trajectory_pub_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   lcm::LCM lcm_;

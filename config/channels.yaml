@@ -15,6 +15,8 @@ servo_state: "SERVO_STATE"
 
 gait_phase: "GAIT_PHASE"
 gait_params: "GAIT_PARAMS"
+footstep_sequence: "FOOTSTEP_SEQUENCE"
+dcm_com_trajectory: "DCM_COM_TRAJECTORY"
 
 depth_image: "DEPTH_IMAGE"
 pointcloud: "POINCLOUD"

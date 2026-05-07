@@ -9,7 +9,7 @@ SwingController::SwingController(double timestep, double bx, double by, double l
                                        double dz_near_ground, double k1_fsp)
     : dz_near_ground(dz_near_ground), cnt(4, -1), it_swing(4, 0.0), swing_traj_gen(1.0 / timestep),
       pre_phase_signal(4, STANCE), p_start(4), p_rise(4), p_finish(4), d_p_start(4, {0.0, 0.0, 0.0}),
-      step_planner(4)
+      step_planner(4), p0_b(4)
 {
     for (int i = 0; i < 4; ++i) {
         step_planner[i] = FootStepPlanner();
@@ -25,6 +25,11 @@ SwingController::SwingController(double timestep, double bx, double by, double l
     step_planner[L1].set_physical_hip_anchor(Eigen::Vector3d(bx + l1,  by, 0.0));
     step_planner[R2].set_physical_hip_anchor(Eigen::Vector3d(-(bx + l1), -by, 0.0));
     step_planner[L2].set_physical_hip_anchor(Eigen::Vector3d(-(bx + l1),  by, 0.0));
+
+    p0_b[R1] = Eigen::Vector3d(bx + l1, -by, 0.0);
+    p0_b[L1] = Eigen::Vector3d(bx + l1,  by, 0.0);  
+    p0_b[R2] = Eigen::Vector3d(-(bx + l1), -by, 0.0);
+    p0_b[L2] = Eigen::Vector3d(-(bx + l1),  by, 0.0);
 }
 
 void SwingController::set_gait_params(double t_sw, double t_st, double ref_stride_height) {
@@ -81,8 +86,10 @@ SwingController::step(const std::vector<int>& phase_signal,
                                                                support_leg_count > 0 ? avg_support_foot_z : p_start[i][Z],
                                                                t_st);
             for (int j = 0; j < 3; ++j) p_finish[i][j] = p_finish_i[j];
+            
+            Eigen::Vector3d p_hip = Eigen::Vector3d(base_pos(X), base_pos(Y), base_pos(Z)) + R_body * p0_b[i];
 
-            double max_rise_z = step_planner[i].get_hip_location()[Z]  + ref_body_height - 0.05; //
+            double max_rise_z = p_hip(Z) - 0.03;//  + ref_body_height - 0.05; //
             double p_rise_z = 0.0;
             if ((p_finish[i][Z] - p_start[i][Z]) > 0) {
                 p_rise_z = p_finish[i][Z] + ref_stride_height + abs(p_finish[i][Z] - p_start[i][Z]) * 0.2;

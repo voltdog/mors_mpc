@@ -9,6 +9,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(lcm REQUIRED)
@@ -33,6 +34,7 @@ ament_target_dependencies(robot_state_viewer_node
   rclcpp
   sensor_msgs
   geometry_msgs
+  visualization_msgs
   tf2_ros
 )
 

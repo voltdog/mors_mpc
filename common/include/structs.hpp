@@ -40,8 +40,11 @@ static constexpr int NUM_LEGS = 4;
 static constexpr int LEG_CONTROL   = 1;
 static constexpr int SERVO_CONTROL = 2;
 
+static constexpr int PREVIEW_STRIDES_HORIZON = 6;
+
 using JointVector12d = Matrix<double, 12, 1>;
 using PhaseVector4i = Matrix<int, NUM_LEGS, 1>;
+using FootSequence = mors::wbic::FootSequence<PREVIEW_STRIDES_HORIZON>;
 
 struct RobotData
 {
@@ -284,6 +287,12 @@ struct WbcOutputData
     bool valid = false;
     // std::uint64_t sequence = 0;
 };
+
+struct FootPlanData
+{
+    FootSequence foot_sequence;
+    std::array<std::array<double, 4>, PREVIEW_STRIDES_HORIZON> duration;
+}; 
 
 
 

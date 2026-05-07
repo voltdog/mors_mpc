@@ -4,10 +4,12 @@
 #include <cmath>
 
 // Constructor
-ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
+ReferenceGenerator::ReferenceGenerator(double dt, double c_freq, int mpc_horizon, double mpc_dt)
 {
     this->c_freq = c_freq;
     this->dt = dt;
+    this->mpc_dt = (mpc_dt > 0.0) ? mpc_dt : dt;
+    this->mpc_horizon = mpc_horizon;
     pre_phase_signal = {STANCE, STANCE, STANCE, STANCE};
     foot_pos_global_just_stance.resize(4,3);
     foot_pos_global_just_stance.setZero();
@@ -17,6 +19,7 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     foot_pos_global_just_swing.resize(4,3);
     foot_pos_global_just_swing.setZero();
     foot_pos_valid_just_swing.fill(false);
+    foot_pos_finish_global.resize(4);
     R_body_for_vel.resize(3,3);
     x_ref.resize(13);
     x_ref.setZero();
@@ -28,6 +31,7 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     lpf_x_vel.reconfigureFilter(dt, c_freq);
     lpf_y_vel.reconfigureFilter(dt, c_freq);
     lpf_z_vel.reconfigureFilter(dt, c_freq);
+    lpf_roll_pos.reconfigureFilter(dt, c_freq*2);
     lpf_pitch_pos.reconfigureFilter(dt, c_freq*2);
     lpf_z_pos.reconfigureFilter(dt, c_freq*2);
     lpf_yaw_vel.reconfigureFilter(dt, c_freq);
@@ -53,6 +57,7 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     ref_body_vel_directed.resize(3);
 
     ref_z_pos = 0.0;
+    ref_roll_pos = 0.0;
     ref_pitch_pos = 0.0;
 
     test_cnt = 0;
@@ -61,11 +66,17 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq)
     saved_y_pos = 0;
     prev_x_vel = 0;
     prev_y_vel = 0;
+
+    dcm_generator.set_parameters(this->mpc_dt);
 }
 
 // Destructor
 ReferenceGenerator::~ReferenceGenerator() {
 
+}
+
+ReferenceGenerator::DcmComTrajectories ReferenceGenerator::getDcmComTrajectories() const {
+    return {dcm_x_com_traj, dcm_d_x_com_traj, dcm_dd_x_com_traj};
 }
 
 // Set adaptation mode
@@ -74,11 +85,20 @@ void ReferenceGenerator::set_body_adaptation_mode(int mode) {
 }
 
 // Step function
-Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
+void ReferenceGenerator::step(const std::vector<int>& phase_signal,
                                     const std::vector<Eigen::Vector3d>& foot_pos_global,
-                                    const std::vector<Eigen::Vector3d>& foot_pos_finish_global,
+                                    const FootPlanData& foot_plan,
                                     const RobotData& robot_cmd,
-                                    const RobotData& robot_state) { 
+                                    const RobotData& robot_state,
+                                    const bool& standing,
+                                    Eigen::VectorXd& x_ref_vec_out,
+                                    Eigen::Vector3d& dcm_dd_x_com_ref) { 
+    constexpr int state_dim = 13;
+    const int expected_ref_size = state_dim * mpc_horizon;
+    if (x_ref_vec_out.size() != expected_ref_size) {
+        x_ref_vec_out.resize(expected_ref_size);
+    }
+
     // Apply low-pass filters to reference velocities
     ref_body_vel_filtered(X) = lpf_x_vel.update(robot_cmd.lin_vel(X));
     ref_body_vel_filtered(Y) = lpf_y_vel.update(robot_cmd.lin_vel(Y));
@@ -95,9 +115,70 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
     ref_y_pos = (abs(ref_body_vel_filtered(Y)) < 0.01) ? saved_y_pos : (robot_state.pos(Y) + ref_body_vel_filtered(Y) * dt);
     // ref_x_pos += ref_body_vel_filtered(X) * dt;
     // ref_y_pos += ref_body_vel_filtered(Y) * dt;
+    bool use_dcm = true;
+    
+    if (standing == false && use_dcm == true) {
+        // find com pos, vel and acc trajectories using DCM generator
+        dcm_generator.generate(foot_plan,
+                                robot_state,
+                                robot_cmd,
+                                dcm_x_com_traj,
+                                dcm_d_x_com_traj,
+                                dcm_dd_x_com_traj);
+        // // обрежем размер траекторий до размера mpc_horizon, чтобы не засорять память и не обрабатывать лишние точки
+        // const auto horizon_size = static_cast<std::vector<Eigen::Vector3d>::size_type>(mpc_horizon);
+        // if (dcm_x_com_traj.size() > horizon_size)
+        //     dcm_x_com_traj.resize(horizon_size);
+        // if (dcm_d_x_com_traj.size() > horizon_size)
+        //     dcm_d_x_com_traj.resize(horizon_size);
+        // возьмем первое значение dcm_dd_x_com_traj для последующего использования в WBIC
+        dcm_dd_x_com_ref = dcm_dd_x_com_traj.empty() ? Eigen::Vector3d::Zero() : dcm_dd_x_com_traj.front();
+        // найдем ref_x_fb и ref_v_fb для последующего использования в FootStepGenerator
+        ref_x_fb = Eigen::Vector3d(ref_x_pos, ref_y_pos, ref_z_pos);
+        // рассчитаем x_com_fb и v_com_fb для последующего использования в FootstepGenerator
+        delta_x_dcm = Eigen::Vector3d::Zero();
+        if (!dcm_x_com_traj.empty()) {
+            delta_x_dcm = dcm_x_com_traj.front() - ref_x_fb;
+        }
 
+        delta_v_dcm = Eigen::Vector3d::Zero();
+        if (!dcm_d_x_com_traj.empty()) {
+            delta_v_dcm = dcm_d_x_com_traj.front() - ref_body_vel_filtered;
+        }
+
+        x_com_fb = robot_state.pos - delta_x_dcm;
+        v_com_fb = robot_state.lin_vel - delta_v_dcm;
+        // x_com_fb = Eigen::Vector3d(ref_x_pos, ref_y_pos, ref_z_pos);
+        // v_com_fb = robot_cmd.lin_vel;
+    } else {
+        dcm_x_com_traj.clear();
+        dcm_d_x_com_traj.clear();
+        dcm_dd_x_com_traj.clear();
+        x_com_fb = Eigen::Vector3d(ref_x_pos, ref_y_pos, ref_z_pos);
+        v_com_fb = robot_cmd.lin_vel;
+        dcm_dd_x_com_ref.setZero();
+    }
+
+    // find just stance and just swing foot states
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            foot_pos_finish_global[i][j] = foot_plan.foot_sequence[1][i][j];
+        }
+    }
     update_support_foot_states(phase_signal, foot_pos_global, robot_state);
     update_swing_foot_states(phase_signal, foot_pos_finish_global, robot_state);
+
+    // roll pos adaptation
+    bool has_roll_support = false;
+    const double raw_ref_roll_pos =
+        compute_ref_roll_pos(phase_signal, robot_state, has_roll_support);
+    if (body_adapt_mode == INCL_ADAPT) {
+        if (has_roll_support) {
+            ref_roll_pos = lpf_roll_pos.update(raw_ref_roll_pos);
+        }
+    } else {
+        ref_roll_pos = 0.0;
+    }
 
     // pitch pos adaptation
     bool has_pitch_support = false;
@@ -132,26 +213,65 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
     }
 
     // Update reference vector
-    x_ref << robot_cmd.orientation(X),                  // roll
+    // TODO: засунуть сюда dcm_x_com и dcm_d_x_com
+    // x_ref << ref_roll_pos + robot_cmd.orientation(X),    // roll
+    //         ref_pitch_pos + robot_cmd.orientation(Y),   // pitch
+    //         ref_yaw_pos + robot_cmd.orientation(Z),     // yaw
+    //         ref_x_pos + robot_cmd.pos(X),               // pos X
+    //         ref_y_pos + robot_cmd.pos(Y),               // pos Y
+    //         ref_z_pos,                                  // pos Z
+    //         0.0,                                        // angvel roll
+    //         0.0,                                        // angvel pitch
+    //         ref_body_yaw_vel_filtered,                  // angvel yaw
+    //         ref_body_vel_filtered(X),                   // vel X
+    //         ref_body_vel_filtered(Y),                   // vel Y
+    //         robot_cmd.lin_vel(Z),                       // vel Z
+    //          -9.81;
+    for (int i = 0; i < mpc_horizon; ++i) {
+        Eigen::Vector3d ref_pos(ref_x_pos + robot_cmd.pos(X),
+                                ref_y_pos + robot_cmd.pos(Y),
+                                ref_z_pos);
+        Eigen::Vector3d ref_vel(ref_body_vel_filtered(X),
+                                ref_body_vel_filtered(Y),
+                                ref_body_vel_filtered(Z));
+
+        if (!dcm_x_com_traj.empty()) {
+            // const int dcm_index = std::min<int>(i + 1, dcm_x_com_traj.size() - 1);
+            ref_pos << dcm_x_com_traj[i+1](X) + robot_cmd.pos(X),
+                       dcm_x_com_traj[i+1](Y) + robot_cmd.pos(Y),
+                       dcm_x_com_traj[i+1](Z);
+        }
+
+        if (!dcm_d_x_com_traj.empty()) {
+            // const int dcm_vel_index = std::min<int>(i + 1, dcm_d_x_com_traj.size() - 1);
+            ref_vel << dcm_d_x_com_traj[i+1](X),
+                       dcm_d_x_com_traj[i+1](Y),
+                       dcm_d_x_com_traj[i+1](Z);
+        }
+
+        x_ref << ref_roll_pos + robot_cmd.orientation(X),    // roll
             ref_pitch_pos + robot_cmd.orientation(Y),   // pitch
             ref_yaw_pos + robot_cmd.orientation(Z),     // yaw
-            ref_x_pos + robot_cmd.pos(X),               // pos X
-            ref_y_pos + robot_cmd.pos(Y),               // pos Y
-            ref_z_pos,                                  // pos Z
+            ref_pos(X),                                 // pos X
+            ref_pos(Y),                                 // pos Y
+            ref_pos(Z),                                 // pos Z
             0.0,                                        // angvel roll
             0.0,                                        // angvel pitch
             ref_body_yaw_vel_filtered,                  // angvel yaw
-            ref_body_vel_filtered(X),                   // vel X
-            ref_body_vel_filtered(Y),                   // vel Y
-            robot_cmd.lin_vel(Z),                       // vel Z
+            ref_vel(X),                   // vel X
+            ref_vel(Y),                   // vel Y
+            ref_vel(Z),                       // vel Z
              -9.81;
+        x_ref_vec_out.segment(i * state_dim, state_dim) = x_ref;
+    }
+    x_ref = x_ref_vec_out.head(state_dim);
 
     // Update previous phase signal
     pre_phase_signal = phase_signal;
     prev_x_vel = ref_body_vel_filtered(X);
     prev_y_vel = ref_body_vel_filtered(Y);
 
-    return x_ref;
+    // return x_ref;
 }
 
 bool ReferenceGenerator::is_support_phase(int phase) const {
@@ -326,4 +446,66 @@ double ReferenceGenerator::compute_ref_pitch_pos(const std::vector<int>& phase_s
 
     const double dz = front_mean(Z) - rear_mean(Z);
     return -std::atan2(dz, dx);
+}
+
+// Helper method to compute reference roll position
+double ReferenceGenerator::compute_ref_roll_pos(const std::vector<int>& phase_signal,
+                                                const RobotData& robot_state,
+                                                bool& has_roll_support) const {
+    Eigen::Vector3d right_mean = Eigen::Vector3d::Zero();
+    Eigen::Vector3d left_mean = Eigen::Vector3d::Zero();
+    int right_count = 0;
+    int left_count = 0;
+
+    const int right_legs[2] = {R1, R2};
+    const int left_legs[2] = {L1, L2};
+
+    const auto accumulate_leg_local = [&](int leg_id, Eigen::Vector3d& mean, int& count) {
+        if (leg_id >= static_cast<int>(phase_signal.size())) {
+            return;
+        }
+
+        if (is_support_phase(phase_signal[leg_id])) {
+            if (!foot_pos_valid_just_stance[leg_id]) {
+                return;
+            }
+            mean += foot_pos_local_just_stance.row(leg_id).transpose();
+            ++count;
+            return;
+        }
+
+        if ((phase_signal[leg_id] != SWING && phase_signal[leg_id] != LATE_CONTACT) ||
+            !foot_pos_valid_just_swing[leg_id]) {
+            return;
+        }
+
+        const Eigen::Vector3d p_swing_global = foot_pos_global_just_swing.row(leg_id).transpose();
+        mean += foot_pos_to_yaw_aligned_local(p_swing_global, robot_state);
+        ++count;
+    };
+
+    for (int leg_id : right_legs) {
+        accumulate_leg_local(leg_id, right_mean, right_count);
+    }
+
+    for (int leg_id : left_legs) {
+        accumulate_leg_local(leg_id, left_mean, left_count);
+    }
+
+    has_roll_support = right_count > 0 && left_count > 0;
+    if (!has_roll_support) {
+        return 0.0;
+    }
+
+    right_mean /= static_cast<double>(right_count);
+    left_mean /= static_cast<double>(left_count);
+
+    const double dy = left_mean(Y) - right_mean(Y);
+    if (std::abs(dy) < 1e-6) {
+        has_roll_support = false;
+        return 0.0;
+    }
+
+    const double dz = left_mean(Z) - right_mean(Z);
+    return std::atan2(dz, dy);
 }

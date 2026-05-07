@@ -11,6 +11,7 @@ SimpleGaitScheduler::SimpleGaitScheduler()
     phi_ = {0.0, 0.0, 0.0, 0.0};
     pre_phi = 0.0;
     this->phase_init_ = {STANCE, STANCE, STANCE, STANCE};
+    num_legs_ = static_cast<int>(phase_init_.size());
     mpc_leg_state_ = phase_init_;
 }
 
@@ -25,6 +26,7 @@ SimpleGaitScheduler::SimpleGaitScheduler(double dt)
 
     this->dt = dt;
     this->phase_init_ = {STANCE, STANCE, STANCE, STANCE};
+    num_legs_ = static_cast<int>(phase_init_.size());
     mpc_leg_state_ = phase_init_;
 }
 

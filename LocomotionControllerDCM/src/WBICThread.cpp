@@ -258,7 +258,8 @@ void WBICThread::callback()
             ref_dx.segment<3>(6 + PIN_R2 * 3) = desired_command.leg_cmd.r2_vel;
             ref_dx.segment<3>(6 + PIN_L2 * 3) = desired_command.leg_cmd.l2_vel;
 
-            ref_ddx.segment<6>(0).setZero();
+            ref_ddx.segment<3>(0) = desired_command.body_cmd.lin_acc;
+            ref_ddx.segment<3>(3) = Eigen::Vector3d::Zero();
             ref_ddx.segment<3>(6 + PIN_R1 * 3) = desired_command.leg_cmd.r1_acc;
             ref_ddx.segment<3>(6 + PIN_L1 * 3) = desired_command.leg_cmd.l1_acc;
             ref_ddx.segment<3>(6 + PIN_R2 * 3) = desired_command.leg_cmd.r2_acc;
