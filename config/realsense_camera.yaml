@@ -1,0 +1,4 @@
+stream:
+  # Intel RealSense T265 serial. Keep this fixed so the odometry module never
+  # probes or opens the D435i while both RealSense cameras are connected.
+  serial: "944222110122"

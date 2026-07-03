@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/user/mors_mpc_control/config/**)",
+      "Bash(grep -rniE \"cxx_standard|std=c\\\\+\\\\+|set\\\\\\(CMAKE_CXX\" /home/user/mors_dcm/LocomotionController/CMakeLists.txt 2>/dev/null; echo \"---- eigen version ----\"; grep -rE \"define EIGEN_\\(WORLD|MAJOR|MINOR\\)_VERSION\" /home/user/.local/include/eigen3/Eigen/src/Core/Macros.h 2>/dev/null)",
+      "Read(//home/user/.local/include/eigen3/Eigen/src/Core/**)",
+      "Bash(find /home/user/mors_dcm /home/user/mors_mpc_control -type f \\\\\\( -iname \"*simulator*\" -o -iname \"*bhi360*\" -o -iname \"*imu*\" -o -iname \"*stateestimat*\" -o -iname \"*state_estimat*\" \\\\\\) 2>/dev/null)",
+      "Read(//home/user/mors_mpc_control/**)",
+      "Bash(cmake --build .)",
+      "Bash(cmake --build build --target state_estimator)",
+      "Bash(make -C build)",
+      "Bash(grep -vE '^\\\\s*#|^\\\\s*$' config/timesteps.yaml)",
+      "Bash(python3 -)",
+      "Read(//home/yoggi/mors_logs/**)",
+      "Read(//home/user/mors_logs/**)",
+      "Bash(python3 -c \"import numpy, pandas; print\\('ok', pandas.__version__\\)\")",
+      "Bash(python3 -c \"import numpy; print\\('numpy', numpy.__version__\\)\")",
+      "Bash(cat)",
+      "Bash(python3 /tmp/claude-1000/-home-user-mors-dcm/8bae9ccf-9ece-4fcc-a519-726e4ce6fc00/scratchpad/load.py)",
+      "Bash(python3 /tmp/claude-1000/-home-user-mors-dcm/8bae9ccf-9ece-4fcc-a519-726e4ce6fc00/scratchpad/seg.py)",
+      "Bash(python3 /tmp/claude-1000/-home-user-mors-dcm/8bae9ccf-9ece-4fcc-a519-726e4ce6fc00/scratchpad/grf.py)",
+      "Bash(python3 /tmp/claude-1000/-home-user-mors-dcm/8bae9ccf-9ece-4fcc-a519-726e4ce6fc00/scratchpad/phi.py)"
+    ],
+    "additionalDirectories": [
+      "/home/user/mors_mpc_control/config"
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+enable: "ENABLE"
+
+imu_data: "IMU_DATA" #LCM_CONTROL_URL
+odometry: "ODOMETRY" #LCM_CONTROL_URL
+contact_state: "CONTACT_SENSOR" #LCM_CONTROL_URL
+
+robot_cmd: "ROBOT_CMD" #LCM_CONTROL_URL
+mpc_cmd: "MPC_CMD" #LCM_CONTROL_URL
+wbc_cmd: "WBC_CMD" #LCM_CONTROL_URL
+servo_cmd: "SERVO_CMD" #LCM_SERVO_URL
+
+robot_state: "ROBOT_STATE" #LCM_CONTROL_URL
+wbc_state: "WBC_STATE" #LCM_CONTROL_URL
+servo_state: "SERVO_STATE" #LCM_SERVO_URL
+
+gait_phase: "GAIT_PHASE" #LCM_CONTROL_URL
+gait_params: "GAIT_PARAMS" #LCM_CONTROL_URL
+footstep_sequence: "FOOTSTEP_SEQUENCE" #LCM_CONTROL_URL
+dcm_com_trajectory: "DCM_COM_TRAJECTORY" #LCM_CONTROL_URL
+
+depth_image: "DEPTH_IMAGE" #LCM_VISION_URL
+pointcloud: "POINCLOUD" #LCM_VISION_URL
+heightmap: "HEIGHTMAP" #LCM_VISION_URL
