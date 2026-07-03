@@ -262,6 +262,8 @@ int main() {
     MatrixXd foot_positions(3, 4);
     VectorXd grf_cmd(12);
     double phi0 = 0.0;
+    Eigen::Vector3d ref_body_vel_filtered;
+    ref_body_vel_filtered.setZero();
 
     // Init MPC thread
     ConvexMPCThread mpc_thread;
@@ -353,7 +355,8 @@ int main() {
             footstep_generator.generate(phase_signal, 
                                         leg_phi, 
                                         mpc_cmd(8),
-                                        robot_cmd.lin_vel, 
+                                        // robot_cmd.lin_vel, 
+                                        ref_body_vel_filtered,
                                         base_pos,
                                         ref_v_com_fb,
                                         // base_lin_vel,
@@ -384,6 +387,7 @@ int main() {
                                dcm_dd_x_com_ref);
             mpc_cmd = x_ref_vec.head(13);
             ref_generator.get_fb_ref(ref_x_com_fb, ref_v_com_fb);
+            ref_generator.get_ref_body_vel_filtered(ref_body_vel_filtered);
             // mpc_cmd.segment<2>(3) += robot_pos_offset;
             // mpc_cmd(2) += robot_yaw_offset;
             // ------------------

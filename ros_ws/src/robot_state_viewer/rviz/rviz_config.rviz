@@ -8,8 +8,6 @@ Panels:
         - /Image1/Topic1
         - /PointCloud21
         - /HeightMapCloud1
-        - /FootstepSequence1
-        - /DcmComTrajectory1
         - /RobotModel1
         - /TF1
       Splitter Ratio: 0.4545454680919647
@@ -133,32 +131,6 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: false
       Value: true
-    - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
-      Marker Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /footstep_sequence/markers
-      Name: FootstepSequence
-      Namespaces:
-        footstep_sequence: true
-      Queue Size: 100
-      Value: true
-    - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
-      Marker Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /dcm_com_trajectory/markers
-      Name: DcmComTrajectory
-      Namespaces:
-        dcm_com_trajectory: true
-      Queue Size: 100
-      Value: true
     - Alpha: 1
       Class: rviz_default_plugins/RobotModel
       Collision Enabled: false
@@ -271,78 +243,21 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz_default_plugins/TF
-      Enabled: true
+      Enabled: false
       Filter (blacklist): ""
       Filter (whitelist): ""
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        abad_L1:
-          Value: true
-        abad_L2:
-          Value: true
-        abad_R1:
-          Value: true
-        abad_R2:
-          Value: true
-        base_link:
-          Value: true
-        ef_L1:
-          Value: true
-        ef_L2:
-          Value: true
-        ef_R1:
-          Value: true
-        ef_R2:
-          Value: true
-        hip_L1:
-          Value: true
-        hip_L2:
-          Value: true
-        hip_R1:
-          Value: true
-        hip_R2:
-          Value: true
-        knee_L1:
-          Value: true
-        knee_L2:
-          Value: true
-        knee_R1:
-          Value: true
-        knee_R2:
-          Value: true
-        world:
-          Value: true
       Marker Scale: 0.30000001192092896
       Name: TF
       Show Arrows: false
       Show Axes: true
       Show Names: false
       Tree:
-        world:
-          base_link:
-            abad_L1:
-              hip_L1:
-                knee_L1:
-                  ef_L1:
-                    {}
-            abad_L2:
-              hip_L2:
-                knee_L2:
-                  ef_L2:
-                    {}
-            abad_R1:
-              hip_R1:
-                knee_R1:
-                  ef_R1:
-                    {}
-            abad_R2:
-              hip_R2:
-                knee_R2:
-                  ef_R2:
-                    {}
+        {}
       Update Interval: 0
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48

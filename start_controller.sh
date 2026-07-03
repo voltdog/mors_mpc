@@ -23,6 +23,36 @@ set -euo pipefail
 
 	config_dir="$SCRIPT_DIR/config/"
 	echo "Config Location: ${config_dir}"
+    robot_config="${config_dir}/robot_config.yaml"
+    algorithm="$(
+        awk '
+            /^[[:space:]]*algorithm[[:space:]]*:/ {
+                value = $0
+                sub(/^[^:]*:[[:space:]]*/, "", value)
+                sub(/[[:space:]]*#.*/, "", value)
+                gsub(/"/, "", value)
+                gsub(/\047/, "", value)
+                gsub(/[[:space:]]/, "", value)
+                print value
+                exit
+            }
+        ' "$robot_config"
+    )"
+
+    case "$algorithm" in
+        wbic|vision|dcm)
+            echo "Selected Algorithm: ${algorithm}"
+            ;;
+        "")
+            echo "Missing algorithm in ${robot_config}" >&2
+            exit 1
+            ;;
+        *)
+            echo "Unknown algorithm in ${robot_config}: ${algorithm}" >&2
+            echo "Supported algorithms: wbic, vision, dcm" >&2
+            exit 1
+            ;;
+    esac
 
     # Fast DDS shared-memory transport often leaves stale locks in /dev/shm.
     # Force UDP transport for this local bringup to avoid SHM port conflicts.
@@ -31,7 +61,6 @@ set -euo pipefail
     sim_mode=false
     rviz_enabled=false
     logging_enabled=false
-    dcm_enabled=false
 
     for arg in "$@"; do
         case "$arg" in
@@ -44,16 +73,13 @@ set -euo pipefail
             --log)
                 logging_enabled=true
                 ;;
-            --dcm)
-                dcm_enabled=true
-                ;;
             -h|--help)
-                echo "Usage: $0 [--sim] [--rviz] [--log] [--dcm]" >&2
+                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
                 exit 0
                 ;;
             *)
                 echo "Unknown option: $arg" >&2
-                echo "Usage: $0 [--sim] [--rviz] [--log] [--dcm]" >&2
+                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
                 exit 1
                 ;;
         esac
@@ -82,7 +108,7 @@ set -euo pipefail
     fi
 
     if [ "$rviz_enabled" = true ]; then
-        if [ "$dcm_enabled" = true ]; then
+        if [ "$algorithm" = dcm ]; then
             rviz_config="$SCRIPT_DIR/ros_ws/src/robot_state_viewer/rviz/rviz_config_dcm.rviz"
         else
             rviz_config="$SCRIPT_DIR/ros_ws/src/robot_state_viewer/rviz/rviz_config.rviz"
@@ -97,15 +123,24 @@ set -euo pipefail
     # ${SCRIPT_DIR}/StateEstimatorLKF/build/state_estimator_lkf &
 
 	# robot control
-    if [ "$dcm_enabled" = true ]; then
-        ${SCRIPT_DIR}/LocomotionControllerDCM/build/locomotionControllerDCM &
-    else
-        ${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC & 
-    fi
-    pids+=($!)
-
-    ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
-    pids+=($!)
+    case "$algorithm" in
+        wbic)
+            ${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC &
+            pids+=($!)
+            ;;
+        vision)
+            ${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC &
+            pids+=($!)
+            ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
+            pids+=($!)
+            ;;
+        dcm)
+            ${SCRIPT_DIR}/LocomotionControllerDCM/build/locomotionControllerDCM &
+            pids+=($!)
+            ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
+            pids+=($!)
+            ;;
+    esac
 
     echo "Robot Controller Started Successfully"
 

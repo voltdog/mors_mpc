@@ -86,11 +86,12 @@ Eigen::Vector4d sanitize_quaternion_xyzw(const Eigen::Vector4d& raw_quaternion)
 
 } // namespace
 
-LCMExchanger::LCMExchanger()
+LCMExchanger::LCMExchanger(bool enable_heightmap)
     : robot_state(makeZeroRobotData()),
       robot_cmd(makeZeroRobotData()),
       leg_state(makeZeroLegData()),
-      servo_state(makeZeroServoStateData())
+      servo_state(makeZeroServoStateData()),
+      heightmap_enabled_(enable_heightmap)
 {
     initialized =
         robot_cmd_subscriber.good() &&
@@ -98,7 +99,7 @@ LCMExchanger::LCMExchanger()
         servo_state_subscriber.good() &&
         gait_params_subscriber.good() &&
         enable_subscriber.good() &&
-        heightmap_subscriber.good() &&
+        (!heightmap_enabled_ || heightmap_subscriber.good()) &&
         wbc_cmd_publisher.good() &&
         wbc_state_publisher.good() &&
         servo_cmd_publisher.good() &&
@@ -123,7 +124,9 @@ LCMExchanger::LCMExchanger()
     servo_state_channel = channel_config["servo_state"].as<string>();
     gait_params_channel = channel_config["gait_params"].as<string>();
     phase_signal_channel = channel_config["gait_phase"].as<string>();
-    heightmap_channel = channel_config["heightmap"].as<string>();
+    if (heightmap_enabled_) {
+        heightmap_channel = channel_config["heightmap"].as<string>();
+    }
 
     t_sw = 0.2;
     t_st = 0.3;
@@ -139,21 +142,23 @@ LCMExchanger::LCMExchanger()
     heightmap_height_min = -2.0f;
     heightmap_height_resolution = 0.005f;
 
-    try {
-        string heightmap_config_address = mors_sys::GetEnv("CONFIGPATH");
-        heightmap_config_address += "/heightmap_builder.yaml";
-        const YAML::Node heightmap_config = YAML::LoadFile(heightmap_config_address);
-        if (heightmap_config["map"]) {
-            const YAML::Node map_config = heightmap_config["map"];
-            if (map_config["height_min"]) {
-                heightmap_height_min = map_config["height_min"].as<float>();
+    if (heightmap_enabled_) {
+        try {
+            string heightmap_config_address = mors_sys::GetEnv("CONFIGPATH");
+            heightmap_config_address += "/heightmap_builder.yaml";
+            const YAML::Node heightmap_config = YAML::LoadFile(heightmap_config_address);
+            if (heightmap_config["map"]) {
+                const YAML::Node map_config = heightmap_config["map"];
+                if (map_config["height_min"]) {
+                    heightmap_height_min = map_config["height_min"].as<float>();
+                }
+                if (map_config["height_resolution"]) {
+                    heightmap_height_resolution = map_config["height_resolution"].as<float>();
+                }
             }
-            if (map_config["height_resolution"]) {
-                heightmap_height_resolution = map_config["height_resolution"].as<float>();
-            }
+        } catch (const std::exception&) {
+            // Keep default decode parameters.
         }
-    } catch (const std::exception&) {
-        // Keep default decode parameters.
     }
 
     for (int i = 0; i < 3; ++i) {
@@ -179,7 +184,9 @@ void LCMExchanger::start_exchanger()
     thServoState = make_unique<thread>(&LCMExchanger::servoStateThread, this);
     thEnable = make_unique<thread>(&LCMExchanger::enableThread, this);
     thGaitParams = make_unique<thread>(&LCMExchanger::gaitParamsThread, this);
-    thHeightmap = make_unique<thread>(&LCMExchanger::heightmapThread, this);
+    if (heightmap_enabled_) {
+        thHeightmap = make_unique<thread>(&LCMExchanger::heightmapThread, this);
+    }
 }
 
 void LCMExchanger::robotCmdHandler(const lcm::ReceiveBuffer*,
@@ -424,6 +431,10 @@ void LCMExchanger::getWbicObservationStatus(bool& robot_state_received,
 
 void LCMExchanger::getHeightmapStatus(bool& heightmap_received) const
 {
+    if (!heightmap_enabled_) {
+        heightmap_received = false;
+        return;
+    }
     heightmap_received = heightmap_received_.load(std::memory_order_acquire); 
 }
 

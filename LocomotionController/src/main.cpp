@@ -36,7 +36,12 @@ int main() {
 
     // robot physical params
     YAML::Node robot_config = YAML::LoadFile(robot_config_address);
+    const string algorithm = robot_config["algorithm"] ? robot_config["algorithm"].as<string>() : "";
+    const bool use_heightmap = (algorithm == "vision");
     const bool debug_mode = robot_config["debug_mode"] ? robot_config["debug_mode"].as<bool>() : false;
+    cout << "[LocomotionController]: Algorithm: "
+         << (algorithm.empty() ? "unset" : algorithm)
+         << " | heightmap: " << (use_heightmap ? "enabled" : "disabled") << endl;
     RobotPhysicalParams robot;
     robot.bx = robot_config["bx"].as<double>(); 
     robot.by = robot_config["by"].as<double>(); 
@@ -138,7 +143,7 @@ int main() {
     auto dt = std::chrono::duration<double>(module_dt);//1ms;
 
     // init LCM
-    LCMExchanger lcmExch;
+    LCMExchanger lcmExch(use_heightmap);
     if (!lcmExch.initialized) {
         cerr << "[LocomotionController]: Failed to initialize LCM exchanger" << endl;
         return -1;
@@ -287,10 +292,12 @@ int main() {
         lcmExch.get_active_legs(active_legs);
         adaptation_type = lcmExch.get_adaptation_type();
         
-        lcmExch.getHeightmapStatus(heightmap_received);
-        if (heightmap_received) {
-            lcmExch.get_heightmap_data(vision_map);
-            swing_controller.set_heightmap(vision_map);
+        if (use_heightmap) {
+            lcmExch.getHeightmapStatus(heightmap_received);
+            if (heightmap_received) {
+                lcmExch.get_heightmap_data(vision_map);
+                swing_controller.set_heightmap(vision_map);
+            }
         }
         
         if (enable == true)

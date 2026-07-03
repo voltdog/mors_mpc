@@ -39,6 +39,10 @@ public:
         x_com_fb_out = x_com_fb;
         v_com_fb_out = v_com_fb;
     }
+    void get_ref_body_vel_filtered(Eigen::Vector3d& ref_body_vel_filtered) const
+    {
+        ref_body_vel_filtered = this->ref_body_vel_filtered;
+    }
 
 private:
     // Parameters
@@ -86,7 +90,7 @@ private:
                                 const RobotData& robot_state,
                                 bool& has_roll_support) const;
 
-    Eigen::VectorXd ref_body_vel_filtered, ref_body_vel_directed;
+    Eigen::Vector3d ref_body_vel_filtered, ref_body_vel_directed;
     double ref_body_yaw_vel_filtered;
     MatrixXd R_body_for_vel;
 

@@ -17,7 +17,7 @@ interleave_y: [0.1, 0.1, 0.1, 0.1]
 # interleave_y: [0.08, 0.08, 0.08, 0.08]
 # interleave_y: [0.11, 0.11, 0.11, 0.11]
 # interleave_y: [0.08012178151634375, 0.08012178151634375, 0.08012178151634375, 0.08012178151634375]
-dz_near_ground: -0.0
+dz_near_ground: -0.0 # -0.6 # 
  
 # foot step planner
 k1_fsp: 0.019409446152834336 #0.03 # capture point constant

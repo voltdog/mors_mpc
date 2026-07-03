@@ -27,13 +27,13 @@ BODY_Z_MIN = 0.1
 KEYBOARD_STRIDE_HEIGHT = 0.04
 KEYBOARD_STRIDE_HEIGHT_STEP = 0.005
 KEYBOARD_STRIDE_HEIGHT_MIN = 0.0
-KEYBOARD_T_SW = 0.23
+KEYBOARD_T_SW = 0.18
 KEYBOARD_T_SW_STEP = 0.01
 KEYBOARD_T_SW_MIN = 0.01
-KEYBOARD_T_ST_MAX = 0.5
+KEYBOARD_T_ST_MAX = 0.4
 KEYBOARD_T_ST_MIN = 0.2
 KEYBOARD_GAIT_TYPE = [0.0, 0.5, 0.5, 0.0]
-KEYBOARD_BODY_Z = 0.18
+KEYBOARD_BODY_Z = 0.206
 KEYBOARD_BODY_Z_STEP = 0.002
 KEYBOARD_DEFAULT_SPEED = 0.3
 KEYBOARD_MIN_SPEED = 0.1
@@ -43,6 +43,9 @@ KEYBOARD_TOGGLE_DEBOUNCE = 0.3
 
 FLOAT_EPS = 1e-6
 CMD_POSE_LPF_ALPHA = 0.2
+# Resend cmd_pose for a short window after entering STANDING from DO_NOTHING so the
+# controller receives the setpoint after it has actually switched mode (~0.5 s at 50 Hz).
+CMD_POSE_STAND_REPUBLISH_TICKS = 25
 
 
 class MorsKeyboardControl(Node):
@@ -75,6 +78,7 @@ class MorsKeyboardControl(Node):
         self.prev_cmd_pose_state = None
         self.prev_gait_params_state = None
         self.filtered_cmd_pose_state = None
+        self.cmd_pose_force_ticks = 0
 
         timer_period = 0.02
         self.timer = self.create_timer(timer_period, self.timer_callback)
@@ -371,11 +375,13 @@ class MorsKeyboardControl(Node):
 
         self._set_twist_state(self.cmd_pose_msg, self.filtered_cmd_pose_state)
 
-    def _publish_if_changed(self, publisher, msg, state_getter, prev_state_attr: str):
+    def _publish_if_changed(
+        self, publisher, msg, state_getter, prev_state_attr: str, force: bool = False
+    ):
         current_state = state_getter(msg)
         prev_state = getattr(self, prev_state_attr)
 
-        if self._values_changed(prev_state, current_state):
+        if force or self._values_changed(prev_state, current_state):
             publisher.publish(msg)
             setattr(self, prev_state_attr, current_state)
 
@@ -557,6 +563,13 @@ class MorsKeyboardControl(Node):
         if self.prev_robot_mode != self.robot_mode:
             self.send_mode_request(self.robot_mode)
 
+        if self.prev_robot_mode == DO_NOTHING_MODE and self.robot_mode == STANDING_MODE:
+            self.cmd_pose_force_ticks = CMD_POSE_STAND_REPUBLISH_TICKS
+
+        force_cmd_pose = self.cmd_pose_force_ticks > 0
+        if force_cmd_pose:
+            self.cmd_pose_force_ticks -= 1
+
         if self.robot_mode != DO_NOTHING_MODE:
             self._apply_cmd_pose_low_pass()
 
@@ -571,6 +584,7 @@ class MorsKeyboardControl(Node):
             self.cmd_pose_msg,
             self._twist_state,
             "prev_cmd_pose_state",
+            force=force_cmd_pose,
         )
         self._publish_if_changed(
             self.gait_params_pub,

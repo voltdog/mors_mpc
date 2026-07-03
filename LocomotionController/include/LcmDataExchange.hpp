@@ -39,7 +39,7 @@ using namespace YAML;
 class LCMExchanger
 {
     public:
-        LCMExchanger();
+        explicit LCMExchanger(bool enable_heightmap = true);
         ~LCMExchanger();
 
         void start_exchanger();
@@ -140,6 +140,7 @@ class LCMExchanger
         RobotData robot_cmd;
         LegData leg_state;
         ServoStateData servo_state;
+        bool heightmap_enabled_;
         double t_st;
         double t_sw;
         vector<double> gait_type;
