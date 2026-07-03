@@ -1,0 +1,1731 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<root>
+ <tabbed_widget name="Main Window" parent="main_window">
+  <Tab containers="1" tab_name="body pos">
+   <Container>
+    <DockSplitter count="3" orientation="-" sizes="0.333714;0.332571;0.333714">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.011027" left="53.201026" right="58.909632" top="0.146575"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/pos/0"/>
+       <curve color="#d62728" name="robot_cmd/pos/0"/>
+       <curve color="#1ac938" name="wbc_cmd/body_pos/0"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.009017" left="53.201026" right="58.909632" top="0.007242"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/pos/1"/>
+       <curve color="#d62728" name="robot_cmd/pos/1"/>
+       <curve color="#1ac938" name="wbc_cmd/body_pos/1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="0.201990" left="53.201026" right="58.909632" top="0.216867"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/pos/2"/>
+       <curve color="#d62728" name="robot_cmd/pos/2"/>
+       <curve color="#1ac938" name="wbc_cmd/body_pos/2"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="body euler">
+   <Container>
+    <DockSplitter count="3" orientation="-" sizes="0.333714;0.332571;0.333714">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.006486" left="53.201026" right="58.909632" top="0.045423"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/rpy/0"/>
+       <curve color="#d62728" name="robot_cmd/rpy/0"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.027933" left="53.201026" right="58.909632" top="0.018996"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/rpy/1"/>
+       <curve color="#d62728" name="robot_cmd/rpy/1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.001349" left="53.201026" right="58.909632" top="0.055300"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/rpy/2"/>
+       <curve color="#d62728" name="robot_cmd/rpy/2"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="body lin vel">
+   <Container>
+    <DockSplitter count="3" orientation="-" sizes="0.333714;0.332571;0.333714">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.082028" left="53.201026" right="58.909632" top="0.309318"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/lin_vel/0"/>
+       <curve color="#d62728" name="robot_cmd/lin_vel/0"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.135159" left="53.201026" right="58.909632" top="0.127399"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/lin_vel/1"/>
+       <curve color="#d62728" name="robot_cmd/lin_vel/1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.499528" left="53.201026" right="58.909632" top="0.642491"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/lin_vel/2"/>
+       <curve color="#d62728" name="robot_cmd/lin_vel/2"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="body ang_vel">
+   <Container>
+    <DockSplitter count="4" orientation="-" sizes="0.250572;0.250572;0.248284;0.250572">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.999129" left="53.201026" right="58.909632" top="1.009368"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/ang_vel/0"/>
+       <curve color="#d62728" name="robot_cmd/ang_vel/0"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.748714" left="53.201026" right="58.909632" top="0.749507"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/ang_vel/1"/>
+       <curve color="#d62728" name="robot_cmd/ang_vel/1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.591860" left="53.201026" right="58.909632" top="0.558479"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/ang_vel/2"/>
+       <curve color="#d62728" name="robot_cmd/ang_vel/2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.001349" left="53.201026" right="58.909632" top="0.055300"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/rpy/2"/>
+       <curve color="#d62728" name="robot_cmd/rpy/2"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="contacts">
+   <Container>
+    <DockSplitter count="5" orientation="-" sizes="0.200458;0.199313;0.200458;0.199313;0.200458">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.025000" left="53.201026" right="58.909632" top="1.025000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/contact/0"/>
+       <curve color="#b41f1f" name="contact_sensor/l2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.025000" left="53.201026" right="58.909632" top="1.025000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/contact/1"/>
+       <curve color="#b41f28" name="contact_sensor/l2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.025000" left="53.201026" right="58.909632" top="1.025000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/contact/2"/>
+       <curve color="#b4381f" name="contact_sensor/r1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.025000" left="53.201026" right="58.909632" top="1.025000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/contact/3"/>
+       <curve color="#b4271f" name="contact_sensor/r2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="0.201990" left="53.201026" right="58.909632" top="0.216867"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/pos/2"/>
+       <curve color="#d62728" name="robot_cmd/pos/2"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="gait phase">
+   <Container>
+    <DockSplitter count="4" orientation="-" sizes="0.250572;0.249428;0.251716;0.248284">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.050000" left="53.201026" right="58.909632" top="2.050000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="gait_phase/phase/0"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.050000" left="53.201026" right="58.909632" top="2.050000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="gait_phase/phase/1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.075000" left="53.201026" right="58.909632" top="3.075000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="gait_phase/phase/2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.050000" left="53.201026" right="58.909632" top="2.050000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="gait_phase/phase/3"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="R1 joint pos">
+   <Container>
+    <DockSplitter count="3" orientation="-" sizes="0.333714;0.332571;0.333714">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.043127" left="53.201026" right="58.909632" top="0.096508"/>
+       <limitY/>
+       <curve color="#1f77b4" name="servo_state/pos/0"/>
+       <curve color="#b4291f" name="servo_cmd/pos/0"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-1.306069" left="53.201026" right="58.909632" top="-0.563987"/>
+       <limitY/>
+       <curve color="#1f77b4" name="servo_state/pos/1"/>
+       <curve color="#d62728" name="servo_cmd/pos/1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="1.292778" left="53.201026" right="58.909632" top="1.983342"/>
+       <limitY/>
+       <curve color="#1f77b4" name="servo_state/pos/2"/>
+       <curve color="#d62728" name="servo_cmd/pos/2"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="R1 joint_torq">
+   <Container>
+    <DockSplitter count="3" orientation="-" sizes="0.333714;0.332571;0.333714">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-1.981424" left="53.201026" right="58.909632" top="5.199761"/>
+       <limitY/>
+       <curve color="#1f77b4" name="servo_state/torq/0">
+        <transform alias="servo_state/torq/0[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.073"/>
+        </transform>
+       </curve>
+       <curve color="#d62728" name="servo_cmd/torq/0">
+        <transform alias="servo_cmd/torq/0[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.073"/>
+        </transform>
+       </curve>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-3.289369" left="53.201026" right="58.909632" top="2.671686"/>
+       <limitY/>
+       <curve color="#1f77b4" name="servo_state/torq/1">
+        <transform alias="servo_state/torq/1[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.073"/>
+        </transform>
+       </curve>
+       <curve color="#d62728" name="servo_cmd/torq/1">
+        <transform alias="servo_cmd/torq/1[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.073"/>
+        </transform>
+       </curve>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-5.228515" left="53.201026" right="58.909632" top="4.848178"/>
+       <limitY/>
+       <curve color="#1f77b4" name="servo_state/torq/2">
+        <transform alias="servo_state/torq/2[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.073"/>
+        </transform>
+       </curve>
+       <curve color="#d62728" name="servo_cmd/torq/2">
+        <transform alias="servo_cmd/torq/2[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.073"/>
+        </transform>
+       </curve>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="R1 joint kp">
+   <Container>
+    <DockSplitter count="3" orientation="-" sizes="0.333714;0.332571;0.333714">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="1.875000" left="53.201026" right="58.909632" top="7.125000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="servo_cmd/kp/0"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="1.875000" left="53.201026" right="58.909632" top="7.125000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="servo_cmd/kp/1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="1.875000" left="53.201026" right="58.909632" top="7.125000"/>
+       <limitY/>
+       <curve color="#1f77b4" name="servo_cmd/kp/2"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="foot pos Z">
+   <Container>
+    <DockSplitter count="4" orientation="-" sizes="0.250572;0.249428;0.251716;0.248284">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.027423" left="53.201026" right="58.909632" top="0.433931"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/r1_pos/2"/>
+       <curve color="#d62728" name="wbc_cmd/r1_pos/2"/>
+       <curve color="#1f77b4" name="robot_state/r1_grf/2">
+        <transform alias="robot_state/r1_grf/2[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.01"/>
+        </transform>
+       </curve>
+       <curve color="#ff7f0e" name="gait_phase/phase/0">
+        <transform alias="gait_phase/phase/0[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.1"/>
+        </transform>
+       </curve>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.027440" left="53.201026" right="58.909632" top="0.412372"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/l1_pos/2"/>
+       <curve color="#d62728" name="wbc_cmd/l1_pos/2"/>
+       <curve color="#1f77b4" name="robot_state/l1_grf/2">
+        <transform alias="robot_state/l1_grf/2[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.01"/>
+        </transform>
+       </curve>
+       <curve color="#ff7f0e" name="gait_phase/phase/1">
+        <transform alias="gait_phase/phase/1[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.1"/>
+        </transform>
+       </curve>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.019031" left="53.201026" right="58.909632" top="0.380693"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/r2_pos/2"/>
+       <curve color="#d62728" name="wbc_cmd/r2_pos/2"/>
+       <curve color="#1f77b4" name="robot_state/r2_grf/2">
+        <transform alias="robot_state/r2_grf/2[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.01"/>
+        </transform>
+       </curve>
+       <curve color="#ff7f0e" name="gait_phase/phase/2">
+        <transform alias="gait_phase/phase/2[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.1"/>
+        </transform>
+       </curve>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.022771" left="53.201026" right="58.909632" top="0.392022"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/l2_pos/2"/>
+       <curve color="#d62728" name="wbc_cmd/l2_pos/2"/>
+       <curve color="#1f77b4" name="robot_state/l2_grf/2">
+        <transform alias="robot_state/l2_grf/2[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.01"/>
+        </transform>
+       </curve>
+       <curve color="#ff7f0e" name="gait_phase/phase/3">
+        <transform alias="gait_phase/phase/3[Scale/Offset]" name="Scale/Offset">
+         <options time_offset="0.0" value_offset="0.0" value_scale="0.1"/>
+        </transform>
+       </curve>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="foot vel Z">
+   <Container>
+    <DockSplitter count="4" orientation="-" sizes="0.250572;0.249428;0.250572;0.249428">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.680164" left="53.201026" right="58.909632" top="2.065370"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/r1_vel/2"/>
+       <curve color="#d62728" name="gait_phase/phase/0"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.990346" left="53.201026" right="58.909632" top="2.072935"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/l1_vel/2"/>
+       <curve color="#d62728" name="gait_phase/phase/1"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.832706" left="53.201026" right="58.909632" top="3.093481"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/r2_vel/2"/>
+       <curve color="#d62728" name="gait_phase/phase/2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.697538" left="53.201026" right="58.909632" top="2.065794"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/l2_vel/2"/>
+       <curve color="#d62728" name="gait_phase/phase/3"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <Tab containers="1" tab_name="foot GRF">
+   <Container>
+    <DockSplitter count="5" orientation="-" sizes="0.200458;0.199313;0.200458;0.199313;0.200458">
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-1.057365" left="53.201026" right="58.909632" top="43.351965"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/r1_grf/2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-1.004750" left="53.201026" right="58.909632" top="41.194750"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/l1_grf/2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-0.927940" left="53.201026" right="58.909632" top="38.045540"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/r2_grf/2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="-1.010775" left="53.201026" right="58.909632" top="41.441775"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/l2_grf/2"/>
+      </plot>
+     </DockArea>
+     <DockArea name="...">
+      <plot flip_x="false" flip_y="false" line_width="1.0" mode="TimeSeries">
+       <range bottom="0.201990" left="53.201026" right="58.909632" top="0.216867"/>
+       <limitY/>
+       <curve color="#1f77b4" name="robot_state/pos/2"/>
+       <curve color="#d62728" name="robot_cmd/pos/2"/>
+      </plot>
+     </DockArea>
+    </DockSplitter>
+   </Container>
+  </Tab>
+  <currentTabIndex index="10"/>
+ </tabbed_widget>
+ <use_relative_time_offset enabled="1"/>
+ <streaming_buffer_size value="5"/>
+ <!-- - - - - - - - - - - - - - - -->
+ <!-- - - - - - - - - - - - - - - -->
+ <Plugins>
+  <plugin ID="DataLoad CSV">
+   <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+  </plugin>
+  <plugin ID="DataLoad MCAP"/>
+  <plugin ID="DataLoad ROS2 bags">
+   <use_header_stamp value="false"/>
+   <discard_large_arrays value="true"/>
+   <max_array_size value="100"/>
+   <boolean_strings_to_number value="true"/>
+   <remove_suffix_from_strings value="true"/>
+   <selected_topics value=""/>
+  </plugin>
+  <plugin ID="DataLoad ULog"/>
+  <plugin ID="Foxglove ROS2 Bridge">
+   <foxglove_client clamp_large_arrays="0" max_array_size="500" url="ws://127.0.0.1:8765" use_timestamp="0">
+    <topics/>
+   </foxglove_client>
+  </plugin>
+  <plugin ID="MQTT Subscriber (Mosquitto)"/>
+  <plugin ID="PlotJuggler Bridge">
+   <websocket_client clamp_large_arrays="0" max_array_size="500" url="ws://127.0.0.1:9090" use_timestamp="0">
+    <topics/>
+   </websocket_client>
+  </plugin>
+  <plugin ID="ROS2 Topic Subscriber">
+   <use_header_stamp value="false"/>
+   <discard_large_arrays value="true"/>
+   <max_array_size value="100"/>
+   <boolean_strings_to_number value="true"/>
+   <remove_suffix_from_strings value="true"/>
+   <selected_topics value=""/>
+  </plugin>
+  <plugin ID="Serial Port"/>
+  <plugin ID="UDP Server"/>
+  <plugin ID="WebSocket Server"/>
+  <plugin ID="ZMQ Subscriber"/>
+  <plugin ID="CSV/Parquet Exporter"/>
+  <plugin ID="Fast Fourier Transform"/>
+  <plugin ID="Quaternion to RPY"/>
+  <plugin ID="Reactive Script Editor">
+   <library code="--[[ Helper function to create a series from arrays
+
+ new_series: a series previously created with ScatterXY.new(name)
+ prefix:     prefix of the timeseries, before the index of the array
+ suffix_X:   suffix to complete the name of the series containing the X value. If [nil], use the index of the array.
+ suffix_Y:   suffix to complete the name of the series containing the Y value
+ timestamp:   usually the tracker_time variable
+              
+ Example:
+ 
+ Assuming we have multiple series in the form:
+ 
+   /trajectory/node.{X}/position/x
+   /trajectory/node.{X}/position/y
+   
+ where {N} is the index of the array (integer). We can create a reactive series from the array with:
+ 
+   new_series = ScatterXY.new(&quot;my_trajectory&quot;) 
+   CreateSeriesFromArray( new_series, &quot;/trajectory/node&quot;, &quot;position/x&quot;, &quot;position/y&quot;, tracker_time );
+--]]
+
+function CreateSeriesFromArray( new_series, prefix, suffix_X, suffix_Y, timestamp )
+  
+  --- clear previous values
+  new_series:clear()
+  
+  --- Append points to new_series
+  index = 0
+  while(true) do
+
+    x = index;
+    -- if not nil, get the X coordinate from a series
+    if suffix_X ~= nil then 
+      series_x = TimeseriesView.find( string.format( &quot;%s.%d/%s&quot;, prefix, index, suffix_X) )
+      if series_x == nil then break end
+      x = series_x:atTime(timestamp)	 
+    end
+    
+    series_y = TimeseriesView.find( string.format( &quot;%s.%d/%s&quot;, prefix, index, suffix_Y) )
+    if series_y == nil then break end 
+    y = series_y:atTime(timestamp)
+    
+    new_series:push_back(x,y)
+    index = index+1
+  end
+end
+
+--[[ Similar to the built-in function GetSeriesNames(), but select only the names with a give prefix. --]]
+
+function GetSeriesNamesByPrefix(prefix)
+  -- GetSeriesNames(9 is a built-in function
+  all_names = GetSeriesNames()
+  filtered_names = {}
+  for i, name in ipairs(all_names)  do
+    -- check the prefix
+    if name:find(prefix, 1, #prefix) then
+      table.insert(filtered_names, name);
+    end
+  end
+  return filtered_names
+end
+
+--[[ Modify an existing series, applying offsets to all their X and Y values
+
+ series: an existing timeseries, obtained with TimeseriesView.find(name)
+ delta_x: offset to apply to each x value
+ delta_y: offset to apply to each y value 
+  
+--]]
+
+function ApplyOffsetInPlace(series, delta_x, delta_y)
+  -- use C++ indices, not Lua indices
+  for index=0, series:size()-1 do
+    x,y = series:at(index)
+    series:set(index, x + delta_x, y + delta_y)
+  end
+end
+"/>
+   <scripts/>
+  </plugin>
+  <plugin ID="ROS2 Topic Re-Publisher"/>
+ </Plugins>
+ <!-- - - - - - - - - - - - - - - -->
+ <previouslyLoaded_Datafiles>
+  <fileInfo filename="../mors_logs/log_260624_172321/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_172321/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_173752/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_174019/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260508_173622/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182126/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260624_182747/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_115348/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_124921/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_125346/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_140825/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_140825/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_140825/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_140825/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_140825/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_140825/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141321/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141321/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141321/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141321/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141321/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141321/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141448/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141448/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141448/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141448/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141448/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141619/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141619/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141619/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141619/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141619/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141619/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_141619/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144104/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144104/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144104/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144104/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144104/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144104/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144104/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144258/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144258/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144258/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144258/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144258/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144258/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144258/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_144258/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_145702/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_145702/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_145702/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_145702/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_145702/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_145702/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_145702/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_145702/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_145702/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151159/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_151839/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_162407/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_164551/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_170016/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/contact_sensor.csv" prefix="contact_sensor">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/robot_state_check.csv" prefix="robot_state_check">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260625_173001/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260626_122551/gait_phase.csv" prefix="gait_phase">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260626_122551/imu_data.csv" prefix="imu_data">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260626_122551/mpc_cmd.csv" prefix="mpc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260626_122551/odometry.csv" prefix="odometry">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260626_122551/robot_cmd.csv" prefix="robot_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260626_122551/robot_state.csv" prefix="robot_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260626_122551/servo_cmd.csv" prefix="servo_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260626_122551/servo_state.csv" prefix="servo_state">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+  <fileInfo filename="../mors_logs/log_260626_122551/wbc_cmd.csv" prefix="wbc_cmd">
+   <plugin ID="DataLoad CSV">
+    <parameters delimiter="0" skip_rows="0" time_axis="time"/>
+   </plugin>
+  </fileInfo>
+ </previouslyLoaded_Datafiles>
+ <!-- - - - - - - - - - - - - - - -->
+ <customMathEquations/>
+ <snippets/>
+ <colorMaps/>
+ <!-- - - - - - - - - - - - - - - -->
+</root>
