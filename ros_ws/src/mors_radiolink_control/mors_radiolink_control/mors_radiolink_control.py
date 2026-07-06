@@ -49,7 +49,7 @@ LATERAL_SPEED_RATIO = 0.0
 ANGULAR_SPEED_RATIO = 2.0
 
 # Gait timing: t_sw fixed, t_st interpolated from speed (same as mors_keyboard_control).
-T_SW = 0.18
+T_SW = 0.2
 T_ST_MAX = 0.4
 T_ST_MIN = 0.2
 SPEED_MIN = 0.1

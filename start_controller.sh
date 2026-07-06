@@ -100,10 +100,10 @@ set -euo pipefail
         echo "-------------- Hardware Mode Activated --------------"
         ${SCRIPT_DIR}/RealsenseCamera/build/realsense_camera  &
         pids+=($!)
-        # if [ "$algorithm" = vision ]; then
-        #     ${SCRIPT_DIR}/RealsenseCameraD435i/build/realsense_camera_d435i &
-        #     pids+=($!)
-        # fi
+        if [ "$algorithm" = vision ]; then
+            ${SCRIPT_DIR}/RealsenseCameraD435i/build/realsense_camera_d435i &
+            pids+=($!)
+        fi
         ${SCRIPT_DIR}/BHI360_IMU/build/bhi360_imu &
         pids+=($!)
         # in the future add here contact sensors controller

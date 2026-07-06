@@ -25,10 +25,10 @@ set -euo pipefail
     "${SCRIPT_DIR}/RealsenseCameraD435i/build/realsense_camera_d435i" &
     pids+=($!)
 
-    # sleep 2s
+    sleep 2s
 
-    # ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
-    # pids+=($!)
+    ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
+    pids+=($!)
 
 
     echo "Heightmap Builder stack started successfully"

@@ -180,7 +180,7 @@ int main()
             first_pos = false;
         }
         // position and linear velocity low pass filtering
-        robot_state.pos = lpf.update_position(body_pos);
+        robot_state.pos = body_pos; //lpf.update_position(body_pos);
         
         // ------------------------
         //     LINEAR VELOCITY

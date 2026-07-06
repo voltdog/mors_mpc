@@ -1,7 +1,30 @@
 #include "lcm_data_exchange_se.hpp"
+#include <cstdlib>
+#include <stdexcept>
 #include <unistd.h>
 
+namespace
+{
+
+std::string GetRequiredEnv(const char* name)
+{
+    const char* value = std::getenv(name);
+    if (value == nullptr || value[0] == '\0')
+    {
+        throw std::runtime_error(std::string("[StateEstimator] ") + name + " must be set.");
+    }
+    return value;
+}
+
+} // namespace
+
 LCMExchanger::LCMExchanger()
+    : servo_state_subscriber(GetRequiredEnv("LCM_SERVO_URL")),
+      imu_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      odometry_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      contact_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      robot_state_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
+      servo_filtered_publisher(GetRequiredEnv("LCM_SERVO_URL"))
 {
     
     if(!servo_state_subscriber.good())
@@ -9,6 +32,12 @@ LCMExchanger::LCMExchanger()
     if(!imu_subscriber.good())
         return;
     if(!odometry_subscriber.good())
+        return;
+    if(!contact_subscriber.good())
+        return;
+    if(!robot_state_publisher.good())
+        return;
+    if(!servo_filtered_publisher.good())
         return;
 
     string config_address = mors_sys::GetEnv("CONFIGPATH");//cwd;
