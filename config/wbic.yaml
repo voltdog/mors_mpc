@@ -20,10 +20,10 @@ Qf_entry: 0.565
 Qa_entry: 4.182
 
 body_ori_task_kp: 120.0
-body_ori_task_kd: 22.0
+body_ori_task_kd: 26.0 #22.0
 
 body_pos_task_kp: 140.0
-body_pos_task_kd: 26.0
+body_pos_task_kd: 26.0 #26.0
 
 tip_pos_task_kp: 230.0
 tip_pos_task_kd: 28.0
@@ -32,4 +32,4 @@ joint_kp_stance: 2.0
 joint_kd_stance: 0.4
 
 joint_kp_swing: 6.0
-joint_kd_swing: 0.35
+joint_kd_swing: 0.25

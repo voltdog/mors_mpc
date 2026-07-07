@@ -1,5 +1,5 @@
 # HARDWARE
-contact_threshold: 4.0 #20.0 # - for Hs=0.13 #3.0 - for Hs=0.11
+contact_threshold: 1.0 #20.0 # - for Hs=0.13 #3.0 - for Hs=0.11
 
 camera_offset_x: 0.26045
 camera_offset_y: 0.01675

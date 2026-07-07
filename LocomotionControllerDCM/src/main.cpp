@@ -90,6 +90,11 @@ int main() {
     string gait_scheduler_config_address = config_address + "/gait_scheduler.yaml";
     YAML::Node gait_sched_config = YAML::LoadFile(gait_scheduler_config_address);
     double start_td_detecting = gait_sched_config["start_td_detecting"].as<double>(); 
+    // дебаунс детектора контакта (опционально, есть значения по умолчанию)
+    int contact_debounce = gait_sched_config["contact_debounce"]
+                               ? gait_sched_config["contact_debounce"].as<int>() : 3;
+    double vz_contact_thresh = gait_sched_config["vz_contact_thresh"]
+                               ? gait_sched_config["vz_contact_thresh"].as<double>() : 0.1;
 
     // swing controller params
     string swing_controller_config_address = config_address + "/swing_controller.yaml";
@@ -190,7 +195,7 @@ int main() {
     std::vector<double> leg_phi = {0,0,0,0};
 
     // init contact state fsm
-    ContactStateFSM contact_fsm(start_td_detecting);
+    ContactStateFSM contact_fsm(start_td_detecting, contact_debounce, vz_contact_thresh);
     // init reference generator
     int adaptation_type = 0;
     ReferenceGenerator ref_generator(module_dt, 0.5, horizon, mpc_dt);
@@ -347,7 +352,10 @@ int main() {
             // scheduling
             gait_scheduler.set_gait_params(t_st, t_sw, phase_offsets, phase_init);
             gait_scheduler.step(t, standing, desired_leg_state, leg_phi);
-            phase_signal = contact_fsm.step(leg_state.contacts, leg_phi, desired_leg_state);
+            // вертикальная скорость стоп в МСК (порядок r1, l1, r2, l2) для отсева ложных касаний
+            std::vector<double> foot_vz = {leg_state.r1_vel(Z), leg_state.l1_vel(Z),
+                                           leg_state.r2_vel(Z), leg_state.l2_vel(Z)};
+            phase_signal = contact_fsm.step(leg_state.contacts, leg_phi, desired_leg_state, foot_vz);
 
             // ------------------
             // FOOT STEP GENERATOR

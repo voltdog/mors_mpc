@@ -31,6 +31,7 @@ struct Legs
 
 struct robot_state_msg
 {
+    int64_t timestamp;      // Unix time in ns
     Body body; // wrt global
     Legs legs; // wrt body
 }

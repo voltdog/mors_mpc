@@ -1,19 +1,15 @@
 cmake_minimum_required(VERSION 3.28.3)
 # set the project name
-project(MorsLogger VERSION 1.0)
+project(state_estimator_hmb VERSION 1.0)
 
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)
 # set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-endif()
-message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
-# check AVX2 support
-
+# check AVX2 
+#===============================================================================
     set(AVX_FLAGS)
 
     include(CheckCXXSourceRuns)
@@ -80,16 +76,16 @@ message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
     # Set Flags according to check results
     if (MSVC)
         if (HAVE_AVX2_EXTENSIONS AND NOT MSVC_VERSION LESS 1800)
-            list(APPEND AVX_FLAGS /arch:AVX2)
+            set(AVX_FLAGS "${AVX_FLAGS} /arch:AVX2")
         elseif (HAVE_AVX_EXTENSIONS AND NOT MSVC_VERSION LESS 1600)
-            list(APPEND AVX_FLAGS /arch:AVX)
+            set(AVX_FLAGS "${AVX_FLAGS} /arch:AVX")
         endif ()
     else ()
         if (HAVE_AVX2_EXTENSIONS)
-            list(APPEND AVX_FLAGS -mavx2)
+            set(AVX_FLAGS "${AVX_FLAGS} -mavx2")
             message(STATUS "AVX2 is supported")
         elseif (HAVE_AVX_EXTENSIONS)
-            list(APPEND AVX_FLAGS -mavx)
+            set(AVX_FLAGS "${AVX_FLAGS} -mavx")
             message(STATUS "AVX is supported")
         else()
             message(WARNING "AVX is not supported")
@@ -97,32 +93,19 @@ message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
     endif ()
 #===============================================================================
 
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native ")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=auto -DEIGEN_STACK_ALLOCATION_LIMIT=0 -O3 -Wall -fPIC ${AVX_FLAGS}")
+
 # add_definitions(-DCOMPILEDWITHC11)
 message(STATUS "Using flag -std=c++20")
 
-find_package(Eigen3 REQUIRED)
+find_package(Eigen3 3.2.10 REQUIRED)
 # find_package(OsqpEigen REQUIRED)
 find_package(lcm REQUIRED)
-find_package(yaml-cpp CONFIG QUIET)
-
-include(CheckIPOSupported)
-include(FetchContent)
-
-# FetchContent_Declare(
-#   yaml-cpp
-#   GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-#   GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
-# )
-# FetchContent_MakeAvailable(yaml-cpp)
-
-if(NOT yaml-cpp_FOUND)
-  FetchContent_Declare(
-    yaml-cpp
-    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-    GIT_TAG yaml-cpp-0.8.0
-  )
-  FetchContent_MakeAvailable(yaml-cpp)
-endif()
+find_package(pinocchio REQUIRED)
+find_package(realsense2 REQUIRED)
+find_package(yaml-cpp REQUIRED)
+find_package(ZLIB REQUIRED)
 
 include(${LCM_USE_FILE})
 set(LCM_MSGS_DIR "${CMAKE_CURRENT_LIST_DIR}/../lcm_msgs")
@@ -146,33 +129,43 @@ target_include_directories(messages-cpp INTERFACE
 # executable
 # add_subdirectory(/home/$ENV{USER}/vbcontrol/matplotplusplus)
 add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
-target_link_libraries(vbcontrol Eigen3::Eigen)
+# target_link_libraries(vbcontrol PUBLIC Eigen3::Eigen)
 
-set(LOGGER_SOURCES src/main.cpp 
-            src/lcm_data_exchange_ml.cpp
-            src/csv_maintaner.cpp
+set(EXEC_SOURCES src/main.cpp
+            src/sensor_fusion.cpp
+            src/low_pass_filtering.cpp
+            src/leg_state.cpp
+            src/gm_force_observer.cpp
+            src/HeightMapBuilder.cpp
             ../common/src/system_functions.cpp
+            ../common/src/leg_model.cpp
+            ../common/src/Robot.cpp
 )
-add_executable(mors_logger ${LOGGER_SOURCES})
-
-check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
-
-target_compile_options(mors_logger PRIVATE
-  $<$<CONFIG:Release>:-O3 -march=native -mtune=native ${AVX_FLAGS}>
+add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
+# target_link_libraries(leg_controller OsqpEigen::OsqpEigen)
+target_link_libraries(${PROJECT_NAME}
+    vbcontrol
+    Eigen3::Eigen
+    yaml-cpp::yaml-cpp
+    ZLIB::ZLIB
+    pinocchio::pinocchio
+    pinocchio::pinocchio_parsers
 )
 
-target_compile_definitions(mors_logger PRIVATE
-  $<$<CONFIG:Release>:NDEBUG EIGEN_NO_DEBUG EIGEN_DONT_PARALLELIZE>
-)
-
-if(ipo_supported)
-  set_property(TARGET mors_logger PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+if(TARGET realsense2::realsense2)
+  target_link_libraries(${PROJECT_NAME} realsense2::realsense2)
 else()
-  message(STATUS "IPO/LTO is not supported: ${ipo_error}")
+  target_link_libraries(${PROJECT_NAME} ${realsense2_LIBRARY})
 endif()
 
-# target_link_libraries(mors_logger OsqpEigen::OsqpEigen)
-target_link_libraries(mors_logger vbcontrol)
-target_link_libraries(mors_logger Eigen3::Eigen)
-target_link_libraries(mors_logger yaml-cpp::yaml-cpp)
-lcm_target_link_libraries(mors_logger messages-cpp ${LCM_NAMESPACE}lcm)
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    # AVX2 instructions are enabled (see CMAKE_CXX_FLAGS), but Eigen's alignment
+    # must stay at 16 bytes to match the precompiled libpinocchio ABI — otherwise
+    # pinocchio's `model.check(data)` aborts. Same recipe as LocomotionController.
+    EIGEN_MAX_ALIGN_BYTES=16
+    EIGEN_MAX_STATIC_ALIGN_BYTES=16
+)
+
+lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)

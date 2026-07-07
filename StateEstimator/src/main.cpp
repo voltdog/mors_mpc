@@ -149,7 +149,7 @@ int main()
         data_fusioned.orientation = sensor_fusion.update_orientation(imu_data.orientation_euler, imu_data.orientation_euler); 
         // fused orientation filtering
         robot_state.orientation_quaternion = imu_data.orientation_quaternion;
-        robot_state.orientation = lpf.update_orientation(data_fusioned.orientation); 
+        robot_state.orientation = data_fusioned.orientation;//lpf.update_orientation(data_fusioned.orientation); 
         if (first_yaw)
         {
             yaw_offset = data_fusioned.orientation(2);
@@ -166,7 +166,7 @@ int main()
         ang_vel_body = imu_data.ang_vel;//odometry.ang_vel; //R_body * 
 
         // fused rpy rate filtering
-        robot_state.ang_vel = lpf.update_rpy_rate(ang_vel_body);//ang_vel_world);
+        robot_state.ang_vel = ang_vel_body;//lpf.update_rpy_rate(ang_vel_body);//ang_vel_world);
 
         // ------------------------
         //         POSITION
@@ -193,7 +193,8 @@ int main()
         ang_vel_world_cross <<   0,                -ang_vel_world(Z),  ang_vel_world(Y),
                                  ang_vel_world(Z),  0,                -ang_vel_world(X),
                                 -ang_vel_world(Y),  ang_vel_world(X),  0;
-        robot_state.lin_vel =  lpf.update_lin_vel(odometry.lin_vel) + (ang_vel_world_cross) * R_body *  P_body_cam;// - (rpy_rate_cross) * body_pos;//
+        // robot_state.lin_vel =  lpf.update_lin_vel(odometry.lin_vel) + (ang_vel_world_cross) * R_body *  P_body_cam;// - (rpy_rate_cross) * body_pos;//
+        robot_state.lin_vel =  odometry.lin_vel + (ang_vel_world_cross) * R_body *  P_body_cam;// - (rpy_rate_cross) * body_pos;//
 
         // ------------------------
         //        LEG STATES

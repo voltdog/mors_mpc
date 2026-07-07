@@ -26,6 +26,7 @@ void quaternionToEuler(float w, float x, float y, float z, float& roll, float& p
 #define W 3
 
 #define IMU_CHANNEL "IMU_DATA"
+#define STARTUP_SKIP_PACKETS 10
 
 namespace
 {
@@ -208,6 +209,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	int count = 0;
+	int startup_skip_packets = STARTUP_SKIP_PACKETS;
 
 	cout << "[BHI360_IMU]: started" << endl;
 	while (true)
@@ -252,18 +254,27 @@ int main(int argc, char **argv)
                 q_cur.y = quat_y * 1.0f / 16384.0f;
                 q_cur.z = quat_z * 1.0f / 16384.0f;
                 q_cur.w = quat_w * 1.0f / 16384.0f;
-                // q_cur = normalize(q_cur);
+                q_cur = normalize(q_cur);
 
 				// quaternionToEuler(imu_msg.orientation_quaternion[W], imu_msg.orientation_quaternion[X], imu_msg.orientation_quaternion[Y], imu_msg.orientation_quaternion[Z], roll, pitch, yaw);
                 // quat_to_rpy(q_cur.w, q_cur.x, q_cur.y, q_cur.z, roll, pitch, yaw);
 
-				if (first)
+				if (first == true)// && abs(yaw) >= 0.05)
 				{
-					first = false;
-					// yaw_offset = yaw;
+                    if (startup_skip_packets > 0)
+                    {
+                        --startup_skip_packets;
+                        continue;
+                    }
 
+					first = false;
                     q_offset = extractZRotation(q_cur);
+                    // cout << "[BHI360_IMU]: yaw offset initialized after "
+                    //      << STARTUP_SKIP_PACKETS << " packets" << endl;
+                    // cout << q_cur.w << " " << q_cur.x << " " << q_cur.y << " " << q_cur.z << endl;
 				}
+                // cout << yaw << endl;
+                
 
                 Quaternion q_offset_inv = inverse(q_offset);
                 Quaternion q_relative = multiply(q_offset_inv, q_cur);

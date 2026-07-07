@@ -2,6 +2,7 @@ package mors_msgs;
 
 struct odometry_msg
 {
+    int64_t timestamp;      // Unix time in ns
     float position[3];
     float orientation[3];
     float orientation_quaternion[4]; // x y z w

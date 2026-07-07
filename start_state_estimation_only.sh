@@ -47,28 +47,31 @@ export FASTDDS_BUILTIN_TRANSPORTS="${FASTDDS_BUILTIN_TRANSPORTS:-UDPv4}"
 echo "Launching state estimation stack..."
 echo "Script Location: $SCRIPT_DIR"
 
-# RealSense T265 odometry.
-"${SCRIPT_DIR}/RealsenseCamera/build/realsense_camera" &
-pids+=($!)
+# # RealSense T265 odometry.
+# "${SCRIPT_DIR}/RealsenseCamera/build/realsense_camera" &
+# pids+=($!)
 
-# RealSense D435i depth image publisher. HeightMapBuilder consumes DEPTH_IMAGE
-# and can turn it into POINTCLOUD/HEIGHTMAP when that module is running.
-"${SCRIPT_DIR}/RealsenseCameraD435i/build/realsense_camera_d435i" &
-pids+=($!)
+# # RealSense D435i depth image publisher. HeightMapBuilder consumes DEPTH_IMAGE
+# # and can turn it into POINTCLOUD/HEIGHTMAP when that module is running.
+# "${SCRIPT_DIR}/RealsenseCameraD435i/build/realsense_camera_d435i" &
+# pids+=($!)
 
 "${SCRIPT_DIR}/BHI360_IMU/build/bhi360_imu" &
 pids+=($!)
 
-# Wait before starting the estimator so hardware publishers have time to come up.
-sleep 4s
-
-"${SCRIPT_DIR}/StateEstimator/build/state_estimator" &
+"${SCRIPT_DIR}/StateEstimatorHMB/build/state_estimator_hmb" &
 pids+=($!)
 
-if [ "$map_enabled" = true ]; then
-    "${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder" &
-    pids+=($!)
-fi
+# # Wait before starting the estimator so hardware publishers have time to come up.
+# sleep 4s
+
+# "${SCRIPT_DIR}/StateEstimator/build/state_estimator" &
+# pids+=($!)
+
+# if [ "$map_enabled" = true ]; then
+#     "${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder" &
+#     pids+=($!)
+# fi
 
 if [ "$rviz_enabled" = true ]; then
     rviz_config="$SCRIPT_DIR/ros_ws/src/robot_state_viewer/rviz/rviz_config.rviz"

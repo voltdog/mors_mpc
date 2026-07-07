@@ -58,15 +58,11 @@ set -euo pipefail
     # Force UDP transport for this local bringup to avoid SHM port conflicts.
     export FASTDDS_BUILTIN_TRANSPORTS="${FASTDDS_BUILTIN_TRANSPORTS:-UDPv4}"
 
-    sim_mode=false
     rviz_enabled=false
     logging_enabled=false
 
     for arg in "$@"; do
         case "$arg" in
-            --sim)
-                sim_mode=true
-                ;;
             --rviz)
                 rviz_enabled=true
                 ;;
@@ -74,12 +70,12 @@ set -euo pipefail
                 logging_enabled=true
                 ;;
             -h|--help)
-                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
+                echo "Usage: $0 [--rviz] [--log]" >&2
                 exit 0
                 ;;
             *)
                 echo "Unknown option: $arg" >&2
-                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
+                echo "Usage: $0 [--rviz] [--log]" >&2
                 exit 1
                 ;;
         esac
@@ -89,32 +85,20 @@ set -euo pipefail
     ros2 launch robot_mode_controller bringup.launch.py &
     pids+=($!)
 
-    if [ "$sim_mode" = true ]; then
-        echo "-------------- Simulation Mode Activated --------------" 
-        ${SCRIPT_DIR}/.mpc_venv/bin/python ${SCRIPT_DIR}/Simulator/mors_simulator.py &
-        pids+=($!)
-        
-        sleep 2s
-    else
-        # hardware interfaces
-        echo "-------------- Hardware Mode Activated --------------"
-        ${SCRIPT_DIR}/RealsenseCamera/build/realsense_camera  &
-        pids+=($!)
-        if [ "$algorithm" = vision ] || [ "$algorithm" = dcm ]; then
-            ${SCRIPT_DIR}/RealsenseCameraD435i/build/realsense_camera_d435i &
-            pids+=($!)
-        fi
-        ${SCRIPT_DIR}/BHI360_IMU/build/bhi360_imu &
-        pids+=($!)
-        # in the future add here contact sensors controller
-        # wait before the other controllers start to ensure that the hardware interfaces are up and running
-        sleep 4s
-        ${SCRIPT_DIR}/StateEstimator/build/state_estimator &
-        pids+=($!)
+    # hardware interfaces
+    echo "-------------- Hardware Mode Activated --------------"
+    ${SCRIPT_DIR}/BHI360_IMU/build/bhi360_imu &
+    pids+=($!)
+    # in the future add here contact sensors controller
+    # wait before the other controllers start to ensure that the hardware interfaces are up and running
+    
+    ${SCRIPT_DIR}/StateEstimatorHMB/build/state_estimator_hmb &
+    pids+=($!)
 
-        ros2 run mors_radiolink_control mors_radiolink_control &
-        pids+=($!)
-    fi
+    sleep 4s
+
+    ros2 run mors_radiolink_control mors_radiolink_control &
+    pids+=($!)
 
     if [ "$rviz_enabled" = true ]; then
         if [ "$algorithm" = dcm ]; then
@@ -140,13 +124,9 @@ set -euo pipefail
         vision)
             ${SCRIPT_DIR}/LocomotionController/build/locomotionControllerMPC &
             pids+=($!)
-            ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
-            pids+=($!)
             ;;
         dcm)
             ${SCRIPT_DIR}/LocomotionControllerDCM/build/locomotionControllerDCM &
-            pids+=($!)
-            ${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder &
             pids+=($!)
             ;;
     esac

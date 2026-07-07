@@ -63,7 +63,7 @@ traversability:
   # gradient <= grad_thr_steppable -> STEPPABLE
   # grad_thr_steppable < gradient <= grad_thr_unsteppable -> UNSTEPPABLE
   # gradient > grad_thr_unsteppable -> IMPASSABLE
-  grad_thr_steppable: 0.3
+  grad_thr_steppable: 0.5
   grad_thr_unsteppable: 4.0
   unknown_is_impassable: true
 

@@ -13,14 +13,15 @@
 # swing trajectory generator
 interleave_x: [-0.0038763443526844714, -0.0038763443526844714, 0.0018605967281275296, 0.0018605967281275296]
 # interleave_x: [0.0, 0.0, 0.0, 0.0]
-interleave_y: [0.1, 0.1, 0.1, 0.1]
+# interleave_y: [0.1, 0.1, 0.1, 0.1]
 # interleave_y: [0.09, 0.09, 0.09, 0.09]
-# interleave_y: [0.08, 0.08, 0.08, 0.08]
+interleave_y: [0.08, 0.08, 0.08, 0.08]
+# interleave_y: [0.07, 0.07, 0.07, 0.07]
 # interleave_y: [0.06, 0.06, 0.06, 0.06]
 # interleave_y: [0.04, 0.04, 0.04, 0.04]
 # interleave_y: [0.11, 0.11, 0.11, 0.11]
 # interleave_y: [0.08012178151634375, 0.08012178151634375, 0.08012178151634375, 0.08012178151634375]
-dz_near_ground: -0.05 #-0.1 #-0.6 # -0.0 # 
+dz_near_ground: -0.0 #-0.1 #-0.6 # -0.0 # 
  
 # foot step planner
 k1_fsp: 0.019409446152834336 #0.03 # capture point constant

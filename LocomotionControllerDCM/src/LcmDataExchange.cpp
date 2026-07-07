@@ -1,11 +1,22 @@
 #include "LcmDataExchange.hpp"
 
 #include <cmath>
+#include <cstdlib>
 #include <Eigen/Geometry>
 #include <limits>
+#include <stdexcept>
 #include <unistd.h>
 
 namespace {
+
+std::string GetRequiredEnv(const char* name)
+{
+    const char* value = std::getenv(name);
+    if (value == nullptr || value[0] == '\0') {
+        throw std::runtime_error(std::string("[LocomotionControllerDCM] ") + name + " must be set.");
+    }
+    return value;
+}
 
 constexpr uint16_t kHeightCellValidMask = static_cast<uint16_t>(1u << 15);
 constexpr uint16_t kHeightCellClassMask = static_cast<uint16_t>(0x3u << 13);
@@ -87,7 +98,20 @@ Eigen::Vector4d sanitize_quaternion_xyzw(const Eigen::Vector4d& raw_quaternion)
 } // namespace
 
 LCMExchanger::LCMExchanger()
-    : robot_state(makeZeroRobotData()),
+    : robot_cmd_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      robot_state_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      servo_state_subscriber(GetRequiredEnv("LCM_SERVO_URL")),
+      gait_params_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      enable_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      heightmap_subscriber(GetRequiredEnv("LCM_VISION_URL")),
+      wbc_cmd_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
+      wbc_state_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
+      servo_cmd_publisher(GetRequiredEnv("LCM_SERVO_URL")),
+      phase_sig_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
+      robot_ref_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
+      footstep_sequence_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
+      dcm_com_trajectory_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
+      robot_state(makeZeroRobotData()),
       robot_cmd(makeZeroRobotData()),
       leg_state(makeZeroLegData()),
       servo_state(makeZeroServoStateData())
