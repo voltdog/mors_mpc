@@ -28,6 +28,8 @@ void quaternionToEuler(float w, float x, float y, float z, float& roll, float& p
 #define IMU_CHANNEL "IMU_DATA"
 #define STARTUP_SKIP_PACKETS 10
 
+#define PITCH_OFFSET -0.0
+
 namespace
 {
 
@@ -131,6 +133,16 @@ Quaternion multiply(Quaternion q1, Quaternion q2) {
     return res;
 }
 
+Quaternion makePitchCorrection(float pitch_offset) {
+    const float half_angle = pitch_offset * 0.5f;
+    return {
+        cos(half_angle),
+        0.0f,
+        sin(half_angle),
+        0.0f
+    };
+}
+
 void quat_to_rpy(float w, float x, float y, float z, float& roll, float& pitch, float& yaw)
 {
   //from my MATLAB implementation
@@ -196,6 +208,7 @@ int main(int argc, char **argv)
 	float roll = 0.0;
 	float pitch = 0.0;
 	float yaw = 0.0;
+    const Quaternion q_mount_correction = makePitchCorrection(PITCH_OFFSET);
 	
 	lcm::LCM lcm(control_lcm_url);
 	if(!lcm.good())
@@ -255,6 +268,7 @@ int main(int argc, char **argv)
                 q_cur.z = quat_z * 1.0f / 16384.0f;
                 q_cur.w = quat_w * 1.0f / 16384.0f;
                 q_cur = normalize(q_cur);
+                q_cur = normalize(multiply(q_cur, q_mount_correction));
 
 				// quaternionToEuler(imu_msg.orientation_quaternion[W], imu_msg.orientation_quaternion[X], imu_msg.orientation_quaternion[Y], imu_msg.orientation_quaternion[Z], roll, pitch, yaw);
                 // quat_to_rpy(q_cur.w, q_cur.x, q_cur.y, q_cur.z, roll, pitch, yaw);
@@ -278,7 +292,7 @@ int main(int argc, char **argv)
 
                 Quaternion q_offset_inv = inverse(q_offset);
                 Quaternion q_relative = multiply(q_offset_inv, q_cur);
-                // q_relative = normalize(q_relative);
+                q_relative = normalize(q_relative);
                 quat_to_rpy(q_relative.w, q_relative.x, q_relative.y, q_relative.z, roll, pitch, yaw);
 
                 imu_msg.orientation_quaternion[X] = q_relative.x;
@@ -317,4 +331,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-

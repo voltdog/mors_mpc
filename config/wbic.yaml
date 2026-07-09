@@ -22,7 +22,7 @@ Qa_entry: 4.182
 body_ori_task_kp: 120.0
 body_ori_task_kd: 26.0 #22.0
 
-body_pos_task_kp: 140.0
+body_pos_task_kp: 140.0 #120.0
 body_pos_task_kd: 26.0 #26.0
 
 tip_pos_task_kp: 230.0

@@ -4,6 +4,7 @@ import rclpy
 from geometry_msgs.msg import Twist
 from mors_ros_msgs.msg import GaitParams
 from mors_ros_msgs.srv import RobotCmd
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
 
@@ -35,12 +36,12 @@ AXIS_STRIDE = 7       # CH8 knob -> stride height
 # again if a channel gets reversed.
 SWITCH_THRESHOLD = 0.5
 
-ROBOT_BODY_Z = 0.19 #0.21
+ROBOT_BODY_Z = 0.21 #0.21
 GAIT_TYPE = [0.0, 0.5, 0.5, 0.0]
 
 # CH7 max forward speed by switch position (m/s).
 MAX_SPEED_TOP = 0.3
-MAX_SPEED_MIDDLE = 0.5
+MAX_SPEED_MIDDLE = 0.3
 MAX_SPEED_BOTTOM = 0.3
 
 # Lateral and angular limits are derived from the forward speed the same way as
@@ -48,12 +49,11 @@ MAX_SPEED_BOTTOM = 0.3
 LATERAL_SPEED_RATIO = 0.0
 ANGULAR_SPEED_RATIO = 2.0
 
-# Gait timing: t_sw fixed, t_st interpolated from speed (same as mors_keyboard_control).
-T_SW = 0.3 #0.19 #0.35
-T_ST_MAX = 0.7
-T_ST_MIN = 0.3
-SPEED_MIN = 0.1
-SPEED_MAX = MAX_SPEED_BOTTOM
+# Gait timing: t_sw fixed, t_st selected by CH7 switch position.
+T_SW = 0.19 #0.25 #0.35
+T_ST_TOP = 0.45
+T_ST_MIDDLE = 0.4
+T_ST_BOTTOM = 0.35
 
 # CH8 knob stride-height range (m).
 STRIDE_HEIGHT_MIN = 0.035
@@ -92,11 +92,12 @@ class MorsRadiolinkControl(Node):
         self.gait_params_pub = self.create_publisher(GaitParams, "gait_params", 10)
         self.gait_params_msg = GaitParams()
         self.max_vel_x = MAX_SPEED_TOP
+        self.t_st = T_ST_TOP
         self.stride_height = STRIDE_HEIGHT_MIN
         self.cmd_pose_msg.linear.z = ROBOT_BODY_Z
         self.gait_params_msg.standing = True
         self.gait_params_msg.stride_height = self.stride_height
-        self.gait_params_msg.t_st = self._t_st_for_speed(self.max_vel_x)
+        self.gait_params_msg.t_st = self.t_st
         self.gait_params_msg.t_sw = T_SW
         self.gait_params_msg.gait_offsets = GAIT_TYPE
 
@@ -127,15 +128,6 @@ class MorsRadiolinkControl(Node):
 
         print("[RADIOLINK_TELEOP]: Started")
 
-    def _t_st_for_speed(self, speed: float) -> float:
-        clamped_speed = min(max(speed, SPEED_MIN), SPEED_MAX)
-        speed_span = SPEED_MAX - SPEED_MIN
-        if speed_span <= FLOAT_EPS:
-            return T_ST_MAX
-
-        speed_ratio = (clamped_speed - SPEED_MIN) / speed_span
-        return T_ST_MAX + speed_ratio * (T_ST_MIN - T_ST_MAX)
-
     def joy_callback(self, msg: Joy):
         if msg.axes[AXIS_STANDUP] > SWITCH_THRESHOLD:
             self.standup_button = BUTTON_RELEASED
@@ -151,10 +143,13 @@ class MorsRadiolinkControl(Node):
 
         if msg.axes[AXIS_SPEED] > SWITCH_THRESHOLD:
             self.max_vel_x = MAX_SPEED_BOTTOM
+            self.t_st = T_ST_BOTTOM
         elif abs(msg.axes[AXIS_SPEED]) < SWITCH_THRESHOLD:
             self.max_vel_x = MAX_SPEED_MIDDLE
+            self.t_st = T_ST_MIDDLE
         elif msg.axes[AXIS_SPEED] < -SWITCH_THRESHOLD:
             self.max_vel_x = MAX_SPEED_TOP
+            self.t_st = T_ST_TOP
 
         self.stride_height = STRIDE_HEIGHT_MIN + (msg.axes[AXIS_STRIDE] + 1.0) * (
             STRIDE_HEIGHT_MAX - STRIDE_HEIGHT_MIN
@@ -289,7 +284,7 @@ class MorsRadiolinkControl(Node):
         if self.robot_mode == LOCOMOTION_MODE:
             self.gait_params_msg.standing = False
             self.gait_params_msg.stride_height = self.stride_height
-            self.gait_params_msg.t_st = self._t_st_for_speed(self.max_vel_x)
+            self.gait_params_msg.t_st = self.t_st
             self.gait_params_msg.t_sw = T_SW
             self.gait_params_msg.gait_offsets = GAIT_TYPE
 
@@ -377,9 +372,12 @@ def main(args=None):
 
     try:
         rclpy.spin(radiolink_control)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
         radiolink_control.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

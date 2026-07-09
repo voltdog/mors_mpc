@@ -35,21 +35,21 @@ std::vector<int> ContactStateFSM::step(const std::vector<bool>& contact_flag,
 
         if (state[i] == SWING) {
             // Ранний контакт латчим только по устойчивому подтверждённому касанию.
-            if (debounced_contact && des_leg_state[i] == SWING && phi[i] > start_td_detecting) {
-                state[i] = EARLY_CONTACT;
-            }
-            if (contact_flag[i] == false && des_leg_state[i] == STANCE) {
-                state[i] = LATE_CONTACT; 
-            }
-            if (contact_flag[i] == true and des_leg_state[i] == STANCE) {
-                    state[i] = STANCE;
+            if (des_leg_state[i] == SWING) {
+                if (debounced_contact && phi[i] > start_td_detecting) {
+                    state[i] = EARLY_CONTACT;
+                }
+            } else if (des_leg_state[i] == STANCE) {
+                // Scheduled touchdown тоже должен проходить через тот же фильтр скорости.
+                // Иначе сырой всплеск GRF переводит ногу в STANCE при большой |vz|.
+                state[i] = debounced_contact ? STANCE : LATE_CONTACT;
             }
         } else if (state[i] == STANCE) {
             if (des_leg_state[i] == SWING) {
                 state[i] = SWING;
             }
         } else if (state[i] == LATE_CONTACT) {
-            if (contact_flag[i] == true) {
+            if (debounced_contact) {
                 state[i] = STANCE;
             }
         } else if (state[i] == EARLY_CONTACT) {

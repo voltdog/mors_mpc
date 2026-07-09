@@ -1,5 +1,6 @@
 #include <iostream>
 #include <unistd.h>
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include <Eigen/Dense>
@@ -108,6 +109,32 @@ int main() {
     }
     double dz_near_ground = swing_controller_config["dz_near_ground"].as<double>(); 
     double k1_fsp = swing_controller_config["k1_fsp"].as<double>(); 
+    const bool line_hold_enabled = swing_controller_config["line_hold_enabled"]
+                                       ? swing_controller_config["line_hold_enabled"].as<bool>() : false;
+    const double line_hold_kp = swing_controller_config["line_hold_kp"]
+                                    ? swing_controller_config["line_hold_kp"].as<double>() : 0.2;
+    const double line_hold_kd = swing_controller_config["line_hold_kd"]
+                                    ? swing_controller_config["line_hold_kd"].as<double>() : 0.15;
+    const double line_hold_max_vel = swing_controller_config["line_hold_max_vel"]
+                                         ? swing_controller_config["line_hold_max_vel"].as<double>() : 0.05;
+    const double line_hold_lpf_alpha = swing_controller_config["line_hold_lpf_alpha"]
+                                           ? swing_controller_config["line_hold_lpf_alpha"].as<double>() : 0.08;
+    const double line_hold_lateral_deadband = swing_controller_config["line_hold_lateral_deadband"]
+                                                  ? swing_controller_config["line_hold_lateral_deadband"].as<double>() : 0.01;
+    const double line_hold_yaw_deadband = swing_controller_config["line_hold_yaw_deadband"]
+                                              ? swing_controller_config["line_hold_yaw_deadband"].as<double>() : 0.03;
+    const bool x_hold_enabled = swing_controller_config["x_hold_enabled"]
+                                    ? swing_controller_config["x_hold_enabled"].as<bool>() : false;
+    const double x_hold_kp = swing_controller_config["x_hold_kp"]
+                                 ? swing_controller_config["x_hold_kp"].as<double>() : 0.2;
+    const double x_hold_kd = swing_controller_config["x_hold_kd"]
+                                 ? swing_controller_config["x_hold_kd"].as<double>() : 0.15;
+    const double x_hold_max_vel = swing_controller_config["x_hold_max_vel"]
+                                      ? swing_controller_config["x_hold_max_vel"].as<double>() : 0.05;
+    const double x_hold_lpf_alpha = swing_controller_config["x_hold_lpf_alpha"]
+                                        ? swing_controller_config["x_hold_lpf_alpha"].as<double>() : 0.08;
+    const double x_hold_deadband = swing_controller_config["x_hold_deadband"]
+                                       ? swing_controller_config["x_hold_deadband"].as<double>() : 0.01;
 
     // timesteps duration
     string dt_config_address = config_address + "/timesteps.yaml";
@@ -269,6 +296,14 @@ int main() {
     double phi0 = 0.0;
     Eigen::Vector3d ref_body_vel_filtered;
     ref_body_vel_filtered.setZero();
+    bool line_hold_initialized = false;
+    Eigen::Vector2d line_hold_origin = Eigen::Vector2d::Zero();
+    Eigen::Vector2d line_hold_normal = Eigen::Vector2d::UnitY();
+    double line_hold_vel_correction_filtered = 0.0;
+    bool x_hold_initialized = false;
+    Eigen::Vector2d x_hold_origin = Eigen::Vector2d::Zero();
+    Eigen::Vector2d x_hold_axis = Eigen::Vector2d::UnitX();
+    double x_hold_vel_correction_filtered = 0.0;
 
     // Init MPC thread
     ConvexMPCThread mpc_thread;
@@ -342,6 +377,70 @@ int main() {
             // transform robot command velocity to WCS
             Vector3d cmd_loc_lin_vel = robot_cmd.lin_vel;
             robot_cmd.lin_vel = R_body_yaw_align * cmd_loc_lin_vel;
+
+            const bool line_hold_allowed =
+                line_hold_enabled &&
+                !standing &&
+                std::abs(cmd_loc_lin_vel(Y)) < line_hold_lateral_deadband &&
+                std::abs(robot_cmd.ang_vel(Z)) < line_hold_yaw_deadband;
+
+            if (line_hold_allowed) {
+                if (!line_hold_initialized) {
+                    line_hold_initialized = true;
+                    line_hold_origin = base_pos.head<2>();
+                    line_hold_normal << -sin_yaw, cos_yaw;
+                    line_hold_vel_correction_filtered = 0.0;
+                }
+
+                const double lateral_error =
+                    (base_pos.head<2>() - line_hold_origin).dot(line_hold_normal);
+                const double lateral_vel = base_lin_vel.head<2>().dot(line_hold_normal);
+                const double line_hold_vel_correction = std::clamp(
+                    -line_hold_kp * lateral_error - line_hold_kd * lateral_vel,
+                    -line_hold_max_vel,
+                    line_hold_max_vel);
+                const double alpha = std::clamp(line_hold_lpf_alpha, 0.0, 1.0);
+                line_hold_vel_correction_filtered +=
+                    alpha * (line_hold_vel_correction - line_hold_vel_correction_filtered);
+
+                robot_cmd.lin_vel.head<2>() +=
+                    line_hold_vel_correction_filtered * line_hold_normal;
+            } else {
+                line_hold_initialized = false;
+                line_hold_vel_correction_filtered = 0.0;
+            }
+
+            const bool x_hold_allowed =
+                x_hold_enabled &&
+                !standing &&
+                std::abs(cmd_loc_lin_vel(X)) < x_hold_deadband &&
+                std::abs(robot_cmd.ang_vel(Z)) < line_hold_yaw_deadband;
+
+            if (x_hold_allowed) {
+                if (!x_hold_initialized) {
+                    x_hold_initialized = true;
+                    x_hold_origin = base_pos.head<2>();
+                    x_hold_axis << cos_yaw, sin_yaw;
+                    x_hold_vel_correction_filtered = 0.0;
+                }
+
+                const double longitudinal_error =
+                    (base_pos.head<2>() - x_hold_origin).dot(x_hold_axis);
+                const double longitudinal_vel = base_lin_vel.head<2>().dot(x_hold_axis);
+                const double x_hold_vel_correction = std::clamp(
+                    -x_hold_kp * longitudinal_error - x_hold_kd * longitudinal_vel,
+                    -x_hold_max_vel,
+                    x_hold_max_vel);
+                const double alpha = std::clamp(x_hold_lpf_alpha, 0.0, 1.0);
+                x_hold_vel_correction_filtered +=
+                    alpha * (x_hold_vel_correction - x_hold_vel_correction_filtered);
+
+                robot_cmd.lin_vel.head<2>() +=
+                    x_hold_vel_correction_filtered * x_hold_axis;
+            } else {
+                x_hold_initialized = false;
+                x_hold_vel_correction_filtered = 0.0;
+            }
 
             // ------------------
             // GAIT SCHEDULER
@@ -576,6 +675,10 @@ int main() {
         }
         else
         {
+            line_hold_initialized = false;
+            line_hold_vel_correction_filtered = 0.0;
+            x_hold_initialized = false;
+            x_hold_vel_correction_filtered = 0.0;
             wbic_command.locomotion_enabled = false;
             wbic_thread.set_desired_command(wbic_command);
 

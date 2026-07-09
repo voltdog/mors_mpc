@@ -103,15 +103,15 @@ int main() {
         csv.write_servo_state(t, servo_state);
         csv.write_servo_cmd(t, servo_cmd);
         csv.write_imu_data(t, imu_data);
-        csv.write_odometry(t, odometry);
-        csv.write_contact_states(t, contact_states);
+        // csv.write_odometry(t, odometry);
+        // csv.write_contact_states(t, contact_states);
         // csv.write_enable(t, leg_controller_enable, leg_controller_reset,
         //                     locomotion_enable, locomotion_reset,
         //                     action_ctr_enable, action_ctr_reset);
         
         csv.write_robot_state(t, body_state, leg_state);
         csv.write_robot_state_check(t, body_state_check, leg_state_check);
-        csv.write_robot_cmd(t, body_cmd);
+        // csv.write_robot_cmd(t, body_cmd);
         if (debug_mode)
         {
             csv.write_mpc_cmd(t, mpc_robot_cmd);

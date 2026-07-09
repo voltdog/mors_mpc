@@ -93,9 +93,10 @@ set -euo pipefail
     # wait before the other controllers start to ensure that the hardware interfaces are up and running
     
     ${SCRIPT_DIR}/StateEstimatorHMB/build/state_estimator_hmb &
+    # ${SCRIPT_DIR}/StateEstimatorMK/build/state_estimator_mk &
     pids+=($!)
 
-    sleep 4s
+    sleep 2s
 
     ros2 run mors_radiolink_control mors_radiolink_control &
     pids+=($!)
@@ -108,7 +109,7 @@ set -euo pipefail
         fi
         ros2 launch robot_state_viewer robot_state_viewer.launch.py "rviz_config:=${rviz_config}" &
         pids+=($!)
-        sleep 2s
+        sleep 1s
     fi
     
     # state estimation

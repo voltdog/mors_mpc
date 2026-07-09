@@ -23,6 +23,7 @@ std::vector<int> ContactStateFSM::step(const std::vector<bool>& contact_flag,
         // вертикали. Это отсекает ложные всплески оценки силы в фазе переноса, когда стопа
         // ещё летит вниз (|vz| велик), а контакта с поверхностью фактически нет.
         bool confirmed_contact = contact_flag[i] && (std::fabs(foot_vz[i]) < vz_contact_thresh_);
+        // cout << vz_contact_thresh_ << endl;
 
         // Дебаунс: считаем подряд идущие подтверждённые касания; единичный шумовой выброс
         // не успевает накопить счётчик и не приводит к ложному раннему контакту.
@@ -31,25 +32,25 @@ std::vector<int> ContactStateFSM::step(const std::vector<bool>& contact_flag,
         else
             contact_count_[i] = 0;
 
-        bool debounced_contact = (contact_count_[i] >= contact_debounce_);
+        bool debounced_contact = confirmed_contact;// (contact_count_[i] >= contact_debounce_);
 
         if (state[i] == SWING) {
             // Ранний контакт латчим только по устойчивому подтверждённому касанию.
-            if (debounced_contact && des_leg_state[i] == SWING && phi[i] > start_td_detecting) {
-                state[i] = EARLY_CONTACT;
-            }
-            if (contact_flag[i] == false && des_leg_state[i] == STANCE) {
-                state[i] = LATE_CONTACT;
-            }
-            if (contact_flag[i] == true and des_leg_state[i] == STANCE) {
-                    state[i] = STANCE;
+            if (des_leg_state[i] == SWING) {
+                if (debounced_contact && phi[i] > start_td_detecting) {
+                    state[i] = EARLY_CONTACT;
+                }
+            } else if (des_leg_state[i] == STANCE) {
+                // Scheduled touchdown тоже должен проходить через тот же фильтр скорости.
+                // Иначе сырой всплеск GRF переводит ногу в STANCE при большой |vz|.
+                state[i] = debounced_contact ? STANCE : LATE_CONTACT;
             }
         } else if (state[i] == STANCE) {
             if (des_leg_state[i] == SWING) {
                 state[i] = SWING;
             }
         } else if (state[i] == LATE_CONTACT) {
-            if (contact_flag[i] == true) {
+            if (debounced_contact) {
                 state[i] = STANCE;
             }
         } else if (state[i] == EARLY_CONTACT) {

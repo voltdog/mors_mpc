@@ -139,17 +139,17 @@ void CSVMaintainer::init()
     // create_csv(servo_state_filt_csv, servo_state_filt_head, servo_state_filt_addr);
     create_csv(servo_cmd_csv, servo_cmd_head, servo_cmd_addr);
     create_csv(imu_data_csv, imu_data_head, imu_data_addr);
-    create_csv(contact_sensor_csv, contact_sensor_head, contact_sensor_addr);
+    // create_csv(contact_sensor_csv, contact_sensor_head, contact_sensor_addr);
     if (debug_mode)
     {
         create_csv(mpc_cmd_csv, mpc_cmd_head, mpc_cmd_addr);
         create_csv(wbc_cmd_csv, wbc_cmd_head, wbc_cmd_addr);
     }
     // create_csv(enable_csv, enable_head, enable_addr);
-    create_csv(odometry_csv, odometry_head, odometry_addr);
+    // create_csv(odometry_csv, odometry_head, odometry_addr);
     create_csv(robot_state_csv, robot_state_head, robot_state_addr);
     create_csv(robot_state_check_csv, robot_state_check_head, robot_state_check_addr);
-    create_csv(robot_cmd_csv, robot_cmd_head, robot_cmd_addr);
+    // create_csv(robot_cmd_csv, robot_cmd_head, robot_cmd_addr);
     if (debug_mode)
     {
         create_csv(phase_sig_csv, phase_sig_head, phase_sig_addr);

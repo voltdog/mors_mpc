@@ -3,7 +3,50 @@ contact_threshold: 1.0 #20.0 # - for Hs=0.13 #3.0 - for Hs=0.11
 
 camera_offset_x: 0.26045
 camera_offset_y: 0.01675
-camera_offset_z: -0.01
+camera_offset_z: -0.01 #-0.01
+
+kalman_filter:
+  sigma_a: 1e-1
+  # Measurement noise order per axis: T265 position, T265 velocity,
+  # leg odometry velocity, IMU acceleration. Repeated for X, Y, Z.
+  sigma_z:
+    - 1e-5
+    - 1e-3
+    - 1e-2
+    - 1.0
+
+    - 1e-5
+    - 1e-3
+    - 1e-2
+    - 1.0
+
+    - 5e-2
+    - 5e-1
+    - 5e-2
+    - 10.0
+
+  p0: 1e-1
+  initial_z: 0.036
+  imu_accel_clip_mps2: 30.0
+
+kinematic_position:
+  enabled: true
+  contact_source: both # gait_phase, grf, both
+  use_x: false
+  use_y: false
+  use_z: true
+  min_support_legs: 2
+  sigma: [0.05, 0.05, 5e-3]
+  max_innovation: [0.20, 0.20, 0.08]
+
+heightmap_z_correction:
+  enabled: true
+  # Used as covariance directly in the Kalman R matrix.
+  sigma: 1e-3
+  max_innovation: 0.05
+  max_age_sec: 0.15
+  min_support_legs: 2
+  map_radius_cells: 2
 
 # SIMULATION
 # contact_threshold: 6.0 #20.0 # - for Hs=0.13 #3.0 - for Hs=0.11

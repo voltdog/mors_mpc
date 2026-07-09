@@ -542,6 +542,7 @@ private:
                 float roll = 0.0f;
                 float pitch = 0.0f;
                 float yaw = 0.0f;
+                // cout << pose.tracker_confidence << endl;
                 T265QuaternionToEuler(
                     pose.rotation.z,
                     pose.rotation.x,
