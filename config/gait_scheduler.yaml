@@ -5,7 +5,7 @@
 # a: 400.0
 
 # leg state fsm
-start_td_detecting: 0.75
+start_td_detecting: 0.55
 
 contact_debounce: 2       # больше -> надёжнее против шума, но позже ловит ранний контакт
 vz_contact_thresh: 0.2    # меньше -> строже отсев ложных касаний (стопа должна почти стоять)

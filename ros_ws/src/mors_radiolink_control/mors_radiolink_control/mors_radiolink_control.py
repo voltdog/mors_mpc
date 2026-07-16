@@ -36,13 +36,13 @@ AXIS_STRIDE = 7       # CH8 knob -> stride height
 # again if a channel gets reversed.
 SWITCH_THRESHOLD = 0.5
 
-ROBOT_BODY_Z = 0.21 #0.21
+ROBOT_BODY_Z = 0.2 #0.21
 GAIT_TYPE = [0.0, 0.5, 0.5, 0.0]
 
 # CH7 max forward speed by switch position (m/s).
-MAX_SPEED_TOP = 0.3
-MAX_SPEED_MIDDLE = 0.3
-MAX_SPEED_BOTTOM = 0.3
+MAX_SPEED_TOP = 0.27
+MAX_SPEED_MIDDLE = 0.27
+MAX_SPEED_BOTTOM = 0.27
 
 # Lateral and angular limits are derived from the forward speed the same way as
 # mors_keyboard_control does.
@@ -50,7 +50,7 @@ LATERAL_SPEED_RATIO = 0.0
 ANGULAR_SPEED_RATIO = 2.0
 
 # Gait timing: t_sw fixed, t_st selected by CH7 switch position.
-T_SW = 0.19 #0.25 #0.35
+T_SW = 0.26 #0.25 #0.19 #0.25 #0.35
 T_ST_TOP = 0.45
 T_ST_MIDDLE = 0.4
 T_ST_BOTTOM = 0.35
@@ -169,6 +169,7 @@ class MorsRadiolinkControl(Node):
     def send_action_request(self, mode: int):
         self.req.data = mode
         resp = self.action_cli.call_async(self.req)
+        print(f"[RADIOLINK_TELEOP]: Action request sent: {mode}")
         return resp.result()
 
     def _values_changed(self, prev, current):

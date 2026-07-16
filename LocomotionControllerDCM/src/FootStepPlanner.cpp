@@ -176,7 +176,7 @@ Eigen::Vector3d FootStepPlanner::update_footstep_location(const Eigen::Vector3d&
 
     foothold(X) = start_x + (static_cast<double>(selected_col) + 0.5) * cell_size_;
     foothold(Y) = start_y + (static_cast<double>(selected_row) + 0.5) * cell_size_;
-    foothold(Z) = static_cast<double>(vision_map_.heightmap(selected_row, selected_col));// + 0.015;
+    foothold(Z) = static_cast<double>(vision_map_.heightmap(selected_row, selected_col));// + 0.005;// + 0.015;
     return foothold;
 }
 

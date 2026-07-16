@@ -4,6 +4,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <chrono>
+#include <mutex>
 #include <thread>
 #include <Eigen/Dense>
 #include <lcm/lcm-cpp.hpp>
@@ -117,7 +118,7 @@ class LCMExchanger
         LegData getLegState();
         RobotData getBodyStateCheck();
         LegData getLegStateCheck();
-        vector<bool> getContactSensorData();
+        ContactSensorData getContactSensorData();
         
         void getPhaseSig(Vector4i& phase, Vector4d& phi);
 
@@ -164,7 +165,8 @@ class LCMExchanger
         LegData leg_state_check;
         Vector4i phase;
         Vector4d phi;
-        vector<bool> contact_state;
+        ContactSensorData contact_sensor_data;
+        mutex contact_sensor_mutex;
 
         unique_ptr<thread> thMpcCmd;
         unique_ptr<thread> thWbcCmd;

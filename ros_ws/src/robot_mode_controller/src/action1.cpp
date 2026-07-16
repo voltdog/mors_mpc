@@ -56,7 +56,7 @@ void GetUp::step(bool& action_finished)
     set_blocks_en(false, false);
 
     joints_kpkd_null();
-
+    
     ref_joints_pos = cur_joints_pos;
     joints_kpkd_inc(0.01);
 
@@ -118,25 +118,35 @@ void GetUp::step(bool& action_finished)
     // }
     if (start_pos == "x")
     {    
-        ref_joints_pos_end << 0.0, -1.57,  3.14,
-                            0.0,  1.57, -3.14,
-                            0.0,  1.57, -3.14,
-                            0.0, -1.57,  3.14;
+        ref_joints_pos_end << 0.0, -1.57,  2.9, //3.14,
+                            0.0,  1.57,   -2.9, //-3.14,
+                            0.0,  1.57,   -2.9, //-3.14,
+                            0.0, -1.57,    2.9; //3.14;
     }
     else if (start_pos == "m")
     {  
-        ref_joints_pos_end << 0.0, -1.57,  3.14,
-                            0.0,  1.57, -3.14,
-                            0.0, -1.57,  3.14,
-                            0.0,  1.57, -3.14;
+        ref_joints_pos_end << 0.0, -1.57,  2.9, //3.14,
+                            0.0,  1.57,   -2.9, //-3.14,
+                            0.0, -1.57,    2.9, //3.14,
+                            0.0,  1.57,   -2.9; //-3.14;
     }
     else
     {
-        ref_joints_pos_end <<   0.0, sign(cur_joints_pos(1))*1.57,  sign(cur_joints_pos(2))*3.14,
-                                0.0, sign(cur_joints_pos(4))*1.57,  sign(cur_joints_pos(5))*3.14,
-                                0.0, sign(cur_joints_pos(7))*1.57,  sign(cur_joints_pos(8))*3.14,
-                                0.0, sign(cur_joints_pos(10))*1.57,  sign(cur_joints_pos(11))*3.14;
+        ref_joints_pos_end <<   0.0, sign(cur_joints_pos(1))*1.57,  sign(cur_joints_pos(2))*2.9,
+                                0.0, sign(cur_joints_pos(4))*1.57,  sign(cur_joints_pos(5))*2.9,
+                                0.0, sign(cur_joints_pos(7))*1.57,  sign(cur_joints_pos(8))*2.9,
+                                0.0, sign(cur_joints_pos(10))*1.57,  sign(cur_joints_pos(11))*2.9;
     }
+    // TODO: проверить ошибку в колене: если меньше определенного значения, то встаем как обычно. 
+    // в цикле проверить ошибку в колене между ref_joints_pos_end и cur_joints_pos. 
+    // Если ошибка больше определенного значения, то для каждой ноги делаем такую последовательность: 
+    // 1) плечо=0, бедро=90град, колено=текущее значение; Kp для остальных ног равно 0;
+    // 2) медленно переводим колено в его изначально желаемое положение в ref_joints_pos_end(+-2.9 в зависимости от ноги);
+    // 3) ставим бедро и плечо в изначально желаемое положение ref_joints_pos_end.
+    // Далее код идет как шел
+
+    // joints_kpkd_null();
+    // joints_kpkd_inc(0.01);
     multiple_ref_joints_pos = traj::create_multiple_trajectory(ref_joints_pos, ref_joints_pos_end, 0.5, dt);
     take_position(multiple_ref_joints_pos);
 

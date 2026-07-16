@@ -56,7 +56,7 @@ int main() {
     RobotData body_cmd;
     Vector4i phase;
     Vector4d phi;
-    vector<bool> contact_states(4);
+    ContactSensorData contact_sensor_data;
 
     // bool leg_controller_enable, leg_controller_reset;
     // bool locomotion_enable, locomotion_reset;
@@ -86,7 +86,7 @@ int main() {
         //                         locomotion_enable, locomotion_reset,
         //                         action_ctr_enable, action_ctr_reset);
         odometry = lcmExch.getOdometry();
-        contact_states = lcmExch.getContactSensorData();
+        contact_sensor_data = lcmExch.getContactSensorData();
         body_state = lcmExch.getBodyState();
         body_cmd = lcmExch.getRobotCmd();
         leg_state = lcmExch.getLegState();
@@ -104,7 +104,7 @@ int main() {
         csv.write_servo_cmd(t, servo_cmd);
         csv.write_imu_data(t, imu_data);
         // csv.write_odometry(t, odometry);
-        // csv.write_contact_states(t, contact_states);
+        csv.write_contact_sensor(t, contact_sensor_data);
         // csv.write_enable(t, leg_controller_enable, leg_controller_reset,
         //                     locomotion_enable, locomotion_reset,
         //                     action_ctr_enable, action_ctr_reset);

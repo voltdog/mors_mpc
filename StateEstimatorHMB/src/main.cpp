@@ -3,9 +3,11 @@
 #include "leg_state.hpp"
 
 #include "StateEstimatorHMB/HeightMapBuilder.hpp"
+#include "contact_source.hpp"
 #include "gm_force_observer.hpp"
 #include "low_pass_filtering.hpp"
 #include "sensor_fusion.hpp"
+#include "z_pos_estimator.hpp"
 
 #include <algorithm>
 #include <array>
@@ -34,6 +36,7 @@
 
 #include "mors_msgs/contact_sensor_msg.hpp"
 #include "mors_msgs/imu_lcm_data.hpp"
+#include "mors_msgs/phase_signal_msg.hpp"
 #include "mors_msgs/robot_state_msg.hpp"
 #include "mors_msgs/servo_state_msg.hpp"
 #include "system_functions.hpp"
@@ -43,6 +46,7 @@ namespace
 
 constexpr int kStateHistoryCapacity = 2048;
 constexpr double kTorqueScale = 0.73 / 10.0;
+const std::string kStateEstimatorCheckChannel{"ROBOT_STATE_CHECK"};
 std::atomic_bool g_running{true};
 
 int64_t NowNs()
@@ -133,6 +137,7 @@ struct ChannelsConfig
     std::string imu_data;
     std::string servo_state;
     std::string contact_state;
+    std::string gait_phase;
     std::string robot_state;
 };
 
@@ -140,6 +145,8 @@ struct StateEstimatorConfig
 {
     double dt{0.002};
     double contact_threshold{1.0};
+    state_estimator_hmb::ContactSource contact_source{
+        state_estimator_hmb::ContactSource::GrfObserver};
     Eigen::Vector3d camera_offset{0.0, 0.0, 0.0};
 };
 
@@ -179,11 +186,15 @@ struct SharedInputs
     ImuData imu;
     ServoData servo;
     Odometry odometry;
-    std::vector<bool> contacts{false, false, false, false};
+    std::array<bool, NUM_LEGS> contacts{};
+    state_estimator_hmb::ZPosEstimator::GaitPhases gait_phases{};
+    state_estimator_hmb::ZPosEstimator::ContactStates contact_states{
+        STANCE, STANCE, STANCE, STANCE};
     int64_t odometry_timestamp_ns{0};
     bool has_imu{false};
     bool has_servo{false};
     bool has_odometry{false};
+    bool has_gait_phase{false};
 };
 
 struct DepthFrameData
@@ -202,6 +213,7 @@ ChannelsConfig LoadChannels(const std::string& path)
         root["imu_data"].as<std::string>(),
         root["servo_state"].as<std::string>(),
         root["contact_state"].as<std::string>(),
+        root["gait_phase"].as<std::string>(),
         root["robot_state"].as<std::string>()};
 }
 
@@ -215,6 +227,26 @@ StateEstimatorConfig LoadStateEstimatorConfig(
     StateEstimatorConfig config;
     config.dt = timesteps["state_estimator_dt"].as<double>();
     config.contact_threshold = se["contact_threshold"].as<double>();
+
+    const YAML::Node contact_source = se["contact_source"];
+    if (!contact_source || !contact_source.IsScalar())
+    {
+        throw std::runtime_error(
+            "[StateEstimatorHMB] state_estimator.yaml must contain scalar "
+            "'contact_source' with value 'sensor' or 'grf_observer'.");
+    }
+    try
+    {
+        config.contact_source = state_estimator_hmb::ParseContactSource(
+            contact_source.as<std::string>());
+    }
+    catch (const std::invalid_argument& error)
+    {
+        throw std::runtime_error(
+            std::string("[StateEstimatorHMB] invalid state_estimator.yaml: ") +
+            error.what());
+    }
+
     config.camera_offset <<
         se["camera_offset_x"].as<double>(),
         se["camera_offset_y"].as<double>(),
@@ -353,6 +385,7 @@ public:
           imu_lcm_(std::make_unique<lcm::LCM>(control_lcm_url_)),
           servo_lcm_(std::make_unique<lcm::LCM>(servo_lcm_url_)),
           contact_lcm_(std::make_unique<lcm::LCM>(control_lcm_url_)),
+          gait_phase_lcm_(std::make_unique<lcm::LCM>(control_lcm_url_)),
           robot_state_publisher_(std::make_unique<lcm::LCM>(control_lcm_url_)),
           servo_filtered_publisher_(std::make_unique<lcm::LCM>(servo_lcm_url_)),
           heightmap_builder_(std::make_unique<hmb::HeightMapBuilderNode>(
@@ -360,6 +393,7 @@ public:
               false))
     {
         if (!imu_lcm_->good() || !servo_lcm_->good() || !contact_lcm_->good() ||
+            !gait_phase_lcm_->good() ||
             !robot_state_publisher_->good() || !servo_filtered_publisher_->good())
         {
             throw std::runtime_error("[StateEstimatorHMB] failed to initialize one or more LCM endpoints.");
@@ -371,6 +405,8 @@ public:
 
         std::cout << "[StateEstimatorHMB] loaded configs from " << config_dir_ << "\n"
                   << "  state dt: " << se_config_.dt << " sec\n"
+                  << "  contact source: "
+                  << state_estimator_hmb::ToString(se_config_.contact_source) << "\n"
                   << "  D435i: " << d435i_config_.width << "x" << d435i_config_.height
                   << "@" << d435i_config_.fps << "\n"
                   << "  depth/state sync max dt: " << depth_config_.max_sync_dt_sec << " sec"
@@ -383,6 +419,7 @@ public:
         threads_.emplace_back(&StateEstimatorHMBApp::ImuLcmThread, this);
         threads_.emplace_back(&StateEstimatorHMBApp::ServoLcmThread, this);
         threads_.emplace_back(&StateEstimatorHMBApp::ContactLcmThread, this);
+        threads_.emplace_back(&StateEstimatorHMBApp::GaitPhaseLcmThread, this);
         threads_.emplace_back(&StateEstimatorHMBApp::PoseCameraThread, this);
         threads_.emplace_back(&StateEstimatorHMBApp::StateEstimatorThread, this);
         threads_.emplace_back(&StateEstimatorHMBApp::DepthCameraThread, this);
@@ -472,6 +509,25 @@ private:
         }
     }
 
+    void GaitPhaseHandler(
+        const lcm::ReceiveBuffer*,
+        const std::string&,
+        const mors_msgs::phase_signal_msg* msg)
+    {
+        if (msg == nullptr)
+        {
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(inputs_mutex_);
+        for (std::size_t leg = 0; leg < shared_inputs_.gait_phases.size(); ++leg)
+        {
+            shared_inputs_.contact_states[leg] = msg->phase[leg];
+            shared_inputs_.gait_phases[leg] = msg->phi[leg];
+        }
+        shared_inputs_.has_gait_phase = true;
+    }
+
     void ImuLcmThread()
     {
         imu_lcm_->subscribe(channels_.imu_data, &StateEstimatorHMBApp::ImuHandler, this);
@@ -502,6 +558,21 @@ private:
         while (running_.load() && g_running.load())
         {
             if (contact_lcm_->handleTimeout(20) < 0)
+            {
+                running_.store(false);
+            }
+        }
+    }
+
+    void GaitPhaseLcmThread()
+    {
+        gait_phase_lcm_->subscribe(
+            channels_.gait_phase,
+            &StateEstimatorHMBApp::GaitPhaseHandler,
+            this);
+        while (running_.load() && g_running.load())
+        {
+            if (gait_phase_lcm_->handleTimeout(20) < 0)
             {
                 running_.store(false);
             }
@@ -599,6 +670,7 @@ private:
             RobotData robot_state;
             LegData leg_state;
             LegState leg_state_estimator(robot_params_);
+            state_estimator_hmb::ZPosEstimator z_pos_estimator;
 
             Eigen::VectorXd p(3);
             p << 0.032, -0.01, 0.001;
@@ -668,10 +740,48 @@ private:
                     servo_state.pos,
                     servo_state.vel,
                     servo_state.torq);
+                for (std::size_t leg = 0; leg < inputs.contacts.size(); ++leg)
+                {
+                    leg_state.contacts[leg] =
+                        state_estimator_hmb::SelectContactState(
+                            se_config_.contact_source,
+                            leg_state.contacts[leg],
+                            inputs.contacts[leg]);
+                }
 
                 const int64_t timestamp_ns = NowNs();
-                PublishRobotState(timestamp_ns, robot_state, leg_state);
+                PublishRobotState(
+                    channels_.robot_state,
+                    timestamp_ns,
+                    robot_state,
+                    leg_state);
                 PushRobotStateSnapshot(timestamp_ns, robot_state);
+
+                RobotData robot_state_check = robot_state;
+                if (inputs.has_imu && inputs.has_servo && inputs.has_gait_phase)
+                {
+                    state_estimator_hmb::ZPosEstimator::Contacts contacts{};
+                    for (std::size_t leg = 0; leg < contacts.size(); ++leg)
+                    {
+                        contacts[leg] = leg_state.contacts[leg];
+                    }
+
+                    const auto z_estimate = z_pos_estimator.Update(
+                        servo_state.pos,
+                        r_body,
+                        contacts,
+                        inputs.gait_phases,
+                        inputs.contact_states);
+                    if (z_estimate.has_value())
+                    {
+                        robot_state_check.pos.z() = z_estimate->position_z;
+                    }
+                }
+                PublishRobotState(
+                    kStateEstimatorCheckChannel,
+                    timestamp_ns,
+                    robot_state_check,
+                    leg_state);
 
                 std::this_thread::sleep_until(next_tick);
             }
@@ -933,7 +1043,11 @@ private:
         }
     }
 
-    void PublishRobotState(int64_t timestamp_ns, const RobotData& robot_state, const LegData& leg_state)
+    void PublishRobotState(
+        const std::string& channel,
+        int64_t timestamp_ns,
+        const RobotData& robot_state,
+        const LegData& leg_state)
     {
         mors_msgs::robot_state_msg msg;
         msg.timestamp = timestamp_ns;
@@ -966,7 +1080,7 @@ private:
             msg.legs.contact_states[i] = leg_state.contacts[i];
         }
 
-        robot_state_publisher_->publish(channels_.robot_state, &msg);
+        robot_state_publisher_->publish(channel, &msg);
     }
 
     void PushRobotStateSnapshot(int64_t timestamp_ns, const RobotData& robot_state)
@@ -1037,6 +1151,7 @@ private:
     std::unique_ptr<lcm::LCM> imu_lcm_;
     std::unique_ptr<lcm::LCM> servo_lcm_;
     std::unique_ptr<lcm::LCM> contact_lcm_;
+    std::unique_ptr<lcm::LCM> gait_phase_lcm_;
     std::unique_ptr<lcm::LCM> robot_state_publisher_;
     std::unique_ptr<lcm::LCM> servo_filtered_publisher_;
     std::unique_ptr<hmb::HeightMapBuilderNode> heightmap_builder_;

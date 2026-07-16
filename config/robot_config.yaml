@@ -32,7 +32,18 @@
 # tau_max: [6.0, 6.0, 12.0]
 # gear_ratio: 10.0
 # kt: 0.74
-algorithm: "vision" # wbic vision dcm 
+algorithm: "dcm" # wbic vision dcm 
+
+# ---------------------------------
+# best params for vision: 
+#   - t_sw = 0.19
+#   - t_st = 0.45
+#   - body_height = 0.2
+#   - stride_height = 0.353-0.362
+#   - dz_near_ground = -0.1
+#   - interleave_y: [0.08, 0.08, 0.08, 0.08]
+#   - ROBOT_BODY_Z = 0.21 
+# ---------------------------------
 
 # SIMULATION
 g: 9.81

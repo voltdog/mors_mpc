@@ -209,6 +209,12 @@ struct Odometry
     Vector3d ang_vel;
 };
 
+struct ContactSensorData
+{
+    std::array<bool, NUM_LEGS> contact_states{};
+    std::array<float, NUM_LEGS> raw_data{};
+};
+
 struct ServoStateData
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

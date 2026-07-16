@@ -378,11 +378,18 @@ int main() {
             Vector3d cmd_loc_lin_vel = robot_cmd.lin_vel;
             robot_cmd.lin_vel = R_body_yaw_align * cmd_loc_lin_vel;
 
+            const bool translation_command_is_zero =
+                std::abs(cmd_loc_lin_vel(X)) < x_hold_deadband &&
+                std::abs(cmd_loc_lin_vel(Y)) < line_hold_lateral_deadband;
+            const bool yaw_allows_hold =
+                std::abs(robot_cmd.ang_vel(Z)) < line_hold_yaw_deadband ||
+                translation_command_is_zero;
+
             const bool line_hold_allowed =
                 line_hold_enabled &&
                 !standing &&
                 std::abs(cmd_loc_lin_vel(Y)) < line_hold_lateral_deadband &&
-                std::abs(robot_cmd.ang_vel(Z)) < line_hold_yaw_deadband;
+                yaw_allows_hold;
 
             if (line_hold_allowed) {
                 if (!line_hold_initialized) {
@@ -414,7 +421,7 @@ int main() {
                 x_hold_enabled &&
                 !standing &&
                 std::abs(cmd_loc_lin_vel(X)) < x_hold_deadband &&
-                std::abs(robot_cmd.ang_vel(Z)) < line_hold_yaw_deadband;
+                yaw_allows_hold;
 
             if (x_hold_allowed) {
                 if (!x_hold_initialized) {

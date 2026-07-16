@@ -1,0 +1,8 @@
+serial_port: /dev/ttyACM0
+raw_data_divisor: 55.0
+calibration_samples: 100
+thresholds:
+  r1: 6.0
+  l1: 6.0
+  r2: 6.0
+  l2: 6.0

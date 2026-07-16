@@ -39,7 +39,7 @@ class CSVMaintainer
         void write_robot_state_check(double t, RobotData& body_state_check, LegData& leg_state_check);
         void write_robot_cmd(double t, RobotData& body_cmd);
         void write_phase_sig(double t, Vector4i& phase, Vector4d& phi);
-        void write_contact_states(double t, vector<bool>& contact_states);
+        void write_contact_sensor(double time, const ContactSensorData& contact_sensor_data);
 
     private:
         void create_csv(CSVWriter &csv, const vector<string> &head, string &addr);

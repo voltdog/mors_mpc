@@ -89,11 +89,14 @@ set -euo pipefail
     echo "-------------- Hardware Mode Activated --------------"
     ${SCRIPT_DIR}/BHI360_IMU/build/bhi360_imu &
     pids+=($!)
+    ${SCRIPT_DIR}/ContactSensor/build/contact_sensor &
+    pids+=($!)
     # in the future add here contact sensors controller
     # wait before the other controllers start to ensure that the hardware interfaces are up and running
     
     ${SCRIPT_DIR}/StateEstimatorHMB/build/state_estimator_hmb &
     # ${SCRIPT_DIR}/StateEstimatorMK/build/state_estimator_mk &
+    # ${SCRIPT_DIR}/StateEstimator1DKF/build/state_estimator_1d_kf &
     pids+=($!)
 
     sleep 2s

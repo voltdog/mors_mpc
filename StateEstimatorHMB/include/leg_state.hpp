@@ -53,24 +53,21 @@ class LegState
         // pinocchio configuration / velocity vectors (free-flyer base + 12 joints)
         VectorXd q_, v_;
 
-        // per-leg quantities in servo order: R1, L1, R2, L2 (global/world frame)
-        std::vector<Eigen::Matrix3d> J_;      // foot Jacobians (world)
-        std::vector<Eigen::Matrix3d> dJ_;     // foot Jacobian time derivatives (world)
+        // per-leg quantities in servo order: R1, L1, R2, L2
+        std::vector<Eigen::Matrix3d> J_;      // foot Jacobians (base-local frame)
+        std::vector<Eigen::Matrix3d> dJ_;     // foot Jacobian time derivatives (base-local frame)
         std::vector<Eigen::Vector3d> X_;      // foot positions (world)
         std::vector<Eigen::Vector3d> dX_;     // foot velocities (world)
         std::vector<Eigen::Vector3d> ddX_;    // foot accelerations (world)
         std::vector<Eigen::Matrix3d> M_;      // joint-space inertia matrices
         std::vector<Eigen::Vector3d> C_;      // Coriolis/centrifugal vectors (C(q,v)*v)
         std::vector<Eigen::Vector3d> G_;      // gravity vectors
-        std::vector<Eigen::Vector3d> f_hat_;  // estimated ground reaction forces (world)
+        std::vector<Eigen::Vector3d> f_hat_;  // estimated ground reaction forces (base-local frame)
 
         vector<bool> contact;
         Eigen::VectorXd p;
 
         double threshold;
-
-        MatrixXd invJ_T;
-        VectorXd f_hat;
 
 };
 

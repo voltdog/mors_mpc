@@ -104,24 +104,24 @@ void LayDown::step(bool& action_finished)
     // got to the ground
     if (start_pos == "x")
     {  
-        ref_joints_pos_end <<   cur_joints_pos(0), -1.57,  3.14,
-                                cur_joints_pos(3),  1.57, -3.14,
-                                cur_joints_pos(6),  1.57, -3.14,
-                                cur_joints_pos(9), -1.57,  3.14;
+        ref_joints_pos_end <<   cur_joints_pos(0), -1.57,  2.9,
+                                cur_joints_pos(3),  1.57, -2.9,
+                                cur_joints_pos(6),  1.57, -2.9,
+                                cur_joints_pos(9), -1.57,  2.9;
     }
     else if (start_pos == "m")
     {  
-        ref_joints_pos_end <<   cur_joints_pos(0), -1.57,  3.14,
-                                cur_joints_pos(3),  1.57, -3.14,
-                                cur_joints_pos(6), -1.57,  3.14,
-                                cur_joints_pos(9),  1.57, -3.14;
+        ref_joints_pos_end <<   cur_joints_pos(0), -1.57,  2.9,
+                                cur_joints_pos(3),  1.57, -2.9,
+                                cur_joints_pos(6), -1.57,  2.9,
+                                cur_joints_pos(9),  1.57, -2.9;
     }
     else
     {
-        ref_joints_pos_end <<   cur_joints_pos(0), sign(cur_joints_pos(1))*1.57,  sign(cur_joints_pos(2))*3.14,
-                                cur_joints_pos(3), sign(cur_joints_pos(4))*1.57,  sign(cur_joints_pos(5))*3.14,
-                                cur_joints_pos(6), sign(cur_joints_pos(7))*1.57,  sign(cur_joints_pos(8))*3.14,
-                                cur_joints_pos(9), sign(cur_joints_pos(10))*1.57,  sign(cur_joints_pos(11))*3.14;
+        ref_joints_pos_end <<   cur_joints_pos(0), sign(cur_joints_pos(1))*1.57,  sign(cur_joints_pos(2))*2.9,
+                                cur_joints_pos(3), sign(cur_joints_pos(4))*1.57,  sign(cur_joints_pos(5))*2.9,
+                                cur_joints_pos(6), sign(cur_joints_pos(7))*1.57,  sign(cur_joints_pos(8))*2.9,
+                                cur_joints_pos(9), sign(cur_joints_pos(10))*1.57,  sign(cur_joints_pos(11))*2.9;
     }
     multiple_ref_joints_pos = traj::create_multiple_trajectory(ref_joints_pos, ref_joints_pos_end, 2.0, dt);
     
@@ -131,24 +131,24 @@ void LayDown::step(bool& action_finished)
     ref_joints_pos = ref_joints_pos_end;
     if (start_pos == "x")
     {  
-        ref_joints_pos_end <<   0.0, -1.57,  3.14,
-                                0.0,  1.57, -3.14,
-                                0.0,  1.57, -3.14,
-                                0.0, -1.57,  3.14;
+        ref_joints_pos_end <<   0.0, -1.57,  2.9,
+                                0.0,  1.57, -2.9,
+                                0.0,  1.57, -2.9,
+                                0.0, -1.57,  2.9;
     }
     else if (start_pos == "m")
     {  
-        ref_joints_pos_end <<   0.0, -1.57,  3.14,
-                                0.0,  1.57, -3.14,
-                                0.0, -1.57,  3.14,
-                                0.0,  1.57, -3.14;
+        ref_joints_pos_end <<   0.0, -1.57,  2.9,
+                                0.0,  1.57, -2.9,
+                                0.0, -1.57,  2.9,
+                                0.0,  1.57, -2.9;
     }
     else
     {
-        ref_joints_pos_end <<   0.0, sign(cur_joints_pos(1))*1.57,  sign(cur_joints_pos(2))*3.14,
-                                0.0, sign(cur_joints_pos(4))*1.57,  sign(cur_joints_pos(5))*3.14,
-                                0.0, sign(cur_joints_pos(7))*1.57,  sign(cur_joints_pos(8))*3.14,
-                                0.0, sign(cur_joints_pos(10))*1.57,  sign(cur_joints_pos(11))*3.14;
+        ref_joints_pos_end <<   0.0, sign(cur_joints_pos(1))*1.57,  sign(cur_joints_pos(2))*2.9,
+                                0.0, sign(cur_joints_pos(4))*1.57,  sign(cur_joints_pos(5))*2.9,
+                                0.0, sign(cur_joints_pos(7))*1.57,  sign(cur_joints_pos(8))*2.9,
+                                0.0, sign(cur_joints_pos(10))*1.57,  sign(cur_joints_pos(11))*2.9;
     }
     multiple_ref_joints_pos = traj::create_multiple_trajectory(ref_joints_pos, ref_joints_pos_end, 0.5, dt);
     take_position(multiple_ref_joints_pos);

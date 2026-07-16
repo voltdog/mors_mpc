@@ -15,6 +15,7 @@
 interleave_x: [0.0, 0.0, 0.0, 0.0]
 # interleave_x: [0.006, 0.006, -0.006, -0.006]
 # interleave_x: [0.008, 0.008, -0.008, -0.008]
+# interleave_x: [0.01, 0.01, -0.01, -0.01]
 # interleave_y: [0.1, 0.1, 0.1, 0.1]
 # interleave_y: [0.09, 0.09, 0.09, 0.09]
 interleave_y: [0.08, 0.08, 0.08, 0.08]
@@ -23,7 +24,7 @@ interleave_y: [0.08, 0.08, 0.08, 0.08]
 # interleave_y: [0.04, 0.04, 0.04, 0.04]
 # interleave_y: [0.11, 0.11, 0.11, 0.11]
 # interleave_y: [0.08012178151634375, 0.08012178151634375, 0.08012178151634375, 0.08012178151634375]
-dz_near_ground: -0.1 #-0.1 #-0.6 # -0.0 # 
+dz_near_ground: -0.15 #-0.6 # -0.0 # 
  
 # foot step planner
 k1_fsp: 0.019409446152834336 #0.03 # capture point constant
@@ -33,9 +34,9 @@ k1_fsp: 0.019409446152834336 #0.03 # capture point constant
 # It captures the current straight line when locomotion starts and the operator
 # does not command lateral velocity or yaw.
 line_hold_enabled: true
-line_hold_kp: 1.5
+line_hold_kp: 3.0
 line_hold_kd: 0.2
-line_hold_max_vel: 0.06
+line_hold_max_vel: 0.07
 line_hold_lpf_alpha: 0.08
 line_hold_lateral_deadband: 0.01
 line_hold_yaw_deadband: 0.03

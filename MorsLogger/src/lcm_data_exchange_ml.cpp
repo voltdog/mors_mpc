@@ -130,8 +130,6 @@ LCMExchanger::LCMExchanger(bool debug_mode)
     leg_state_check.contacts.resize(4);
     leg_state_check.contacts = {false, false, false, false};
 
-    contact_state.resize(4);
-
     phase.setZero();
     phi.setZero();
 }
@@ -161,9 +159,12 @@ void LCMExchanger::contactSensorHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const mors_msgs::contact_sensor_msg* msg)
 {
-    // cout << "I got foot_cmd!" << endl;
-    for (int i=0; i<4; i++)
-        contact_state[i] = msg->contact_states[i];
+    lock_guard<mutex> lock(contact_sensor_mutex);
+    for (int i = 0; i < NUM_LEGS; i++)
+    {
+        contact_sensor_data.contact_states[i] = msg->contact_states[i];
+        contact_sensor_data.raw_data[i] = msg->raw_data[i];
+    }
 }
 
 void LCMExchanger::mpcCmdHandler(const lcm::ReceiveBuffer* rbuf,
@@ -495,9 +496,10 @@ ImuData LCMExchanger::getImuData()
     return imu_data;
 }
 
-vector<bool> LCMExchanger::getContactSensorData()
+ContactSensorData LCMExchanger::getContactSensorData()
 {
-    return contact_state;
+    lock_guard<mutex> lock(contact_sensor_mutex);
+    return contact_sensor_data;
 }
 
 ServoData LCMExchanger::getServoStateData()

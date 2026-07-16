@@ -131,7 +131,12 @@ target_include_directories(messages-cpp INTERFACE
 add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
 # target_link_libraries(vbcontrol PUBLIC Eigen3::Eigen)
 
+add_library(state_estimator_hmb_contact_source src/contact_source.cpp)
+target_include_directories(state_estimator_hmb_contact_source PUBLIC include)
+target_compile_features(state_estimator_hmb_contact_source PUBLIC cxx_std_20)
+
 set(EXEC_SOURCES src/main.cpp
+            src/z_pos_estimator.cpp
             src/sensor_fusion.cpp
             src/low_pass_filtering.cpp
             src/leg_state.cpp
@@ -139,11 +144,13 @@ set(EXEC_SOURCES src/main.cpp
             src/HeightMapBuilder.cpp
             ../common/src/system_functions.cpp
             ../common/src/leg_model.cpp
+            ../common/src/reliable_contact.cpp
             ../common/src/Robot.cpp
 )
 add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
 # target_link_libraries(leg_controller OsqpEigen::OsqpEigen)
 target_link_libraries(${PROJECT_NAME}
+    state_estimator_hmb_contact_source
     vbcontrol
     Eigen3::Eigen
     yaml-cpp::yaml-cpp
@@ -161,11 +168,45 @@ endif()
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
     COAL_DISABLE_HPP_FCL_WARNINGS
-    # AVX2 instructions are enabled (see CMAKE_CXX_FLAGS), but Eigen's alignment
-    # must stay at 16 bytes to match the precompiled libpinocchio ABI — otherwise
-    # pinocchio's `model.check(data)` aborts. Same recipe as LocomotionController.
+    # Match Eigen's allocation and layout policy to precompiled Pinocchio.
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
     EIGEN_MAX_ALIGN_BYTES=16
     EIGEN_MAX_STATIC_ALIGN_BYTES=16
 )
 
 lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(contact_source_test tests/contact_source_test.cpp)
+  target_link_libraries(contact_source_test PRIVATE state_estimator_hmb_contact_source)
+  add_test(NAME contact_source_test COMMAND contact_source_test)
+
+  add_executable(z_pos_estimator_test
+    tests/z_pos_estimator_test.cpp
+    src/z_pos_estimator.cpp
+    ../common/src/reliable_contact.cpp
+    ../common/src/Robot.cpp
+    ../common/src/system_functions.cpp
+  )
+  target_include_directories(z_pos_estimator_test PRIVATE
+    include
+    ../common/include
+  )
+  target_link_libraries(z_pos_estimator_test PRIVATE
+    Eigen3::Eigen
+    pinocchio::pinocchio
+    pinocchio::pinocchio_parsers
+  )
+  target_compile_definitions(z_pos_estimator_test PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
+    EIGEN_MAX_ALIGN_BYTES=16
+    EIGEN_MAX_STATIC_ALIGN_BYTES=16
+  )
+  add_test(NAME z_pos_estimator_test COMMAND z_pos_estimator_test)
+  set_tests_properties(z_pos_estimator_test PROPERTIES
+    ENVIRONMENT "CONFIGPATH=${CMAKE_CURRENT_LIST_DIR}/../config"
+  )
+endif()

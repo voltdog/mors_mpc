@@ -60,7 +60,8 @@ void CSVMaintainer::init()
         "kd/0", "kd/1", "kd/2", "kd/3", "kd/4", "kd/5", "kd/6", "kd/7", "kd/8", "kd/9", "kd/10", "kd/11"};
     
     const vector<string> contact_sensor_head = {"time", 
-        "r1", "l1", "r2", "l2"};
+        "r1", "l1", "r2", "l2",
+        "raw_data/r1", "raw_data/l1", "raw_data/r2", "raw_data/l2"};
 
     const vector<string> imu_data_head = {"time", 
         "orientation_euler/0", "orientation_euler/1", "orientation_euler/2", 
@@ -139,7 +140,7 @@ void CSVMaintainer::init()
     // create_csv(servo_state_filt_csv, servo_state_filt_head, servo_state_filt_addr);
     create_csv(servo_cmd_csv, servo_cmd_head, servo_cmd_addr);
     create_csv(imu_data_csv, imu_data_head, imu_data_addr);
-    // create_csv(contact_sensor_csv, contact_sensor_head, contact_sensor_addr);
+    create_csv(contact_sensor_csv, contact_sensor_head, contact_sensor_addr);
     if (debug_mode)
     {
         create_csv(mpc_cmd_csv, mpc_cmd_head, mpc_cmd_addr);
@@ -164,13 +165,17 @@ void CSVMaintainer::create_csv(CSVWriter &csv, const vector<string> &head, strin
     csv.writeToFile(addr);
 }
 
-void CSVMaintainer::write_contact_states(double t, vector<bool>& contact_states)
+void CSVMaintainer::write_contact_sensor(
+    double time, const ContactSensorData& contact_sensor_data)
 {
     contact_sensor_csv.resetContent();
-    contact_sensor_csv << t;
+    contact_sensor_csv << time;
 
-    for (int i = 0; i < 4; i++)
-        contact_sensor_csv << contact_states[i];
+    for (bool contact_state : contact_sensor_data.contact_states)
+        contact_sensor_csv << contact_state;
+
+    for (float raw_value : contact_sensor_data.raw_data)
+        contact_sensor_csv << raw_value;
 
     contact_sensor_csv.writeToFile(contact_sensor_addr, true);
 }
