@@ -28,7 +28,7 @@ void quaternionToEuler(float w, float x, float y, float z, float& roll, float& p
 #define IMU_CHANNEL "IMU_DATA"
 #define STARTUP_SKIP_PACKETS 10
 
-#define PITCH_OFFSET -0.0
+#define PITCH_OFFSET -0.035
 
 namespace
 {

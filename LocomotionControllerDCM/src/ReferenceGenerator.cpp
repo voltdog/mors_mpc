@@ -169,28 +169,28 @@ void ReferenceGenerator::step(const std::vector<int>& phase_signal,
     update_swing_foot_states(phase_signal, foot_pos_finish_global, robot_state);
 
     // roll pos adaptation
-    bool has_roll_support = false;
-    const double raw_ref_roll_pos =
-        compute_ref_roll_pos(phase_signal, robot_state, has_roll_support);
-    if (body_adapt_mode == INCL_ADAPT) {
-        if (has_roll_support) {
-            ref_roll_pos = lpf_roll_pos.update(raw_ref_roll_pos);
-        }
-    } else {
+    // bool has_roll_support = false;
+    // const double raw_ref_roll_pos =
+    //     compute_ref_roll_pos(phase_signal, robot_state, has_roll_support);
+    // if (body_adapt_mode == INCL_ADAPT) {
+    //     if (has_roll_support) {
+    //         ref_roll_pos = lpf_roll_pos.update(raw_ref_roll_pos);
+    //     }
+    // } else {
         ref_roll_pos = 0.0;
-    }
+    // }
 
     // pitch pos adaptation
-    bool has_pitch_support = false;
-    const double raw_ref_pitch_pos =
-        compute_ref_pitch_pos(phase_signal, robot_state, has_pitch_support);
-    if (body_adapt_mode == INCL_ADAPT) {
-        if (has_pitch_support) {
-            ref_pitch_pos = lpf_pitch_pos.update(raw_ref_pitch_pos);
-        }
-    } else {
+    // bool has_pitch_support = false;
+    // const double raw_ref_pitch_pos =
+    //     compute_ref_pitch_pos(phase_signal, robot_state, has_pitch_support);
+    // if (body_adapt_mode == INCL_ADAPT) {
+    //     if (has_pitch_support) {
+    //         ref_pitch_pos = lpf_pitch_pos.update(raw_ref_pitch_pos);
+    //     }
+    // } else {
         ref_pitch_pos = 0.0;
-    }
+    // }
     ref_yaw_pos += ref_body_yaw_vel_filtered * dt;
     
     // Z pos adaptation

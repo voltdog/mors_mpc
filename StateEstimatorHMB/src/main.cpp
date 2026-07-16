@@ -5,6 +5,7 @@
 #include "StateEstimatorHMB/HeightMapBuilder.hpp"
 #include "contact_source.hpp"
 #include "gm_force_observer.hpp"
+#include "heightmap_residual_estimator.hpp"
 #include "low_pass_filtering.hpp"
 #include "sensor_fusion.hpp"
 #include "z_pos_estimator.hpp"
@@ -39,6 +40,7 @@
 #include "mors_msgs/phase_signal_msg.hpp"
 #include "mors_msgs/robot_state_msg.hpp"
 #include "mors_msgs/servo_state_msg.hpp"
+#include "reliable_contact.hpp"
 #include "system_functions.hpp"
 
 namespace
@@ -204,6 +206,14 @@ struct DepthFrameData
     std::vector<float> cam_x;
     std::vector<float> cam_y;
     std::vector<float> cam_z;
+};
+
+struct EstimatorSnapshot
+{
+    hmb::RobotStateSnapshot robot_state;
+    state_estimator_hmb::HeightmapResidualEstimator::FootPositions foot_positions_world{};
+    state_estimator_hmb::HeightmapResidualEstimator::TrustCoefficients trust_coefficients{};
+    bool residual_inputs_valid{false};
 };
 
 ChannelsConfig LoadChannels(const std::string& path)
@@ -670,6 +680,7 @@ private:
             RobotData robot_state;
             LegData leg_state;
             LegState leg_state_estimator(robot_params_);
+            ReliableContact reliable_contact;
             state_estimator_hmb::ZPosEstimator z_pos_estimator;
 
             Eigen::VectorXd p(3);
@@ -750,12 +761,28 @@ private:
                 }
 
                 const int64_t timestamp_ns = NowNs();
+                state_estimator_hmb::HeightmapResidualEstimator::TrustCoefficients
+                    trust_coefficients{};
+                if (inputs.has_gait_phase)
+                {
+                    for (std::size_t leg = 0; leg < trust_coefficients.size(); ++leg)
+                    {
+                        trust_coefficients[leg] = reliable_contact.get_trust_coefficient(
+                            inputs.gait_phases[leg], inputs.contact_states[leg]);
+                    }
+                }
+
                 PublishRobotState(
                     channels_.robot_state,
                     timestamp_ns,
                     robot_state,
                     leg_state);
-                PushRobotStateSnapshot(timestamp_ns, robot_state);
+                PushEstimatorSnapshot(
+                    timestamp_ns,
+                    robot_state,
+                    leg_state,
+                    trust_coefficients,
+                    inputs.has_gait_phase);
 
                 RobotData robot_state_check = robot_state;
                 if (inputs.has_imu && inputs.has_servo && inputs.has_gait_phase)
@@ -777,11 +804,18 @@ private:
                         robot_state_check.pos.z() = z_estimate->position_z;
                     }
                 }
+
+                const auto residuals = GetLatestHeightmapResiduals();
+                LegData leg_state_check = leg_state;
+                leg_state_check.r1_pos(0) = residuals[0];
+                leg_state_check.l1_pos(0) = residuals[1];
+                leg_state_check.r2_pos(0) = residuals[2];
+                leg_state_check.l2_pos(0) = residuals[3];
                 PublishRobotState(
                     kStateEstimatorCheckChannel,
                     timestamp_ns,
                     robot_state_check,
-                    leg_state);
+                    leg_state_check);
 
                 std::this_thread::sleep_until(next_tick);
             }
@@ -992,6 +1026,7 @@ private:
     {
         uint64_t last_frame_index = 0;
         size_t skipped_sync = 0;
+        state_estimator_hmb::HeightmapResidualEstimator residual_estimator;
 
         std::cout << "[StateEstimatorHMB] heightmap loop started" << std::endl;
 
@@ -1013,8 +1048,8 @@ private:
                 last_frame_index = frame.frame_index;
             }
 
-            hmb::RobotStateSnapshot snapshot;
-            const bool has_snapshot = FindNearestRobotState(frame.timestamp_ns, &snapshot);
+            EstimatorSnapshot snapshot;
+            const bool has_snapshot = FindNearestEstimatorSnapshot(frame.timestamp_ns, &snapshot);
             if (!has_snapshot)
             {
                 ++skipped_sync;
@@ -1022,7 +1057,8 @@ private:
             }
 
             const double dt_sec =
-                std::fabs(static_cast<double>(frame.timestamp_ns - snapshot.state_timestamp_ns)) * 1e-9;
+                std::fabs(static_cast<double>(
+                    frame.timestamp_ns - snapshot.robot_state.state_timestamp_ns)) * 1e-9;
             if (depth_config_.require_recent_robot_state && dt_sec > depth_config_.max_sync_dt_sec)
             {
                 ++skipped_sync;
@@ -1034,12 +1070,37 @@ private:
                 continue;
             }
 
-            heightmap_builder_->ProcessCameraPointCloudFrame(
-                frame.timestamp_ns,
-                snapshot,
-                frame.cam_x,
-                frame.cam_y,
-                frame.cam_z);
+            if (!heightmap_builder_->ProcessCameraPointCloudFrame(
+                    frame.timestamp_ns,
+                    snapshot.robot_state,
+                    frame.cam_x,
+                    frame.cam_y,
+                    frame.cam_z) ||
+                !snapshot.residual_inputs_valid)
+            {
+                continue;
+            }
+
+            state_estimator_hmb::HeightmapResidualEstimator::MapHeights map_heights{};
+            for (std::size_t leg = 0; leg < map_heights.size(); ++leg)
+            {
+                const auto& foot = snapshot.foot_positions_world[leg];
+                double height_m = 0.0;
+                if (heightmap_builder_->EstimateFilteredHeightAtWorldXY(
+                        foot[0], foot[1], &height_m))
+                {
+                    map_heights[leg] = height_m;
+                }
+            }
+
+            const auto& residuals = residual_estimator.Update(
+                snapshot.foot_positions_world,
+                snapshot.trust_coefficients,
+                map_heights);
+            {
+                std::lock_guard<std::mutex> lock(heightmap_residual_mutex_);
+                latest_heightmap_residuals_ = residuals;
+            }
         }
     }
 
@@ -1083,22 +1144,45 @@ private:
         robot_state_publisher_->publish(channel, &msg);
     }
 
-    void PushRobotStateSnapshot(int64_t timestamp_ns, const RobotData& robot_state)
+    void PushEstimatorSnapshot(
+        int64_t timestamp_ns,
+        const RobotData& robot_state,
+        const LegData& leg_state,
+        const state_estimator_hmb::HeightmapResidualEstimator::TrustCoefficients&
+            trust_coefficients,
+        bool residual_inputs_valid)
     {
-        hmb::RobotStateSnapshot snapshot;
-        snapshot.valid = true;
-        snapshot.receive_timestamp_ns = timestamp_ns;
-        snapshot.state_timestamp_ns = timestamp_ns;
-        snapshot.yaw = robot_state.orientation(2);
+        EstimatorSnapshot snapshot;
+        snapshot.robot_state.valid = true;
+        snapshot.robot_state.receive_timestamp_ns = timestamp_ns;
+        snapshot.robot_state.state_timestamp_ns = timestamp_ns;
+        snapshot.robot_state.yaw = robot_state.orientation(2);
         for (size_t i = 0; i < 3; ++i)
         {
-            snapshot.position[i] = robot_state.pos(static_cast<int>(i));
-            snapshot.orientation_rpy[i] = robot_state.orientation(static_cast<int>(i));
+            snapshot.robot_state.position[i] = robot_state.pos(static_cast<int>(i));
+            snapshot.robot_state.orientation_rpy[i] = robot_state.orientation(static_cast<int>(i));
         }
         for (size_t i = 0; i < 4; ++i)
         {
-            snapshot.orientation_quaternion[i] = robot_state.orientation_quaternion(static_cast<int>(i));
+            snapshot.robot_state.orientation_quaternion[i] =
+                robot_state.orientation_quaternion(static_cast<int>(i));
         }
+
+        const std::array<Eigen::Vector3d, NUM_LEGS> foot_positions{
+            leg_state.r1_pos,
+            leg_state.l1_pos,
+            leg_state.r2_pos,
+            leg_state.l2_pos};
+        for (std::size_t leg = 0; leg < foot_positions.size(); ++leg)
+        {
+            for (std::size_t axis = 0; axis < 3; ++axis)
+            {
+                snapshot.foot_positions_world[leg][axis] =
+                    foot_positions[leg](static_cast<int>(axis));
+            }
+        }
+        snapshot.trust_coefficients = trust_coefficients;
+        snapshot.residual_inputs_valid = residual_inputs_valid;
 
         std::lock_guard<std::mutex> lock(state_history_mutex_);
         state_history_.push_back(snapshot);
@@ -1108,7 +1192,7 @@ private:
         }
     }
 
-    bool FindNearestRobotState(int64_t timestamp_ns, hmb::RobotStateSnapshot* out) const
+    bool FindNearestEstimatorSnapshot(int64_t timestamp_ns, EstimatorSnapshot* out) const
     {
         if (out == nullptr)
         {
@@ -1122,10 +1206,12 @@ private:
         }
 
         auto best = state_history_.begin();
-        int64_t best_dt = std::llabs(best->state_timestamp_ns - timestamp_ns);
+        int64_t best_dt =
+            std::llabs(best->robot_state.state_timestamp_ns - timestamp_ns);
         for (auto it = std::next(state_history_.begin()); it != state_history_.end(); ++it)
         {
-            const int64_t dt = std::llabs(it->state_timestamp_ns - timestamp_ns);
+            const int64_t dt =
+                std::llabs(it->robot_state.state_timestamp_ns - timestamp_ns);
             if (dt < best_dt)
             {
                 best = it;
@@ -1134,7 +1220,14 @@ private:
         }
 
         *out = *best;
-        return out->valid;
+        return out->robot_state.valid;
+    }
+
+    state_estimator_hmb::HeightmapResidualEstimator::Residuals
+    GetLatestHeightmapResiduals() const
+    {
+        std::lock_guard<std::mutex> lock(heightmap_residual_mutex_);
+        return latest_heightmap_residuals_;
     }
 
     std::string config_dir_;
@@ -1163,7 +1256,11 @@ private:
     SharedInputs shared_inputs_;
 
     mutable std::mutex state_history_mutex_;
-    std::deque<hmb::RobotStateSnapshot> state_history_;
+    std::deque<EstimatorSnapshot> state_history_;
+
+    mutable std::mutex heightmap_residual_mutex_;
+    state_estimator_hmb::HeightmapResidualEstimator::Residuals
+        latest_heightmap_residuals_{};
 
     std::mutex depth_mutex_;
     std::condition_variable depth_cv_;

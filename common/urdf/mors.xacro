@@ -65,12 +65,12 @@
     <xacro:property name="theta_min" value="-150"/>
 
     <!-- Leg parts attachment positions to the body-->
-    <xacro:property name="abad_attach_x" value="0.1065"/>
+    <xacro:property name="abad_attach_x" value="0.106"/> <!-- 0.1065 -->
     <xacro:property name="abad_attach_y" value="0.067"/>
     <xacro:property name="abad_attach_z" value="0.0"/>
     <xacro:property name="hip_attach_x" value="0.0215"/> <!-- candidate -->
     <xacro:property name="hip_attach_y" value="0.0"/>
-    <xacro:property name="hip_attach_z" value="0.059"/>
+    <xacro:property name="hip_attach_z" value="0.0595"/> <!-- 0.059 -->
     <xacro:property name="knee_attach_x" value="0.13"/>
     <xacro:property name="knee_attach_y" value="0.0"/>
     <xacro:property name="knee_attach_z" value="0.0645"/> <!-- candidate -->

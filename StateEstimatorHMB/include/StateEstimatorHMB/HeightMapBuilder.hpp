@@ -139,6 +139,10 @@ public:
         const std::vector<float>& cam_x,
         const std::vector<float>& cam_y,
         const std::vector<float>& cam_z);
+    bool EstimateFilteredHeightAtWorldXY(
+        double x,
+        double y,
+        double* height_m) const;
 
 private:
     static int64_t NowNs();
@@ -275,6 +279,14 @@ private:
     int last_update_min_gy_{0};
     int last_update_max_gy_{0};
     size_t last_update_count_{0};
+
+    std::vector<float> latest_filtered_window_heights_;
+    std::vector<uint8_t> latest_filtered_window_validity_;
+    int latest_filtered_window_width_{0};
+    int latest_filtered_window_height_{0};
+    double latest_filtered_window_min_x_{0.0};
+    double latest_filtered_window_min_y_{0.0};
+    bool latest_filtered_window_valid_{false};
 
     std::string control_lcm_url_;
     std::string vision_lcm_url_;

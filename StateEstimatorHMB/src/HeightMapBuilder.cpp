@@ -10,6 +10,7 @@
 #include <limits>
 #include <numbers>
 #include <stdexcept>
+#include <utility>
 
 #include <yaml-cpp/yaml.h>
 #include <zlib.h>
@@ -1813,6 +1814,8 @@ uint8_t HeightMapBuilderNode::ClassifyTraversability(
 
 void HeightMapBuilderNode::PublishHeightMapWindow()
 {
+    latest_filtered_window_valid_ = false;
+
     const int local_w = std::max(1, config_.map.local_window_cells_x);
     const int local_h = std::max(1, config_.map.local_window_cells_y);
     const int64_t data_size_i64 = static_cast<int64_t>(local_w) * static_cast<int64_t>(local_h);
@@ -2010,6 +2013,55 @@ void HeightMapBuilderNode::PublishHeightMapWindow()
     }
 
     vision_lcm_.publish(config_.channels.heightmap, &msg);
+
+    latest_filtered_window_width_ = local_w;
+    latest_filtered_window_height_ = local_h;
+    latest_filtered_window_min_x_ =
+        map_min_x_ + static_cast<double>(start_gx) * config_.map.cell_size;
+    latest_filtered_window_min_y_ =
+        map_min_y_ + static_cast<double>(start_gy) * config_.map.cell_size;
+    latest_filtered_window_heights_ = std::move(filtered_heights);
+    latest_filtered_window_validity_ = std::move(filtered_validity);
+    latest_filtered_window_valid_ =
+        latest_filtered_window_heights_.size() == data_size &&
+        latest_filtered_window_validity_.size() == data_size;
+}
+
+bool HeightMapBuilderNode::EstimateFilteredHeightAtWorldXY(
+    double x,
+    double y,
+    double* height_m) const
+{
+    if (height_m == nullptr || !latest_filtered_window_valid_ ||
+        !std::isfinite(x) || !std::isfinite(y) ||
+        !(config_.map.cell_size > 0.0))
+    {
+        return false;
+    }
+
+    const int col = static_cast<int>(std::floor(
+        (x - latest_filtered_window_min_x_) / config_.map.cell_size));
+    const int row = static_cast<int>(std::floor(
+        (y - latest_filtered_window_min_y_) / config_.map.cell_size));
+    if (col < 0 || col >= latest_filtered_window_width_ ||
+        row < 0 || row >= latest_filtered_window_height_)
+    {
+        return false;
+    }
+
+    const size_t index =
+        static_cast<size_t>(row) * static_cast<size_t>(latest_filtered_window_width_) +
+        static_cast<size_t>(col);
+    if (index >= latest_filtered_window_heights_.size() ||
+        index >= latest_filtered_window_validity_.size() ||
+        latest_filtered_window_validity_[index] == 0u ||
+        !std::isfinite(latest_filtered_window_heights_[index]))
+    {
+        return false;
+    }
+
+    *height_m = static_cast<double>(latest_filtered_window_heights_[index]);
+    return true;
 }
 
 bool HeightMapBuilderNode::ProcessCameraPointCloudFrame(

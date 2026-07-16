@@ -135,6 +135,11 @@ add_library(state_estimator_hmb_contact_source src/contact_source.cpp)
 target_include_directories(state_estimator_hmb_contact_source PUBLIC include)
 target_compile_features(state_estimator_hmb_contact_source PUBLIC cxx_std_20)
 
+add_library(state_estimator_hmb_heightmap_residual
+  src/heightmap_residual_estimator.cpp)
+target_include_directories(state_estimator_hmb_heightmap_residual PUBLIC include)
+target_compile_features(state_estimator_hmb_heightmap_residual PUBLIC cxx_std_20)
+
 set(EXEC_SOURCES src/main.cpp
             src/z_pos_estimator.cpp
             src/sensor_fusion.cpp
@@ -151,6 +156,7 @@ add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
 # target_link_libraries(leg_controller OsqpEigen::OsqpEigen)
 target_link_libraries(${PROJECT_NAME}
     state_estimator_hmb_contact_source
+    state_estimator_hmb_heightmap_residual
     vbcontrol
     Eigen3::Eigen
     yaml-cpp::yaml-cpp
@@ -181,6 +187,14 @@ if(BUILD_TESTING)
   add_executable(contact_source_test tests/contact_source_test.cpp)
   target_link_libraries(contact_source_test PRIVATE state_estimator_hmb_contact_source)
   add_test(NAME contact_source_test COMMAND contact_source_test)
+
+  add_executable(heightmap_residual_estimator_test
+    tests/heightmap_residual_estimator_test.cpp)
+  target_link_libraries(heightmap_residual_estimator_test PRIVATE
+    state_estimator_hmb_heightmap_residual)
+  add_test(
+    NAME heightmap_residual_estimator_test
+    COMMAND heightmap_residual_estimator_test)
 
   add_executable(z_pos_estimator_test
     tests/z_pos_estimator_test.cpp
