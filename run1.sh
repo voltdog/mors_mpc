@@ -230,9 +230,9 @@ set +m
         logger_pgid="$LAST_PGID"
 
         setsid -- env --default-signal=INT,QUIT,TERM bash -c '
-            sleep 60
+            sleep 120
             if kill -INT -- "-$1" 2>/dev/null; then
-                echo "[MorsLogger]: stopped after 60 seconds"
+                echo "[MorsLogger]: stopped after 120 seconds"
             fi
         ' bash "$logger_pgid" &
         helper_groups+=("$!")

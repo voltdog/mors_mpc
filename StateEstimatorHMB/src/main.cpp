@@ -212,6 +212,7 @@ struct EstimatorSnapshot
 {
     hmb::RobotStateSnapshot robot_state;
     state_estimator_hmb::HeightmapResidualEstimator::FootPositions foot_positions_world{};
+    state_estimator_hmb::HeightmapResidualEstimator::Contacts contacts{};
     state_estimator_hmb::HeightmapResidualEstimator::TrustCoefficients trust_coefficients{};
     bool residual_inputs_valid{false};
 };
@@ -782,7 +783,10 @@ private:
                     robot_state,
                     leg_state,
                     trust_coefficients,
-                    inputs.has_gait_phase);
+                    inputs.has_imu &&
+                        inputs.has_servo &&
+                        inputs.has_odometry &&
+                        inputs.has_gait_phase);
 
                 RobotData robot_state_check = robot_state;
                 if (inputs.has_imu && inputs.has_servo && inputs.has_gait_phase)
@@ -1070,36 +1074,44 @@ private:
                 continue;
             }
 
+            hmb::HeightCorrectionObservation correction_observation;
+            state_estimator_hmb::HeightmapResidualEstimator::MapHeights map_heights{};
+            if (snapshot.residual_inputs_valid)
+            {
+                for (std::size_t leg = 0; leg < map_heights.size(); ++leg)
+                {
+                    const auto& foot = snapshot.foot_positions_world[leg];
+                    double height_m = 0.0;
+                    if (heightmap_builder_->EstimateFilteredHeightAtWorldXY(
+                            foot[0], foot[1], frame.timestamp_ns, &height_m))
+                    {
+                        map_heights[leg] = height_m;
+                    }
+                }
+            }
+
+            const auto& estimate = residual_estimator.Update(
+                snapshot.foot_positions_world,
+                snapshot.contacts,
+                snapshot.trust_coefficients,
+                map_heights,
+                heightmap_builder_->FootContactOffsetM());
+            correction_observation.residuals = estimate.residuals;
+            correction_observation.valid = estimate.valid;
+            {
+                std::lock_guard<std::mutex> lock(heightmap_residual_mutex_);
+                latest_heightmap_residuals_ = estimate.residuals;
+            }
+
             if (!heightmap_builder_->ProcessCameraPointCloudFrame(
                     frame.timestamp_ns,
                     snapshot.robot_state,
                     frame.cam_x,
                     frame.cam_y,
-                    frame.cam_z) ||
-                !snapshot.residual_inputs_valid)
+                    frame.cam_z,
+                    correction_observation))
             {
                 continue;
-            }
-
-            state_estimator_hmb::HeightmapResidualEstimator::MapHeights map_heights{};
-            for (std::size_t leg = 0; leg < map_heights.size(); ++leg)
-            {
-                const auto& foot = snapshot.foot_positions_world[leg];
-                double height_m = 0.0;
-                if (heightmap_builder_->EstimateFilteredHeightAtWorldXY(
-                        foot[0], foot[1], &height_m))
-                {
-                    map_heights[leg] = height_m;
-                }
-            }
-
-            const auto& residuals = residual_estimator.Update(
-                snapshot.foot_positions_world,
-                snapshot.trust_coefficients,
-                map_heights);
-            {
-                std::lock_guard<std::mutex> lock(heightmap_residual_mutex_);
-                latest_heightmap_residuals_ = residuals;
             }
         }
     }
@@ -1180,6 +1192,7 @@ private:
                 snapshot.foot_positions_world[leg][axis] =
                     foot_positions[leg](static_cast<int>(axis));
             }
+            snapshot.contacts[leg] = leg_state.contacts[leg];
         }
         snapshot.trust_coefficients = trust_coefficients;
         snapshot.residual_inputs_valid = residual_inputs_valid;

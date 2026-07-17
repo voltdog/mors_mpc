@@ -196,6 +196,20 @@ if(BUILD_TESTING)
     NAME heightmap_residual_estimator_test
     COMMAND heightmap_residual_estimator_test)
 
+  add_executable(heightmap_builder_correction_test
+    tests/heightmap_builder_correction_test.cpp
+    src/HeightMapBuilder.cpp)
+  target_link_libraries(heightmap_builder_correction_test
+    yaml-cpp::yaml-cpp
+    ZLIB::ZLIB)
+  target_compile_definitions(heightmap_builder_correction_test PRIVATE
+    "HEIGHTMAP_BUILDER_CORRECTION_TEST_CONFIG=\"${CMAKE_CURRENT_LIST_DIR}/tests/heightmap_builder_correction_test.yaml\"")
+  lcm_target_link_libraries(
+    heightmap_builder_correction_test messages-cpp ${LCM_NAMESPACE}lcm)
+  add_test(
+    NAME heightmap_builder_correction_test
+    COMMAND heightmap_builder_correction_test)
+
   add_executable(z_pos_estimator_test
     tests/z_pos_estimator_test.cpp
     src/z_pos_estimator.cpp

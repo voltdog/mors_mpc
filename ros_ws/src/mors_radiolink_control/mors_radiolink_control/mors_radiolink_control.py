@@ -36,7 +36,7 @@ AXIS_STRIDE = 7       # CH8 knob -> stride height
 # again if a channel gets reversed.
 SWITCH_THRESHOLD = 0.5
 
-ROBOT_BODY_Z = 0.2 #0.21
+ROBOT_BODY_Z = 0.2 #0.2 #0.21
 GAIT_TYPE = [0.0, 0.5, 0.5, 0.0]
 
 # CH7 max forward speed by switch position (m/s).

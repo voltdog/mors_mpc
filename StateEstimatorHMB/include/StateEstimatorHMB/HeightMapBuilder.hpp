@@ -93,6 +93,20 @@ struct RuntimeConfig
     bool publish_pointcloud{true};
 };
 
+struct HeightCorrectionConfig
+{
+    bool enabled{false};
+    double window_size_m{0.60};
+    double foot_contact_offset_m{0.015};
+    int minimum_contacts{2};
+    double max_map_age_sec{0.10};
+    double residual_deadband_m{0.005};
+    double max_residual_m{0.10};
+    double max_residual_spread_m{0.03};
+    double time_constant_sec{0.30};
+    double max_step_per_frame_m{0.005};
+};
+
 struct HeightMapBuilderConfig
 {
     ChannelsConfig channels;
@@ -104,6 +118,7 @@ struct HeightMapBuilderConfig
     GradientConfig gradient;
     TraversabilityConfig traversability;
     RuntimeConfig runtime;
+    HeightCorrectionConfig height_correction;
     bool use_camera_pose_params{true};
     std::array<double, 3> camera_frame_position_body_m{0.2565, 0.0, 0.0};
     std::array<double, 3> camera_frame_euler_deg{0.0, 25.0, 90.0};
@@ -128,6 +143,13 @@ struct RobotStateSnapshot
     double yaw{0.0};
 };
 
+struct HeightCorrectionObservation
+{
+    static constexpr size_t kLegCount = 4;
+    std::array<double, kLegCount> residuals{};
+    std::array<bool, kLegCount> valid{};
+};
+
 class HeightMapBuilderNode
 {
 public:
@@ -138,13 +160,26 @@ public:
         const RobotStateSnapshot& robot_state,
         const std::vector<float>& cam_x,
         const std::vector<float>& cam_y,
-        const std::vector<float>& cam_z);
+        const std::vector<float>& cam_z,
+        const HeightCorrectionObservation& correction_observation = {});
     bool EstimateFilteredHeightAtWorldXY(
         double x,
         double y,
+        int64_t query_timestamp_ns,
         double* height_m) const;
+    [[nodiscard]] double FootContactOffsetM() const noexcept;
 
 private:
+    struct LocalWindowGeometry
+    {
+        int width{0};
+        int height{0};
+        int start_gx{0};
+        int start_gy{0};
+        int center_gx{0};
+        int center_gy{0};
+    };
+
     static int64_t NowNs();
     static double ComputeYawFromQuaternion(double qx, double qy, double qz, double qw);
     static std::array<double, 9> RotationFromEuler(double roll, double pitch, double yaw);
@@ -175,6 +210,7 @@ private:
     int GridXFromWorldX(double x) const;
     int GridYFromWorldY(double y) const;
     size_t GridIndex(int gx, int gy) const;
+    [[nodiscard]] LocalWindowGeometry ComputeLocalWindowGeometry() const;
     bool DecodeDepthImage(const mors_msgs::depth_image_msg& msg, std::vector<uint16_t>* depth_mm) const;
     bool IsValidDepth(double depth_m) const;
     bool IsOutlier(
@@ -213,6 +249,9 @@ private:
         const std::vector<float>& world_y,
         const std::vector<float>& world_z,
         int64_t observation_timestamp_ns);
+    void ApplyHeightCorrection(
+        const HeightCorrectionObservation& observation,
+        int64_t frame_timestamp_ns);
     void BuildOpeningKernelOffsets();
     void ExtractLocalHeightMapWindow(
         int start_gx,
@@ -247,7 +286,7 @@ private:
         bool height_valid,
         double gradient_value,
         bool gradient_valid) const;
-    void PublishHeightMapWindow();
+    void PublishHeightMapWindow(int64_t observation_timestamp_ns);
 
     void OnDepthImage(
         const lcm::ReceiveBuffer* rbuf,
@@ -282,10 +321,13 @@ private:
 
     std::vector<float> latest_filtered_window_heights_;
     std::vector<uint8_t> latest_filtered_window_validity_;
+    std::vector<float> latest_filtered_window_gradients_;
+    std::vector<uint8_t> latest_filtered_window_gradient_validity_;
     int latest_filtered_window_width_{0};
     int latest_filtered_window_height_{0};
     double latest_filtered_window_min_x_{0.0};
     double latest_filtered_window_min_y_{0.0};
+    int64_t latest_filtered_window_timestamp_ns_{0};
     bool latest_filtered_window_valid_{false};
 
     std::string control_lcm_url_;

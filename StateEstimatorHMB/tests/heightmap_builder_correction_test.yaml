@@ -1,0 +1,64 @@
+channels:
+  depth_image: "DEPTH_IMAGE_TEST"
+  robot_state: "ROBOT_STATE_TEST"
+  pointcloud: "POINTCLOUD_TEST"
+  heightmap: "HEIGHTMAP_TEST"
+
+map:
+  cell_size: 0.10
+  global_size_x: 2.0
+  global_size_y: 2.0
+  rolling_enabled: true
+  rolling_margin_cells_x: 0
+  rolling_margin_cells_y: 0
+  local_window_cells_x: 10
+  local_window_cells_y: 10
+  height_min: -1.0
+  height_max: 1.0
+  height_resolution: 0.001
+
+depth:
+  min_depth: 0.01
+  max_depth: 3.0
+  enable_downsampling: false
+  remove_outliers: false
+
+transforms:
+  use_camera_pose_params: false
+  T_body_camera: [1.0, 0.0, 0.0, 0.0,
+                  0.0, 1.0, 0.0, 0.0,
+                  0.0, 0.0, 1.0, 0.0,
+                  0.0, 0.0, 0.0, 1.0]
+
+sync:
+  max_sync_dt_sec: 0.05
+  require_recent_robot_state: false
+
+height_correction:
+  enabled: true
+  window_size_m: 0.60
+  foot_contact_offset_m: 0.015
+  minimum_contacts: 2
+  max_map_age_sec: 0.10
+  residual_deadband_m: 0.005
+  max_residual_m: 0.10
+  max_residual_spread_m: 0.03
+  time_constant_sec: 0.30
+  max_step_per_frame_m: 0.005
+
+filtering:
+  opening_kernel_size: 1
+  opening_kernel_shape: rect
+
+gradient:
+  method: sobel
+  sobel_scale: 1.0
+
+traversability:
+  grad_thr_steppable: 100.0
+  grad_thr_unsteppable: 200.0
+  unknown_is_impassable: true
+
+runtime:
+  verbose: false
+  publish_pointcloud: false

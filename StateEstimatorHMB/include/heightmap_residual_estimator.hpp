@@ -16,20 +16,32 @@ public:
 
     using FootPosition = std::array<double, 3>;
     using FootPositions = std::array<FootPosition, kLegCount>;
+    using Contacts = std::array<bool, kLegCount>;
     using TrustCoefficients = std::array<float, kLegCount>;
     using MapHeights = std::array<std::optional<double>, kLegCount>;
     using Residuals = std::array<double, kLegCount>;
+    using Validity = std::array<bool, kLegCount>;
 
-    [[nodiscard]] const Residuals& Update(
+    struct Estimate
+    {
+        Residuals residuals{};
+        Validity valid{};
+    };
+
+    [[nodiscard]] const Estimate& Update(
         const FootPositions& foot_positions_world,
+        const Contacts& contacts,
         const TrustCoefficients& trust_coefficients,
-        const MapHeights& map_heights) noexcept;
+        const MapHeights& map_heights,
+        double foot_contact_offset_m) noexcept;
 
     void Reset() noexcept;
+    [[nodiscard]] const Estimate& estimate() const noexcept;
     [[nodiscard]] const Residuals& residuals() const noexcept;
+    [[nodiscard]] const Validity& validity() const noexcept;
 
 private:
-    Residuals residuals_{};
+    Estimate estimate_{};
 };
 
 }  // namespace state_estimator_hmb

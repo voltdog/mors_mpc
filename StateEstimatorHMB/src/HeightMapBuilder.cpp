@@ -98,6 +98,10 @@ HeightMapBuilderNode::HeightMapBuilderNode(const std::string& config_path, bool 
               << "  traversability thresholds: steppable<="
               << config_.traversability.grad_thr_steppable
               << " unsteppable<=" << config_.traversability.grad_thr_unsteppable << "\n"
+              << "  height correction: "
+              << (config_.height_correction.enabled ? "enabled" : "disabled")
+              << " window=" << config_.height_correction.window_size_m << "m"
+              << " min_contacts=" << config_.height_correction.minimum_contacts << "\n"
               << "  input mode: " << (subscribe_inputs ? "LCM subscriptions" : "direct in-process API")
               << std::endl;
 }
@@ -584,6 +588,52 @@ size_t HeightMapBuilderNode::GridIndex(int gx, int gy) const
     return static_cast<size_t>(sy) * static_cast<size_t>(global_cells_x_) + static_cast<size_t>(sx);
 }
 
+HeightMapBuilderNode::LocalWindowGeometry
+HeightMapBuilderNode::ComputeLocalWindowGeometry() const
+{
+    LocalWindowGeometry geometry;
+    geometry.width = std::max(1, config_.map.local_window_cells_x);
+    geometry.height = std::max(1, config_.map.local_window_cells_y);
+
+    const double robot_x = latest_robot_state_.position[0];
+    const double robot_y = latest_robot_state_.position[1];
+    const double safe_robot_x = std::isfinite(robot_x) ? robot_x : 0.0;
+    const double safe_robot_y = std::isfinite(robot_y) ? robot_y : 0.0;
+    const int center_gx =
+        static_cast<int>(std::floor((safe_robot_x - map_min_x_) / config_.map.cell_size));
+    const int center_gy =
+        static_cast<int>(std::floor((safe_robot_y - map_min_y_) / config_.map.cell_size));
+    const int clamped_center_gx =
+        std::clamp(center_gx, 0, std::max(0, global_cells_x_ - 1));
+    const int clamped_center_gy =
+        std::clamp(center_gy, 0, std::max(0, global_cells_y_ - 1));
+
+    geometry.start_gx = clamped_center_gx - geometry.width / 2;
+    geometry.start_gy = clamped_center_gy - geometry.height / 2;
+    if (global_cells_x_ > geometry.width)
+    {
+        geometry.start_gx =
+            std::clamp(geometry.start_gx, 0, global_cells_x_ - geometry.width);
+    }
+    else
+    {
+        geometry.start_gx = 0;
+    }
+    if (global_cells_y_ > geometry.height)
+    {
+        geometry.start_gy =
+            std::clamp(geometry.start_gy, 0, global_cells_y_ - geometry.height);
+    }
+    else
+    {
+        geometry.start_gy = 0;
+    }
+
+    geometry.center_gx = geometry.start_gx + geometry.width / 2;
+    geometry.center_gy = geometry.start_gy + geometry.height / 2;
+    return geometry;
+}
+
 bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
 {
     YAML::Node root;
@@ -695,6 +745,59 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         if (sync["require_recent_robot_state"])
         {
             config_.sync.require_recent_robot_state = sync["require_recent_robot_state"].as<bool>();
+        }
+    }
+
+    if (const YAML::Node correction = root["height_correction"])
+    {
+        if (correction["enabled"])
+        {
+            config_.height_correction.enabled = correction["enabled"].as<bool>();
+        }
+        if (correction["window_size_m"])
+        {
+            config_.height_correction.window_size_m =
+                correction["window_size_m"].as<double>();
+        }
+        if (correction["foot_contact_offset_m"])
+        {
+            config_.height_correction.foot_contact_offset_m =
+                correction["foot_contact_offset_m"].as<double>();
+        }
+        if (correction["minimum_contacts"])
+        {
+            config_.height_correction.minimum_contacts =
+                correction["minimum_contacts"].as<int>();
+        }
+        if (correction["max_map_age_sec"])
+        {
+            config_.height_correction.max_map_age_sec =
+                correction["max_map_age_sec"].as<double>();
+        }
+        if (correction["residual_deadband_m"])
+        {
+            config_.height_correction.residual_deadband_m =
+                correction["residual_deadband_m"].as<double>();
+        }
+        if (correction["max_residual_m"])
+        {
+            config_.height_correction.max_residual_m =
+                correction["max_residual_m"].as<double>();
+        }
+        if (correction["max_residual_spread_m"])
+        {
+            config_.height_correction.max_residual_spread_m =
+                correction["max_residual_spread_m"].as<double>();
+        }
+        if (correction["time_constant_sec"])
+        {
+            config_.height_correction.time_constant_sec =
+                correction["time_constant_sec"].as<double>();
+        }
+        if (correction["max_step_per_frame_m"])
+        {
+            config_.height_correction.max_step_per_frame_m =
+                correction["max_step_per_frame_m"].as<double>();
         }
     }
 
@@ -927,6 +1030,27 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
     if (!(config_.map.height_resolution > 0.0))
     {
         std::cerr << "[HeightMapBuilder] map.height_resolution must be > 0." << std::endl;
+        return false;
+    }
+    const HeightCorrectionConfig& correction = config_.height_correction;
+    if (!std::isfinite(correction.window_size_m) || correction.window_size_m <= 0.0 ||
+        !std::isfinite(correction.foot_contact_offset_m) ||
+        correction.foot_contact_offset_m < 0.0 ||
+        correction.minimum_contacts < 1 ||
+        correction.minimum_contacts >
+            static_cast<int>(HeightCorrectionObservation::kLegCount) ||
+        !std::isfinite(correction.max_map_age_sec) || correction.max_map_age_sec <= 0.0 ||
+        !std::isfinite(correction.residual_deadband_m) ||
+        correction.residual_deadband_m < 0.0 ||
+        !std::isfinite(correction.max_residual_m) || correction.max_residual_m <= 0.0 ||
+        !std::isfinite(correction.max_residual_spread_m) ||
+        correction.max_residual_spread_m < 0.0 ||
+        !std::isfinite(correction.time_constant_sec) || correction.time_constant_sec <= 0.0 ||
+        !std::isfinite(correction.max_step_per_frame_m) ||
+        correction.max_step_per_frame_m <= 0.0)
+    {
+        std::cerr << "[HeightMapBuilder] Invalid height_correction configuration."
+                  << std::endl;
         return false;
     }
     if (config_.map.rolling_margin_cells_x < 0)
@@ -1501,6 +1625,142 @@ void HeightMapBuilderNode::UpdateGlobalHeightMap(
     }
 }
 
+void HeightMapBuilderNode::ApplyHeightCorrection(
+    const HeightCorrectionObservation& observation,
+    int64_t frame_timestamp_ns)
+{
+    const HeightCorrectionConfig& correction = config_.height_correction;
+    if (!correction.enabled)
+    {
+        return;
+    }
+
+    const auto log_result = [this](
+                                const char* reason,
+                                size_t residual_count,
+                                double mean_residual,
+                                double applied_step,
+                                size_t corrected_cells)
+    {
+        if (!config_.runtime.verbose || frame_counter_ % 30u != 0u)
+        {
+            return;
+        }
+        std::cout << "[HeightMapBuilder] Height correction:"
+                  << " status=" << reason
+                  << " residuals=" << residual_count
+                  << " mean=" << mean_residual
+                  << " step=" << applied_step
+                  << " cells=" << corrected_cells
+                  << std::endl;
+    };
+
+    if (!latest_filtered_window_valid_ || latest_filtered_window_timestamp_ns_ <= 0 ||
+        frame_timestamp_ns <= latest_filtered_window_timestamp_ns_)
+    {
+        log_result("no_fresh_map", 0u, 0.0, 0.0, 0u);
+        return;
+    }
+
+    const double map_age_sec = static_cast<double>(
+        frame_timestamp_ns - latest_filtered_window_timestamp_ns_) /
+        kSecondsToNanoseconds;
+    if (!std::isfinite(map_age_sec) || map_age_sec > correction.max_map_age_sec)
+    {
+        log_result("stale_map", 0u, 0.0, 0.0, 0u);
+        return;
+    }
+
+    double residual_sum = 0.0;
+    double residual_min = std::numeric_limits<double>::infinity();
+    double residual_max = -std::numeric_limits<double>::infinity();
+    size_t residual_count = 0u;
+    for (size_t leg = 0; leg < observation.residuals.size(); ++leg)
+    {
+        const double residual = observation.residuals[leg];
+        if (!observation.valid[leg] || !std::isfinite(residual) ||
+            std::fabs(residual) > correction.max_residual_m)
+        {
+            continue;
+        }
+        residual_sum += residual;
+        residual_min = std::min(residual_min, residual);
+        residual_max = std::max(residual_max, residual);
+        ++residual_count;
+    }
+
+    if (residual_count < static_cast<size_t>(correction.minimum_contacts))
+    {
+        log_result("insufficient_contacts", residual_count, 0.0, 0.0, 0u);
+        return;
+    }
+
+    const double mean_residual = residual_sum / static_cast<double>(residual_count);
+    if (residual_max - residual_min > correction.max_residual_spread_m)
+    {
+        log_result("residual_spread", residual_count, mean_residual, 0.0, 0u);
+        return;
+    }
+    if (std::fabs(mean_residual) <= correction.residual_deadband_m)
+    {
+        log_result("deadband", residual_count, mean_residual, 0.0, 0u);
+        return;
+    }
+
+    const double alpha = 1.0 - std::exp(-map_age_sec / correction.time_constant_sec);
+    const double correction_step = std::clamp(
+        alpha * mean_residual,
+        -correction.max_step_per_frame_m,
+        correction.max_step_per_frame_m);
+    if (!std::isfinite(correction_step) || correction_step == 0.0)
+    {
+        log_result("zero_step", residual_count, mean_residual, 0.0, 0u);
+        return;
+    }
+
+    const LocalWindowGeometry geometry = ComputeLocalWindowGeometry();
+    const int correction_cells = std::max(
+        1,
+        static_cast<int>(std::lround(
+            correction.window_size_m / config_.map.cell_size)));
+    const int correction_w = std::min(geometry.width, correction_cells);
+    const int correction_h = std::min(geometry.height, correction_cells);
+    const int start_gx =
+        geometry.start_gx + std::max(0, (geometry.width - correction_w) / 2);
+    const int start_gy =
+        geometry.start_gy + std::max(0, (geometry.height - correction_h) / 2);
+
+    size_t corrected_cells = 0u;
+    for (int gy = start_gy; gy < start_gy + correction_h; ++gy)
+    {
+        for (int gx = start_gx; gx < start_gx + correction_w; ++gx)
+        {
+            if (gx < 0 || gx >= global_cells_x_ || gy < 0 || gy >= global_cells_y_)
+            {
+                continue;
+            }
+            const size_t index = GridIndex(gx, gy);
+            if (validity_layer_[index] == 0u || !std::isfinite(height_layer_[index]))
+            {
+                continue;
+            }
+
+            const float corrected_height = static_cast<float>(std::clamp(
+                static_cast<double>(height_layer_[index]) + correction_step,
+                config_.map.height_min,
+                config_.map.height_max));
+            if (corrected_height != height_layer_[index])
+            {
+                height_layer_[index] = corrected_height;
+                ++corrected_cells;
+            }
+        }
+    }
+
+    log_result(
+        "applied", residual_count, mean_residual, correction_step, corrected_cells);
+}
+
 void HeightMapBuilderNode::ExtractLocalHeightMapWindow(
     int start_gx,
     int start_gy,
@@ -1812,12 +2072,13 @@ uint8_t HeightMapBuilderNode::ClassifyTraversability(
     return kClassImpassable;
 }
 
-void HeightMapBuilderNode::PublishHeightMapWindow()
+void HeightMapBuilderNode::PublishHeightMapWindow(int64_t observation_timestamp_ns)
 {
     latest_filtered_window_valid_ = false;
 
-    const int local_w = std::max(1, config_.map.local_window_cells_x);
-    const int local_h = std::max(1, config_.map.local_window_cells_y);
+    const LocalWindowGeometry geometry = ComputeLocalWindowGeometry();
+    const int local_w = geometry.width;
+    const int local_h = geometry.height;
     const int64_t data_size_i64 = static_cast<int64_t>(local_w) * static_cast<int64_t>(local_h);
     if (data_size_i64 <= 0 || data_size_i64 > static_cast<int64_t>(std::numeric_limits<int32_t>::max()))
     {
@@ -1831,31 +2092,10 @@ void HeightMapBuilderNode::PublishHeightMapWindow()
     const double robot_y = latest_robot_state_.position[1];
     const double safe_robot_x = std::isfinite(robot_x) ? robot_x : 0.0;
     const double safe_robot_y = std::isfinite(robot_y) ? robot_y : 0.0;
-    const int center_gx =
-        static_cast<int>(std::floor((safe_robot_x - map_min_x_) / config_.map.cell_size));
-    const int center_gy =
-        static_cast<int>(std::floor((safe_robot_y - map_min_y_) / config_.map.cell_size));
-    const int clamped_center_gx = std::clamp(center_gx, 0, std::max(0, global_cells_x_ - 1));
-    const int clamped_center_gy = std::clamp(center_gy, 0, std::max(0, global_cells_y_ - 1));
-
-    int start_gx = clamped_center_gx - (local_w / 2);
-    int start_gy = clamped_center_gy - (local_h / 2);
-    if (global_cells_x_ > local_w)
-    {
-        start_gx = std::clamp(start_gx, 0, global_cells_x_ - local_w);
-    }
-    else
-    {
-        start_gx = 0;
-    }
-    if (global_cells_y_ > local_h)
-    {
-        start_gy = std::clamp(start_gy, 0, global_cells_y_ - local_h);
-    }
-    else
-    {
-        start_gy = 0;
-    }
+    const int center_gx = geometry.center_gx;
+    const int center_gy = geometry.center_gy;
+    const int start_gx = geometry.start_gx;
+    const int start_gy = geometry.start_gy;
 
     std::vector<float> window_heights(data_size, std::numeric_limits<float>::quiet_NaN());
     std::vector<uint8_t> window_validity(data_size, static_cast<uint8_t>(0u));
@@ -2022,19 +2262,36 @@ void HeightMapBuilderNode::PublishHeightMapWindow()
         map_min_y_ + static_cast<double>(start_gy) * config_.map.cell_size;
     latest_filtered_window_heights_ = std::move(filtered_heights);
     latest_filtered_window_validity_ = std::move(filtered_validity);
+    latest_filtered_window_gradients_ = std::move(gradient_values);
+    latest_filtered_window_gradient_validity_ = std::move(gradient_validity);
+    latest_filtered_window_timestamp_ns_ = observation_timestamp_ns;
     latest_filtered_window_valid_ =
         latest_filtered_window_heights_.size() == data_size &&
-        latest_filtered_window_validity_.size() == data_size;
+        latest_filtered_window_validity_.size() == data_size &&
+        latest_filtered_window_gradients_.size() == data_size &&
+        latest_filtered_window_gradient_validity_.size() == data_size;
 }
 
 bool HeightMapBuilderNode::EstimateFilteredHeightAtWorldXY(
     double x,
     double y,
+    int64_t query_timestamp_ns,
     double* height_m) const
 {
     if (height_m == nullptr || !latest_filtered_window_valid_ ||
         !std::isfinite(x) || !std::isfinite(y) ||
-        !(config_.map.cell_size > 0.0))
+        !(config_.map.cell_size > 0.0) ||
+        latest_filtered_window_timestamp_ns_ <= 0 ||
+        query_timestamp_ns <= latest_filtered_window_timestamp_ns_)
+    {
+        return false;
+    }
+
+    const double map_age_sec = static_cast<double>(
+        query_timestamp_ns - latest_filtered_window_timestamp_ns_) /
+        kSecondsToNanoseconds;
+    if (!std::isfinite(map_age_sec) ||
+        map_age_sec > config_.height_correction.max_map_age_sec)
     {
         return false;
     }
@@ -2054,8 +2311,14 @@ bool HeightMapBuilderNode::EstimateFilteredHeightAtWorldXY(
         static_cast<size_t>(col);
     if (index >= latest_filtered_window_heights_.size() ||
         index >= latest_filtered_window_validity_.size() ||
+        index >= latest_filtered_window_gradients_.size() ||
+        index >= latest_filtered_window_gradient_validity_.size() ||
         latest_filtered_window_validity_[index] == 0u ||
-        !std::isfinite(latest_filtered_window_heights_[index]))
+        latest_filtered_window_gradient_validity_[index] == 0u ||
+        !std::isfinite(latest_filtered_window_heights_[index]) ||
+        !std::isfinite(latest_filtered_window_gradients_[index]) ||
+        latest_filtered_window_gradients_[index] >
+            config_.traversability.grad_thr_steppable)
     {
         return false;
     }
@@ -2064,12 +2327,18 @@ bool HeightMapBuilderNode::EstimateFilteredHeightAtWorldXY(
     return true;
 }
 
+double HeightMapBuilderNode::FootContactOffsetM() const noexcept
+{
+    return config_.height_correction.foot_contact_offset_m;
+}
+
 bool HeightMapBuilderNode::ProcessCameraPointCloudFrame(
     int64_t depth_timestamp_ns,
     const RobotStateSnapshot& robot_state,
     const std::vector<float>& cam_x,
     const std::vector<float>& cam_y,
-    const std::vector<float>& cam_z)
+    const std::vector<float>& cam_z,
+    const HeightCorrectionObservation& correction_observation)
 {
     if (!robot_state.valid)
     {
@@ -2101,12 +2370,13 @@ bool HeightMapBuilderNode::ProcessCameraPointCloudFrame(
     ShiftGlobalMapIfNeeded(
         latest_robot_state_.position[0],
         latest_robot_state_.position[1]);
+    ApplyHeightCorrection(correction_observation, depth_timestamp_ns);
     UpdateGlobalHeightMap(
         points_world_x,
         points_world_y,
         points_world_z,
         depth_timestamp_ns);
-    PublishHeightMapWindow();
+    PublishHeightMapWindow(depth_timestamp_ns);
 
     ++frame_counter_;
     if (config_.runtime.verbose && frame_counter_ % 30u == 0u)
@@ -2172,12 +2442,13 @@ void HeightMapBuilderNode::OnDepthImage(
     ShiftGlobalMapIfNeeded(
         latest_robot_state_.position[0],
         latest_robot_state_.position[1]);
+    ApplyHeightCorrection(HeightCorrectionObservation{}, depth_receive_ts_ns);
     UpdateGlobalHeightMap(
         points_world_x,
         points_world_y,
         points_world_z,
         depth_receive_ts_ns);
-    PublishHeightMapWindow();
+    PublishHeightMapWindow(depth_receive_ts_ns);
 
     ++frame_counter_;
     if (config_.runtime.verbose && frame_counter_ % 30u == 0u)

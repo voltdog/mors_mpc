@@ -50,6 +50,18 @@ sync:
   max_sync_dt_sec: 0.05
   require_recent_robot_state: true
 
+height_correction:
+  enabled: true
+  window_size_m: 0.70
+  foot_contact_offset_m: 0.015
+  minimum_contacts: 2
+  max_map_age_sec: 1.0
+  residual_deadband_m: 0.005
+  max_residual_m: 0.10
+  max_residual_spread_m: 0.03
+  time_constant_sec: 0.30
+  max_step_per_frame_m: 0.005
+
 filtering:
   opening_kernel_size: 3
   opening_kernel_shape: ellipse
