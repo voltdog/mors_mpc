@@ -103,12 +103,13 @@ find_package(Eigen3 3.2.10 REQUIRED)
 # find_package(OsqpEigen REQUIRED)
 find_package(lcm REQUIRED)
 find_package(pinocchio REQUIRED)
-find_package(realsense2 REQUIRED)
+find_package(realsense2 QUIET)
 find_package(yaml-cpp REQUIRED)
 find_package(ZLIB REQUIRED)
 
 include(${LCM_USE_FILE})
 set(LCM_MSGS_DIR "${CMAKE_CURRENT_LIST_DIR}/../lcm_msgs")
+include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("include/")
 include_directories("../common/include/")
 include_directories("${LCM_MSGS_DIR}")
@@ -126,11 +127,6 @@ lcm_add_library(messages-cpp CPP ${cpp_headers})
 target_include_directories(messages-cpp INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
-# executable
-# add_subdirectory(/home/$ENV{USER}/vbcontrol/matplotplusplus)
-add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
-# target_link_libraries(vbcontrol PUBLIC Eigen3::Eigen)
-
 add_library(state_estimator_hmb_contact_source src/contact_source.cpp)
 target_include_directories(state_estimator_hmb_contact_source PUBLIC include)
 target_compile_features(state_estimator_hmb_contact_source PUBLIC cxx_std_20)
@@ -140,21 +136,24 @@ add_library(state_estimator_hmb_heightmap_residual
 target_include_directories(state_estimator_hmb_heightmap_residual PUBLIC include)
 target_compile_features(state_estimator_hmb_heightmap_residual PUBLIC cxx_std_20)
 
-set(EXEC_SOURCES src/main.cpp
-            src/z_pos_estimator.cpp
-            src/sensor_fusion.cpp
-            src/low_pass_filtering.cpp
-            src/leg_state.cpp
-            src/gm_force_observer.cpp
-            src/HeightMapBuilder.cpp
-            ../common/src/system_functions.cpp
-            ../common/src/leg_model.cpp
-            ../common/src/reliable_contact.cpp
-            ../common/src/Robot.cpp
-)
-add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
-# target_link_libraries(leg_controller OsqpEigen::OsqpEigen)
-target_link_libraries(${PROJECT_NAME}
+if(realsense2_FOUND)
+  add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
+
+  set(EXEC_SOURCES
+      src/main.cpp
+      src/z_pos_estimator.cpp
+      src/sensor_fusion.cpp
+      src/low_pass_filtering.cpp
+      src/leg_state.cpp
+      src/gm_force_observer.cpp
+      src/HeightMapBuilder.cpp
+      ../common/src/system_functions.cpp
+      ../common/src/leg_model.cpp
+      ../common/src/reliable_contact.cpp
+      ../common/src/Robot.cpp
+  )
+  add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
+  target_link_libraries(${PROJECT_NAME}
     state_estimator_hmb_contact_source
     state_estimator_hmb_heightmap_residual
     vbcontrol
@@ -163,22 +162,32 @@ target_link_libraries(${PROJECT_NAME}
     ZLIB::ZLIB
     pinocchio::pinocchio
     pinocchio::pinocchio_parsers
-)
+  )
 
-if(TARGET realsense2::realsense2)
-  target_link_libraries(${PROJECT_NAME} realsense2::realsense2)
+  if(TARGET realsense2::realsense2)
+    target_link_libraries(${PROJECT_NAME} realsense2::realsense2)
+  else()
+    target_link_libraries(${PROJECT_NAME} ${realsense2_LIBRARY})
+  endif()
+
+  target_compile_definitions(${PROJECT_NAME} PRIVATE
+      PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+      COAL_DISABLE_HPP_FCL_WARNINGS
+      # Match Eigen's allocation and layout policy to precompiled Pinocchio.
+      EIGEN_MALLOC_ALREADY_ALIGNED=1
+      EIGEN_MAX_ALIGN_BYTES=16
+      EIGEN_MAX_STATIC_ALIGN_BYTES=16
+  )
 else()
-  target_link_libraries(${PROJECT_NAME} ${realsense2_LIBRARY})
+  message(WARNING
+      "realsense2 was not found; building simulation-only state_estimator_hmb")
+  add_executable(${PROJECT_NAME}
+      src/sim_main.cpp
+      src/HeightMapBuilder.cpp)
+  target_link_libraries(${PROJECT_NAME}
+      yaml-cpp::yaml-cpp
+      ZLIB::ZLIB)
 endif()
-
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
-    COAL_DISABLE_HPP_FCL_WARNINGS
-    # Match Eigen's allocation and layout policy to precompiled Pinocchio.
-    EIGEN_MALLOC_ALREADY_ALIGNED=1
-    EIGEN_MAX_ALIGN_BYTES=16
-    EIGEN_MAX_STATIC_ALIGN_BYTES=16
-)
 
 lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)
 

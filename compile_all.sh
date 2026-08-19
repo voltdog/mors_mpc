@@ -5,7 +5,7 @@ set -e  # останавливает выполнение при первой о
 ROOT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 
 # Массив с именами проектов
-PROJECTS=("StateEstimatorMK" "StateEstimatorLKF" "StateEstimator" "WBIC" "LegController" "MorsLogger" "LocomotionController" "HeightMapBuilder") # "RealsenseCamera" "BHI360_IMU")
+PROJECTS=("StateEstimatorMK" "StateEstimatorLKF" "StateEstimator" "StateEstimatorHMB" "WBIC" "LegController" "MorsLogger" "LocomotionController" "HeightMapBuilder") # "RealsenseCamera" "BHI360_IMU")
 
 # Проверяем, запущено ли с аргументом -c (configure)
 WITH_CMAKE=false

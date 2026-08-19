@@ -69,13 +69,13 @@ class Hardware_Level_Sim():
         if self.depth_image_enabled:
             self.lcm_depth_image_msg = depth_image_msg()
 
-        self.lc_servo_state = lcm.LCM()
-        self.lc_imu = lcm.LCM()
-        self.lc_robot_state = lcm.LCM()
-        self.lc_odom = lcm.LCM()
-        self.lc_contact = lcm.LCM()
+        self.lc_servo_state = self._create_lcm(self.lcm_servo_url)
+        self.lc_imu = self._create_lcm(self.lcm_control_url)
+        self.lc_robot_state = self._create_lcm(self.lcm_control_url)
+        self.lc_odom = self._create_lcm(self.lcm_control_url)
+        self.lc_contact = self._create_lcm(self.lcm_control_url)
         if self.depth_image_enabled:
-            self.lc_depth_image = lcm.LCM()
+            self.lc_depth_image = self._create_lcm(self.lcm_vision_url)
         
         self.lcm_imu_msg.orientation_covariance = [2.603e-07, 0.0, 0.0, 0.0, 2.603e-07, 0.0, 0.0, 0.0, 0.0]
         self.lcm_imu_msg.angular_velocity_covariance = [2.5e-05, 0.0, 0.0, 0.0, 2.5e-05, 0.0, 0.0, 0.0, 2.5e-05]
@@ -162,15 +162,24 @@ class Hardware_Level_Sim():
         with open(f"{BASE_DIR}/../config/channels.yaml", "r") as f:
             lcm_config = yaml.safe_load(f)
 
-        self.lcm_servo_cmd_channel = lcm_config.get("lcm_servo_cmd_channel", "SERVO_CMD")
-        self.lcm_servo_state_channel = lcm_config.get("lcm_servo_state_channel", "SERVO_STATE")
-        self.lcm_imu_channel = lcm_config.get("lcm_imu_channel", "IMU_DATA")
-        self.lcm_odom_channel = lcm_config.get("lcm_odom_channel", "ODOMETRY")
-        self.lcm_contact_sensor_channel = lcm_config.get("lcm_contact_sensor_channel", "CONTACT_SENSOR")
-        self.lcm_robot_state_channel = "ROBOT_STATE" #lcm_config.get("lcm_robot_state_channel", "ROBOT_STATE")
+        self.lcm_servo_cmd_channel = lcm_config.get("servo_cmd", "SERVO_CMD")
+        self.lcm_servo_state_channel = lcm_config.get("servo_state", "SERVO_STATE")
+        self.lcm_imu_channel = lcm_config.get("imu_data", "IMU_DATA")
+        self.lcm_odom_channel = lcm_config.get("odometry", "ODOMETRY")
+        self.lcm_contact_sensor_channel = lcm_config.get("contact_state", "CONTACT_SENSOR")
+        self.lcm_robot_state_channel = lcm_config.get("robot_state", "ROBOT_STATE")
+        self.depth_image_channel = lcm_config.get("depth_image", self.DEPTH_IMAGE_CHANNEL)
+
+        self.lcm_control_url = os.environ.get("LCM_CONTROL_URL")
+        self.lcm_servo_url = os.environ.get("LCM_SERVO_URL")
+        self.lcm_vision_url = os.environ.get("LCM_VISION_URL")
 
         self.sim_period = 1.0/self.sim_freq
         self.first_step = True
+
+    @staticmethod
+    def _create_lcm(url):
+        return lcm.LCM(url) if url else lcm.LCM()
 
     def _validate_depth_config(self, depth_image_fps, depth_image_size):
         if isinstance(depth_image_fps, bool) or not isinstance(depth_image_fps, int):
@@ -306,6 +315,7 @@ class Hardware_Level_Sim():
         rpy = [imu_data[10], imu_data[11], yaw]
         quat_xyzw = Rotation.from_euler('xyz', rpy, degrees=False).as_quat().tolist()
 
+        self.lcm_robot_state_msg.timestamp = time.time_ns()
         self.lcm_robot_state_msg.body.position = base_pos[:]
         self.lcm_robot_state_msg.body.orientation = rpy[:]
         self.lcm_robot_state_msg.body.orientation_quaternion = quat_xyzw
@@ -392,7 +402,7 @@ class Hardware_Level_Sim():
 
     def get_cmd(self):
         # init LCM
-        lc = lcm.LCM()
+        lc = self._create_lcm(self.lcm_servo_url)
         subscription = lc.subscribe(self.lcm_servo_cmd_channel, self.cmd_handler)
         try:
             while not self.shutdown_event.is_set():

@@ -48,6 +48,31 @@ set +m
         return 1
     }
 
+    ensure_robot_state_python_binding() {
+        local python_bin="${SCRIPT_DIR}/.mpc_venv/bin/python"
+        local lcm_msgs_dir="${SCRIPT_DIR}/lcm_msgs"
+
+        if "$python_bin" -c '
+import sys
+sys.path.insert(0, sys.argv[1])
+from mors_msgs.robot_state_msg import robot_state_msg
+assert hasattr(robot_state_msg(), "timestamp")
+' "$lcm_msgs_dir" 2>/dev/null; then
+            return
+        fi
+
+        if ! command -v lcm-gen >/dev/null 2>&1; then
+            echo "Python ROBOT_STATE binding is stale and lcm-gen is unavailable" >&2
+            exit 1
+        fi
+
+        echo "Regenerating Python ROBOT_STATE binding..."
+        (
+            cd "$lcm_msgs_dir"
+            lcm-gen -p --ppath . robot_state_msg.lcm
+        )
+    }
+
     cleanup() {
         local status=$?
         local pgid
@@ -131,11 +156,24 @@ set +m
     # Force UDP transport for this local bringup to avoid SHM port conflicts.
     export FASTDDS_BUILTIN_TRANSPORTS="${FASTDDS_BUILTIN_TRANSPORTS:-UDPv4}"
 
+    lcm_fallback_url="${LCM_DEFAULT_URL:-${LCM_CONTROL_URL:-}}"
+    if [ -z "$lcm_fallback_url" ]; then
+        echo "LCM_DEFAULT_URL or LCM_CONTROL_URL must be set" >&2
+        exit 1
+    fi
+    export LCM_CONTROL_URL="${LCM_CONTROL_URL:-$lcm_fallback_url}"
+    export LCM_SERVO_URL="${LCM_SERVO_URL:-$lcm_fallback_url}"
+    export LCM_VISION_URL="${LCM_VISION_URL:-$lcm_fallback_url}"
+
+    sim_mode=false
     rviz_enabled=false
     logging_enabled=false
 
     for arg in "$@"; do
         case "$arg" in
+            --sim)
+                sim_mode=true
+                ;;
             --rviz)
                 rviz_enabled=true
                 ;;
@@ -143,46 +181,88 @@ set +m
                 logging_enabled=true
                 ;;
             -h|--help)
-                echo "Usage: $0 [--rviz] [--log]" >&2
+                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
                 exit 0
                 ;;
             *)
                 echo "Unknown option: $arg" >&2
-                echo "Usage: $0 [--rviz] [--log]" >&2
+                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
                 exit 1
                 ;;
         esac
     done
+
+    if [ "$sim_mode" = true ]; then
+        height_map_builder="${SCRIPT_DIR}/HeightMapBuilder/build/height_map_builder"
+        if [ ! -x "$height_map_builder" ]; then
+            echo "Missing executable: ${height_map_builder}" >&2
+            echo "Build it with: cmake -S HeightMapBuilder -B HeightMapBuilder/build && cmake --build HeightMapBuilder/build -j" >&2
+            exit 1
+        fi
+
+        ensure_robot_state_python_binding
+    else
+        state_estimator_hmb="${SCRIPT_DIR}/StateEstimatorHMB/build/state_estimator_hmb"
+        if [ ! -x "$state_estimator_hmb" ]; then
+            echo "Missing executable: ${state_estimator_hmb}" >&2
+            echo "Build it with: cmake -S StateEstimatorHMB -B StateEstimatorHMB/build && cmake --build StateEstimatorHMB/build -j" >&2
+            exit 1
+        fi
+    fi
 
     # ros2 controller
     start_component \
         "robot mode controller" \
         ros2 launch robot_mode_controller bringup.launch.py
 
-    # hardware interfaces
-    echo "-------------- Hardware Mode Activated --------------"
-    start_component \
-        "BHI360 IMU" \
-        "${SCRIPT_DIR}/BHI360_IMU/build/bhi360_imu"
-    start_component \
-        "contact sensor" \
-        "${SCRIPT_DIR}/ContactSensor/build/contact_sensor"
-    # in the future add here contact sensors controller
-    # wait before the other controllers start to ensure that the hardware interfaces are up and running
+    if [ "$sim_mode" = true ]; then
+        echo "-------------- Simulation Mode Activated --------------"
+        start_component \
+            "MORS simulator" \
+            "${SCRIPT_DIR}/.mpc_venv/bin/python" "${SCRIPT_DIR}/Simulator/mors_simulator.py"
+        simulator_pgid="$LAST_PGID"
 
-    start_component \
-        "state estimator" \
-        "${SCRIPT_DIR}/StateEstimatorHMB/build/state_estimator_hmb"
-        
-    # "${SCRIPT_DIR}/StateEstimatorIKZ/build/state_estimator_ikz"
-    # "${SCRIPT_DIR}/StateEstimatorMK/build/state_estimator_mk"
-    # "${SCRIPT_DIR}/StateEstimator1DKF/build/state_estimator_1d_kf"
+        start_component \
+            "height map builder (simulation)" \
+            "$height_map_builder" "${config_dir}heightmap_builder.yaml"
+        height_map_builder_pgid="$LAST_PGID"
 
-    sleep 2s
+        sleep 2s
 
-    start_component \
-        "radiolink control" \
-        ros2 run mors_radiolink_control mors_radiolink_control
+        if ! kill -0 -- "-${simulator_pgid}" 2>/dev/null; then
+            echo "MORS simulator exited during startup" >&2
+            exit 1
+        fi
+        if ! kill -0 -- "-${height_map_builder_pgid}" 2>/dev/null; then
+            echo "HeightMapBuilder exited during startup" >&2
+            exit 1
+        fi
+    else
+        # hardware interfaces
+        echo "-------------- Hardware Mode Activated --------------"
+        start_component \
+            "BHI360 IMU" \
+            "${SCRIPT_DIR}/BHI360_IMU/build/bhi360_imu"
+        start_component \
+            "contact sensor" \
+            "${SCRIPT_DIR}/ContactSensor/build/contact_sensor"
+        # in the future add here contact sensors controller
+        # wait before the other controllers start to ensure that the hardware interfaces are up and running
+
+        start_component \
+            "state estimator" \
+            "$state_estimator_hmb"
+
+        # "${SCRIPT_DIR}/StateEstimatorIKZ/build/state_estimator_ikz"
+        # "${SCRIPT_DIR}/StateEstimatorMK/build/state_estimator_mk"
+        # "${SCRIPT_DIR}/StateEstimator1DKF/build/state_estimator_1d_kf"
+
+        sleep 2s
+
+        start_component \
+            "radiolink control" \
+            ros2 run mors_radiolink_control mors_radiolink_control
+    fi
 
     if [ "$rviz_enabled" = true ]; then
         if [ "$algorithm" = dcm ]; then

@@ -1289,12 +1289,45 @@ void SignalHandler(int)
 
 }  // namespace
 
-int main()
+int main(int argc, char** argv)
 {
     try
     {
         std::cout << std::unitbuf;
         std::cerr << std::unitbuf;
+
+        bool sim_mode = false;
+        for (int i = 1; i < argc; ++i)
+        {
+            const std::string arg = argv[i];
+            if (arg == "--sim")
+            {
+                sim_mode = true;
+            }
+            else if (arg == "-h" || arg == "--help")
+            {
+                std::cout << "Usage: " << argv[0] << " [--sim]" << std::endl;
+                return 0;
+            }
+            else
+            {
+                std::cerr << "Unknown option: " << arg << "\n"
+                          << "Usage: " << argv[0] << " [--sim]" << std::endl;
+                return 2;
+            }
+        }
+
+        if (sim_mode)
+        {
+            const std::string config_path = ConfigPath(
+                GetRequiredEnv("CONFIGPATH"),
+                "heightmap_builder.yaml");
+            std::cout << "[StateEstimatorHMB] simulation mode: LCM heightmap builder only"
+                      << std::endl;
+            hmb::HeightMapBuilderNode node(config_path, true);
+            return node.Run();
+        }
+
         std::signal(SIGINT, SignalHandler);
         std::signal(SIGTERM, SignalHandler);
 
