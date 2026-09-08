@@ -70,12 +70,12 @@ class Hardware_Level_Sim():
             self.lcm_depth_image_msg = depth_image_msg()
 
         self.lc_servo_state = self._create_lcm(self.lcm_servo_url)
-        self.lc_imu = self._create_lcm(self.lcm_control_url)
-        self.lc_robot_state = self._create_lcm(self.lcm_control_url)
-        self.lc_odom = self._create_lcm(self.lcm_control_url)
-        self.lc_contact = self._create_lcm(self.lcm_control_url)
+        self.lc_imu = self._create_lcm(self.lcm_locomotion_url)
+        self.lc_robot_state = self._create_lcm(self.lcm_locomotion_url)
+        self.lc_odom = self._create_lcm(self.lcm_locomotion_url)
+        self.lc_contact = self._create_lcm(self.lcm_locomotion_url)
         if self.depth_image_enabled:
-            self.lc_depth_image = self._create_lcm(self.lcm_vision_url)
+            self.lc_depth_image = self._create_lcm(self.lcm_locomotion_url)
         
         self.lcm_imu_msg.orientation_covariance = [2.603e-07, 0.0, 0.0, 0.0, 2.603e-07, 0.0, 0.0, 0.0, 0.0]
         self.lcm_imu_msg.angular_velocity_covariance = [2.5e-05, 0.0, 0.0, 0.0, 2.5e-05, 0.0, 0.0, 0.0, 2.5e-05]
@@ -170,9 +170,8 @@ class Hardware_Level_Sim():
         self.lcm_robot_state_channel = lcm_config.get("robot_state", "ROBOT_STATE")
         self.depth_image_channel = lcm_config.get("depth_image", self.DEPTH_IMAGE_CHANNEL)
 
-        self.lcm_control_url = os.environ.get("LCM_CONTROL_URL")
+        self.lcm_locomotion_url = os.environ.get("LCM_LOCOMOTION_URL")
         self.lcm_servo_url = os.environ.get("LCM_SERVO_URL")
-        self.lcm_vision_url = os.environ.get("LCM_VISION_URL")
 
         self.sim_period = 1.0/self.sim_freq
         self.first_step = True

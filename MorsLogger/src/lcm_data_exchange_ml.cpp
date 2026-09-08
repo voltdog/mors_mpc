@@ -22,20 +22,20 @@ std::string GetRequiredEnv(const char* name)
 } // namespace
 
 LCMExchanger::LCMExchanger(bool debug_mode)
-    : robot_cmd_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
-      mpc_cmd_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
-      wbc_cmd_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+    : robot_cmd_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      mpc_cmd_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      wbc_cmd_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
       servo_cmd_subscriber(GetRequiredEnv("LCM_SERVO_URL")),
       servo_state_subscriber(GetRequiredEnv("LCM_SERVO_URL")),
-      imu_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
-      contact_sensor_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
-      enable_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
-      controle_type_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
-      odometry_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
-      robot_state_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
-      robot_state_check_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      imu_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      contact_sensor_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      enable_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      controle_type_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      odometry_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      robot_state_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      robot_state_check_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
       servo_state_filt_subscriber(GetRequiredEnv("LCM_SERVO_URL")),
-      gait_phase_sig_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      gait_phase_sig_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
       debug_mode(debug_mode)
 {
     if(!mpc_cmd_subscriber.good())

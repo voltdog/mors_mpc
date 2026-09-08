@@ -382,9 +382,8 @@ class StateEstimatorHMBApp
 public:
     StateEstimatorHMBApp()
         : config_dir_(GetRequiredEnv("CONFIGPATH")),
-          control_lcm_url_(GetRequiredEnv("LCM_CONTROL_URL")),
+          locomotion_lcm_url_(GetRequiredEnv("LCM_LOCOMOTION_URL")),
           servo_lcm_url_(GetRequiredEnv("LCM_SERVO_URL")),
-          vision_lcm_url_(GetRequiredEnv("LCM_VISION_URL")),
           channels_(LoadChannels(ConfigPath(config_dir_, "channels.yaml"))),
           se_config_(LoadStateEstimatorConfig(
               ConfigPath(config_dir_, "timesteps.yaml"),
@@ -393,11 +392,11 @@ public:
           t265_config_(LoadT265Config(ConfigPath(config_dir_, "realsense_camera.yaml"))),
           d435i_config_(LoadD435iConfig(ConfigPath(config_dir_, "realsense_camera_d435i.yaml"))),
           depth_config_(LoadDepthProcessingConfig(ConfigPath(config_dir_, "heightmap_builder.yaml"))),
-          imu_lcm_(std::make_unique<lcm::LCM>(control_lcm_url_)),
+          imu_lcm_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
           servo_lcm_(std::make_unique<lcm::LCM>(servo_lcm_url_)),
-          contact_lcm_(std::make_unique<lcm::LCM>(control_lcm_url_)),
-          gait_phase_lcm_(std::make_unique<lcm::LCM>(control_lcm_url_)),
-          robot_state_publisher_(std::make_unique<lcm::LCM>(control_lcm_url_)),
+          contact_lcm_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
+          gait_phase_lcm_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
+          robot_state_publisher_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
           servo_filtered_publisher_(std::make_unique<lcm::LCM>(servo_lcm_url_)),
           heightmap_builder_(std::make_unique<hmb::HeightMapBuilderNode>(
               ConfigPath(config_dir_, "heightmap_builder.yaml"),
@@ -1244,9 +1243,8 @@ private:
     }
 
     std::string config_dir_;
-    std::string control_lcm_url_;
+    std::string locomotion_lcm_url_;
     std::string servo_lcm_url_;
-    std::string vision_lcm_url_;
     ChannelsConfig channels_;
     StateEstimatorConfig se_config_;
     RobotPhysicalParams robot_params_;

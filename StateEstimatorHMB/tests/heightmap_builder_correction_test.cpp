@@ -308,12 +308,8 @@ int main()
     {
         Check(
             ::setenv(
-                "LCM_CONTROL_URL", "udpm://239.255.76.67:17667?ttl=0", 1) == 0,
-            "Failed to set LCM_CONTROL_URL");
-        Check(
-            ::setenv(
-                "LCM_VISION_URL", "udpm://239.255.76.67:17668?ttl=0", 1) == 0,
-            "Failed to set LCM_VISION_URL");
+                "LCM_LOCOMOTION_URL", "udpm://239.255.76.67:17667?ttl=0", 1) == 0,
+            "Failed to set LCM_LOCOMOTION_URL");
 
         const std::string config_path = HEIGHTMAP_BUILDER_CORRECTION_TEST_CONFIG;
         TestMeanRegionAndUpdateOrder(config_path);

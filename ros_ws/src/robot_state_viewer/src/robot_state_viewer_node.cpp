@@ -40,9 +40,8 @@
 namespace
 {
 
-constexpr const char * kControlLcmUrlEnv = "LCM_CONTROL_URL";
+constexpr const char * kLocomotionLcmUrlEnv = "LCM_LOCOMOTION_URL";
 constexpr const char * kServoLcmUrlEnv = "LCM_SERVO_URL";
-constexpr const char * kVisionLcmUrlEnv = "LCM_VISION_URL";
 
 std::string GetRequiredEnv(const char * name)
 {
@@ -76,12 +75,10 @@ class RobotStateViewerNode : public rclcpp::Node
 public:
   RobotStateViewerNode()
   : Node("robot_state_viewer"),
-    control_lcm_url_(GetRequiredEnv(kControlLcmUrlEnv)),
+    locomotion_lcm_url_(GetRequiredEnv(kLocomotionLcmUrlEnv)),
     servo_lcm_url_(GetRequiredEnv(kServoLcmUrlEnv)),
-    vision_lcm_url_(GetRequiredEnv(kVisionLcmUrlEnv)),
-    control_lcm_(control_lcm_url_),
+    locomotion_lcm_(locomotion_lcm_url_),
     servo_lcm_(servo_lcm_url_),
-    vision_lcm_(vision_lcm_url_),
     running_(true)
   {
     world_frame_id_ = this->declare_parameter<std::string>("world_frame_id", "map");
@@ -148,23 +145,22 @@ public:
       dcm_com_trajectory_markers_topic_, rclcpp::QoS(10).reliable());
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 
-    if (!control_lcm_.good()) {
-      throw std::runtime_error("Failed to initialize control LCM: " + control_lcm_url_);
+    if (!locomotion_lcm_.good()) {
+      throw std::runtime_error("Failed to initialize locomotion LCM: " + locomotion_lcm_url_);
     }
     if (!servo_lcm_.good()) {
       throw std::runtime_error("Failed to initialize servo LCM: " + servo_lcm_url_);
     }
-    if (!vision_lcm_.good()) {
-      throw std::runtime_error("Failed to initialize vision LCM: " + vision_lcm_url_);
-    }
 
-    vision_lcm_.subscribe(depth_lcm_channel_, &RobotStateViewerNode::depthImageHandler, this);
-    vision_lcm_.subscribe(pointcloud_lcm_channel_, &RobotStateViewerNode::pointCloudHandler, this);
-    vision_lcm_.subscribe(heightmap_lcm_channel_, &RobotStateViewerNode::heightmapHandler, this);
-    control_lcm_.subscribe(robot_state_lcm_channel_, &RobotStateViewerNode::robotStateHandler, this);
-    control_lcm_.subscribe(
+    locomotion_lcm_.subscribe(depth_lcm_channel_, &RobotStateViewerNode::depthImageHandler, this);
+    locomotion_lcm_.subscribe(
+      pointcloud_lcm_channel_, &RobotStateViewerNode::pointCloudHandler, this);
+    locomotion_lcm_.subscribe(heightmap_lcm_channel_, &RobotStateViewerNode::heightmapHandler, this);
+    locomotion_lcm_.subscribe(
+      robot_state_lcm_channel_, &RobotStateViewerNode::robotStateHandler, this);
+    locomotion_lcm_.subscribe(
       footstep_sequence_lcm_channel_, &RobotStateViewerNode::footstepsHandler, this);
-    control_lcm_.subscribe(
+    locomotion_lcm_.subscribe(
       dcm_com_trajectory_lcm_channel_, &RobotStateViewerNode::dcmComTrajectoryHandler, this);
     servo_lcm_.subscribe(servo_state_lcm_channel_, &RobotStateViewerNode::servoStateHandler, this);
     lcm_thread_ = std::thread(&RobotStateViewerNode::lcmLoop, this);
@@ -178,10 +174,9 @@ public:
 
     RCLCPP_INFO(
       this->get_logger(),
-      "LCM URLs: control='%s', servo='%s', vision='%s'",
-      control_lcm_url_.c_str(),
-      servo_lcm_url_.c_str(),
-      vision_lcm_url_.c_str());
+      "LCM URLs: locomotion='%s', servo='%s'",
+      locomotion_lcm_url_.c_str(),
+      servo_lcm_url_.c_str());
 
     RCLCPP_INFO(
       this->get_logger(),
@@ -387,18 +382,13 @@ private:
   void lcmLoop()
   {
     while (rclcpp::ok() && running_.load()) {
-      if (control_lcm_.handleTimeout(10) < 0) {
-        RCLCPP_ERROR(this->get_logger(), "Control LCM handleTimeout failed");
+      if (locomotion_lcm_.handleTimeout(10) < 0) {
+        RCLCPP_ERROR(this->get_logger(), "Locomotion LCM handleTimeout failed");
         running_.store(false);
         return;
       }
       if (servo_lcm_.handleTimeout(10) < 0) {
         RCLCPP_ERROR(this->get_logger(), "Servo LCM handleTimeout failed");
-        running_.store(false);
-        return;
-      }
-      if (vision_lcm_.handleTimeout(10) < 0) {
-        RCLCPP_ERROR(this->get_logger(), "Vision LCM handleTimeout failed");
         running_.store(false);
         return;
       }
@@ -1033,13 +1023,11 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr dcm_com_trajectory_pub_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-  std::string control_lcm_url_;
+  std::string locomotion_lcm_url_;
   std::string servo_lcm_url_;
-  std::string vision_lcm_url_;
 
-  lcm::LCM control_lcm_;
+  lcm::LCM locomotion_lcm_;
   lcm::LCM servo_lcm_;
-  lcm::LCM vision_lcm_;
   std::atomic<bool> running_;
   std::thread lcm_thread_;
 };

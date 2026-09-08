@@ -24,8 +24,7 @@ constexpr uint8_t kClassSteppable = 0u;
 constexpr uint8_t kClassUnsteppable = 1u;
 constexpr uint8_t kClassImpassable = 2u;
 constexpr uint16_t kHeightQMax = 0x1FFFu;
-constexpr const char* kControlLcmUrlEnv = "LCM_CONTROL_URL";
-constexpr const char* kVisionLcmUrlEnv = "LCM_VISION_URL";
+constexpr const char* kLocomotionLcmUrlEnv = "LCM_LOCOMOTION_URL";
 
 std::string GetRequiredEnv(const char* name)
 {
@@ -53,18 +52,12 @@ namespace hmb
 {
 
 HeightMapBuilderNode::HeightMapBuilderNode(const std::string& config_path, bool subscribe_inputs)
-    : control_lcm_url_(GetRequiredEnv(kControlLcmUrlEnv)),
-      vision_lcm_url_(GetRequiredEnv(kVisionLcmUrlEnv)),
-      control_lcm_(control_lcm_url_),
-      vision_lcm_(vision_lcm_url_)
+    : locomotion_lcm_url_(GetRequiredEnv(kLocomotionLcmUrlEnv)),
+      locomotion_lcm_(locomotion_lcm_url_)
 {
-    if (!control_lcm_.good())
+    if (!locomotion_lcm_.good())
     {
-        throw std::runtime_error("[HeightMapBuilder] control LCM initialization failed: " + control_lcm_url_);
-    }
-    if (!vision_lcm_.good())
-    {
-        throw std::runtime_error("[HeightMapBuilder] vision LCM initialization failed: " + vision_lcm_url_);
+        throw std::runtime_error("[HeightMapBuilder] LCM initialization failed: " + locomotion_lcm_url_);
     }
 
     if (!LoadConfig(config_path))
@@ -74,13 +67,12 @@ HeightMapBuilderNode::HeightMapBuilderNode(const std::string& config_path, bool 
 
     if (subscribe_inputs)
     {
-        vision_lcm_.subscribe(config_.channels.depth_image, &HeightMapBuilderNode::OnDepthImage, this);
-        control_lcm_.subscribe(config_.channels.robot_state, &HeightMapBuilderNode::OnRobotState, this);
+        locomotion_lcm_.subscribe(config_.channels.depth_image, &HeightMapBuilderNode::OnDepthImage, this);
+        locomotion_lcm_.subscribe(config_.channels.robot_state, &HeightMapBuilderNode::OnRobotState, this);
     }
 
     std::cout << "[HeightMapBuilder] started\n"
-              << "  control LCM URL: " << control_lcm_url_ << "\n"
-              << "  vision LCM URL: " << vision_lcm_url_ << "\n"
+              << "  LCM URL: " << locomotion_lcm_url_ << "\n"
               << "  depth channel: " << config_.channels.depth_image << "\n"
               << "  robot_state channel: " << config_.channels.robot_state << "\n"
               << "  pointcloud channel: " << config_.channels.pointcloud << "\n"
@@ -110,17 +102,10 @@ int HeightMapBuilderNode::Run()
 {
     while (true)
     {
-        const int control_status = control_lcm_.handleTimeout(5);
-        if (control_status < 0)
+        const int status = locomotion_lcm_.handleTimeout(10);
+        if (status < 0)
         {
-            std::cerr << "[HeightMapBuilder] control LCM handleTimeout failed." << std::endl;
-            return 1;
-        }
-
-        const int vision_status = vision_lcm_.handleTimeout(5);
-        if (vision_status < 0)
-        {
-            std::cerr << "[HeightMapBuilder] vision LCM handleTimeout failed." << std::endl;
+            std::cerr << "[HeightMapBuilder] LCM handleTimeout failed." << std::endl;
             return 1;
         }
     }
@@ -1459,7 +1444,7 @@ void HeightMapBuilderNode::PublishPointCloud(
     pointcloud_msg.y = y;
     pointcloud_msg.z = z;
 
-    vision_lcm_.publish(config_.channels.pointcloud, &pointcloud_msg);
+    locomotion_lcm_.publish(config_.channels.pointcloud, &pointcloud_msg);
 }
 
 void HeightMapBuilderNode::PublishPointCloudDirect(
@@ -1495,7 +1480,7 @@ void HeightMapBuilderNode::PublishPointCloudDirect(
     pointcloud_msg.y = y;
     pointcloud_msg.z = z;
 
-    vision_lcm_.publish(config_.channels.pointcloud, &pointcloud_msg);
+    locomotion_lcm_.publish(config_.channels.pointcloud, &pointcloud_msg);
 }
 
 void HeightMapBuilderNode::UpdateGlobalHeightMap(
@@ -2252,7 +2237,7 @@ void HeightMapBuilderNode::PublishHeightMapWindow(int64_t observation_timestamp_
         }
     }
 
-    vision_lcm_.publish(config_.channels.heightmap, &msg);
+    locomotion_lcm_.publish(config_.channels.heightmap, &msg);
 
     latest_filtered_window_width_ = local_w;
     latest_filtered_window_height_ = local_h;

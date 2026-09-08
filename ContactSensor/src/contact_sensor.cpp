@@ -249,7 +249,7 @@ void InstallSignalHandlers()
 int Run()
 {
     const std::filesystem::path config_directory = GetRequiredEnv("CONFIGPATH");
-    const std::string lcm_url = GetRequiredEnv("LCM_CONTROL_URL");
+    const std::string lcm_url = GetRequiredEnv("LCM_LOCOMOTION_URL");
     const std::string contact_channel =
         LoadContactChannel(config_directory / "channels.yaml");
     const contact_sensor::Config config =

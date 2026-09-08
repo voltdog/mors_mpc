@@ -330,10 +330,8 @@ private:
     int64_t latest_filtered_window_timestamp_ns_{0};
     bool latest_filtered_window_valid_{false};
 
-    std::string control_lcm_url_;
-    std::string vision_lcm_url_;
-    lcm::LCM control_lcm_;
-    lcm::LCM vision_lcm_;
+    std::string locomotion_lcm_url_;
+    lcm::LCM locomotion_lcm_;
     uint64_t frame_counter_{0};
 };
 

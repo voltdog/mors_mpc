@@ -22,7 +22,7 @@ constexpr int kRawDepthBytesPerPixel = 2;
 constexpr int8_t kCompressionRawU16Mm = 0;
 constexpr int8_t kCompressionZlibU16Mm = 1;
 constexpr double kDisabledPublishThrottle = 0.0;
-constexpr const char* kVisionLcmUrlEnv = "LCM_VISION_URL";
+constexpr const char* kLocomotionLcmUrlEnv = "LCM_LOCOMOTION_URL";
 
 std::string GetRequiredEnv(const char* name)
 {
@@ -54,7 +54,7 @@ namespace rscam
 {
 
 RealsenseCameraD435iNode::RealsenseCameraD435iNode(const std::string& config_path)
-    : lcm_url_(GetRequiredEnv(kVisionLcmUrlEnv)),
+    : lcm_url_(GetRequiredEnv(kLocomotionLcmUrlEnv)),
       lcm_(lcm_url_)
 {
     if (!lcm_.good())

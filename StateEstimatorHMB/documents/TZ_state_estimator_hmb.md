@@ -114,9 +114,8 @@ Depth image в pointcloud должен преобразовываться чер
 Модуль должен явно сообщать об отсутствии:
 
 - `CONFIGPATH`;
-- `LCM_CONTROL_URL`;
-- `LCM_SERVO_URL`;
-- `LCM_VISION_URL`.
+- `LCM_LOCOMOTION_URL`;
+- `LCM_SERVO_URL`.
 
 Если обязательная RealSense-камера не открывается, модуль завершает работу с ошибкой.
 

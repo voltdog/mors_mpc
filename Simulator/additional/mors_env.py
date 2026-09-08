@@ -347,13 +347,26 @@ class MorsMujocoEnv():
             
         return foot_pos
 
+    def _body_lin_vel_world(self, body_id):
+        """Линейная скорость начала СК тела в мировых осях.
+
+        data.body(id).cvel НЕ подходит: его layout - (rot:lin), т.е. cvel[:3] это угловая
+        скорость, а cvel[3:6] - линейная скорость точки, совпадающей с центром масс поддерева.
+        mj_objectVelocity с flg_local=0 возвращает [омега; v] для xpos тела в мировых осях -
+        это то, что парно к get_global_foot_positions(), которая берёт именно xpos.
+        """
+        vel6 = np.zeros(6)
+        mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_BODY,
+                                 body_id, vel6, 0)
+        return vel6[3:6].copy()
+
     def get_global_foot_velocities(self):
         foot_body_names = ["ef_R1", "ef_L1", "ef_R2", "ef_L2"]
         foot_vel = [0]*4
 
         for leg_index in range(4):
             foot_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, foot_body_names[leg_index])
-            foot_vel[leg_index] = self.data.body(foot_body_id).cvel[:3].copy()
+            foot_vel[leg_index] = self._body_lin_vel_world(foot_body_id)
             
         return foot_vel
     
@@ -363,20 +376,26 @@ class MorsMujocoEnv():
         foot_vel_local = [0]*4
         foot_pos_global = self.get_global_foot_positions()
 
+        base_pos = np.array(self.get_base_position())
         base_vel = self.get_base_lin_vel()
         base_euler = self.get_base_orientation_euler()
         euler_correct = np.array([base_euler[0], base_euler[1], yaw_real])
         R_base = Rotation.from_euler('xyz', euler_correct).as_matrix()
 
-        omega = self.get_base_ang_vel()
-        
+        # qvel[3:6] свободного джойнта - угловая скорость в СВЯЗАННЫХ осях, а base_vel и
+        # скорости стоп - в мировых. Переводим омегу в мировые оси истинной ориентацией
+        # (R_base построена по скорректированному yaw и для этого не годится).
+        R_true = Rotation.from_quat(self.get_base_orientation()).as_matrix()
+        omega_world = R_true @ self.get_base_ang_vel()
 
         for leg_index in range(4):
             foot_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, foot_body_names[leg_index])
-            foot_vel_global[leg_index] = self.data.body(foot_body_id).cvel[:3].copy()
+            foot_vel_global[leg_index] = self._body_lin_vel_world(foot_body_id)
 
-            v_coriolis = np.cross(omega, foot_pos_global[leg_index])
-            foot_vel_local[leg_index] = R_base.T @ ((foot_vel_global[leg_index] - base_vel) - v_coriolis)
+            # Плечо переносной скорости - вектор база->стопа, а не радиус-вектор стопы
+            # от начала мировой СК.
+            v_transfer = np.cross(omega_world, foot_pos_global[leg_index] - base_pos)
+            foot_vel_local[leg_index] = R_base.T @ (foot_vel_global[leg_index] - base_vel - v_transfer)
         
         return foot_vel_local
 

@@ -156,14 +156,13 @@ assert hasattr(robot_state_msg(), "timestamp")
     # Force UDP transport for this local bringup to avoid SHM port conflicts.
     export FASTDDS_BUILTIN_TRANSPORTS="${FASTDDS_BUILTIN_TRANSPORTS:-UDPv4}"
 
-    lcm_fallback_url="${LCM_DEFAULT_URL:-${LCM_CONTROL_URL:-}}"
+    lcm_fallback_url="${LCM_DEFAULT_URL:-${LCM_LOCOMOTION_URL:-}}"
     if [ -z "$lcm_fallback_url" ]; then
-        echo "LCM_DEFAULT_URL or LCM_CONTROL_URL must be set" >&2
+        echo "LCM_DEFAULT_URL or LCM_LOCOMOTION_URL must be set" >&2
         exit 1
     fi
-    export LCM_CONTROL_URL="${LCM_CONTROL_URL:-$lcm_fallback_url}"
+    export LCM_LOCOMOTION_URL="${LCM_LOCOMOTION_URL:-$lcm_fallback_url}"
     export LCM_SERVO_URL="${LCM_SERVO_URL:-$lcm_fallback_url}"
-    export LCM_VISION_URL="${LCM_VISION_URL:-$lcm_fallback_url}"
 
     sim_mode=false
     rviz_enabled=false

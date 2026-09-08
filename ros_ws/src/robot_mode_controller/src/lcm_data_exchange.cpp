@@ -28,13 +28,13 @@ string GetRequiredEnv( const std::string & var )
 
 LCMExchanger::LCMExchanger()
     : servo_state_subscriber(GetRequiredEnv("LCM_SERVO_URL")),
-      robot_state_subscriber(GetRequiredEnv("LCM_CONTROL_URL")),
+      robot_state_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
       servo_cmd_publisher(GetRequiredEnv("LCM_SERVO_URL")),
-      enable_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
-      wbc_cmd_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
-      phase_sig_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
-      robot_cmd_publisher(GetRequiredEnv("LCM_CONTROL_URL")),
-      gait_params_publisher(GetRequiredEnv("LCM_CONTROL_URL"))
+      enable_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      wbc_cmd_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      phase_sig_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      robot_cmd_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      gait_params_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL"))
 {
 
     if(!servo_state_subscriber.good())

@@ -201,7 +201,7 @@ int main(int argc, char **argv)
 	cout << "[BHI360_IMU]: starting..." << endl;
 	string imu_channel = IMU_CHANNEL;
 	const string config_address = GetRequiredEnv("CONFIGPATH") + "/channels.yaml";
-	const string control_lcm_url = GetRequiredEnv("LCM_CONTROL_URL");
+	const string locomotion_lcm_url = GetRequiredEnv("LCM_LOCOMOTION_URL");
 	YAML::Node config = YAML::LoadFile(config_address);
 	imu_channel = config["imu_data"].as<string>();
 
@@ -210,10 +210,10 @@ int main(int argc, char **argv)
 	float yaw = 0.0;
     const Quaternion q_mount_correction = makePitchCorrection(PITCH_OFFSET);
 	
-	lcm::LCM lcm(control_lcm_url);
+	lcm::LCM lcm(locomotion_lcm_url);
 	if(!lcm.good())
 		return 1;
-	cout << "[BHI360_IMU]: control LCM URL: " << control_lcm_url << endl;
+	cout << "[BHI360_IMU]: locomotion LCM URL: " << locomotion_lcm_url << endl;
 	mors_msgs::imu_lcm_data imu_msg;
   
 	uint8_t device_present = 1;

@@ -264,10 +264,8 @@ private:
     int last_update_max_gy_{0};
     size_t last_update_count_{0};
 
-    std::string control_lcm_url_;
-    std::string vision_lcm_url_;
-    lcm::LCM control_lcm_;
-    lcm::LCM vision_lcm_;
+    std::string locomotion_lcm_url_;
+    lcm::LCM locomotion_lcm_;
     uint64_t frame_counter_{0};
 };
 

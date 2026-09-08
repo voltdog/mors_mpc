@@ -22,34 +22,43 @@ std::vector<int> ContactStateFSM::step(const std::vector<bool>& contact_flag,
         // "Подтверждённое" касание: наблюдатель силы сработал И стопа почти не движется по
         // вертикали. Это отсекает ложные всплески оценки силы в фазе переноса, когда стопа
         // ещё летит вниз (|vz| велик), а контакта с поверхностью фактически нет.
-        bool confirmed_contact = contact_flag[i] && (std::fabs(foot_vz[i]) < vz_contact_thresh_);
+        bool confirmed_contact = contact_flag[i];// && (std::fabs(foot_vz[i]) < vz_contact_thresh_);
 
         // Дебаунс: считаем подряд идущие подтверждённые касания; единичный шумовой выброс
         // не успевает накопить счётчик и не приводит к ложному раннему контакту.
-        if (confirmed_contact)
-            contact_count_[i] = std::min(contact_count_[i] + 1, contact_debounce_);
-        else
-            contact_count_[i] = 0;
+        // if (confirmed_contact)
+        //     contact_count_[i] = std::min(contact_count_[i] + 1, contact_debounce_);
+        // else
+        //     contact_count_[i] = 0;
 
-        bool debounced_contact = (contact_count_[i] >= contact_debounce_);
+        // bool debounced_contact = (contact_count_[i] >= contact_debounce_);
 
         if (state[i] == SWING) {
             // Ранний контакт латчим только по устойчивому подтверждённому касанию.
             if (des_leg_state[i] == SWING) {
-                if (debounced_contact && phi[i] > start_td_detecting) {
+                if (confirmed_contact && phi[i] > start_td_detecting) {
                     state[i] = EARLY_CONTACT;
                 }
             } else if (des_leg_state[i] == STANCE) {
-                // Scheduled touchdown тоже должен проходить через тот же фильтр скорости.
-                // Иначе сырой всплеск GRF переводит ногу в STANCE при большой |vz|.
-                state[i] = debounced_contact ? STANCE : LATE_CONTACT;
+                // Scheduled touchdown тоже проходит через фильтр скорости, чтобы сырой
+                // всплеск GRF не переводил ногу в STANCE при большой |vz|. Отсев здесь
+                // безопасен: LATE_CONTACT выходит по сырому флагу, поэтому реальное касание
+                // подтвердится на следующем такте.
+                state[i] = confirmed_contact ? STANCE : LATE_CONTACT;
             }
         } else if (state[i] == STANCE) {
             if (des_leg_state[i] == SWING) {
                 state[i] = SWING;
             }
         } else if (state[i] == LATE_CONTACT) {
-            if (debounced_contact) {
+            // Выход по СЫРОМУ флагу контакта, без фильтра по |vz|. В LATE_CONTACT нога уже
+            // прошла плановый touchdown, и SwingTrajectoryGenerator продавливает её вниз со
+            // скоростью dz_near_ground. Требование "стопа почти неподвижна" здесь образует
+            // положительную обратную связь: пока нога не в STANCE, её продолжают опускать,
+            // из-за чего |vz| только растёт и условие выхода не выполняется никогда.
+            // На повороте это защёлкивается намертво (|omega x r| стопы > порога всё время),
+            // нога уходит на 10 см под опору и корпус теряет устойчивость.
+            if (contact_flag[i]) {
                 state[i] = STANCE;
             }
         } else if (state[i] == EARLY_CONTACT) {

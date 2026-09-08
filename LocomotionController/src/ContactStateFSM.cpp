@@ -41,8 +41,10 @@ std::vector<int> ContactStateFSM::step(const std::vector<bool>& contact_flag,
                     state[i] = EARLY_CONTACT;
                 }
             } else if (des_leg_state[i] == STANCE) {
-                // Scheduled touchdown тоже должен проходить через тот же фильтр скорости.
-                // Иначе сырой всплеск GRF переводит ногу в STANCE при большой |vz|.
+                // Scheduled touchdown тоже проходит через фильтр скорости, чтобы сырой
+                // всплеск GRF не переводил ногу в STANCE при большой |vz|. Отсев здесь
+                // безопасен: LATE_CONTACT выходит по сырому флагу, поэтому реальное касание
+                // подтвердится на следующем такте.
                 state[i] = debounced_contact ? STANCE : LATE_CONTACT;
             }
         } else if (state[i] == STANCE) {
@@ -50,7 +52,14 @@ std::vector<int> ContactStateFSM::step(const std::vector<bool>& contact_flag,
                 state[i] = SWING;
             }
         } else if (state[i] == LATE_CONTACT) {
-            if (debounced_contact) {
+            // Выход по СЫРОМУ флагу контакта, без фильтра по |vz|. В LATE_CONTACT нога уже
+            // прошла плановый touchdown, и SwingTrajectoryGenerator продавливает её вниз со
+            // скоростью dz_near_ground. Требование "стопа почти неподвижна" здесь образует
+            // положительную обратную связь: пока нога не в STANCE, её продолжают опускать,
+            // из-за чего |vz| только растёт и условие выхода не выполняется никогда.
+            // На повороте это защёлкивается намертво (|omega x r| стопы > порога всё время),
+            // нога уходит на 10 см под опору и корпус теряет устойчивость.
+            if (contact_flag[i]) {
                 state[i] = STANCE;
             }
         } else if (state[i] == EARLY_CONTACT) {
