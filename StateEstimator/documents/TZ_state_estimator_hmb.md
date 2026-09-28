@@ -50,7 +50,7 @@
 
 ## Архитектура потоков
 
-Модуль реализуется как один executable `state_estimator_hmb` в папке `StateEstimatorHMB/`.
+Модуль реализуется как один executable `state_estimator` в папке `StateEstimator/`.
 
 Обязательные потоки:
 

@@ -1,4 +1,4 @@
-#include "StateEstimatorHMB/HeightMapBuilder.hpp"
+#include "StateEstimator/HeightMapBuilder.hpp"
 
 #include <algorithm>
 #include <cctype>

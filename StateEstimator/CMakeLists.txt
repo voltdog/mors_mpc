@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28.3)
 # set the project name
-project(state_estimator_hmb VERSION 1.0)
+project(state_estimator VERSION 1.0)
 
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -127,18 +127,18 @@ lcm_add_library(messages-cpp CPP ${cpp_headers})
 target_include_directories(messages-cpp INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
-add_library(state_estimator_hmb_contact_source src/contact_source.cpp)
-target_include_directories(state_estimator_hmb_contact_source PUBLIC include)
-target_compile_features(state_estimator_hmb_contact_source PUBLIC cxx_std_20)
+add_library(state_estimator_contact_source src/contact_source.cpp)
+target_include_directories(state_estimator_contact_source PUBLIC include)
+target_compile_features(state_estimator_contact_source PUBLIC cxx_std_20)
 
-add_library(state_estimator_hmb_robot_state_source src/robot_state_source.cpp)
-target_include_directories(state_estimator_hmb_robot_state_source PUBLIC include)
-target_compile_features(state_estimator_hmb_robot_state_source PUBLIC cxx_std_20)
+add_library(state_estimator_robot_state_source src/robot_state_source.cpp)
+target_include_directories(state_estimator_robot_state_source PUBLIC include)
+target_compile_features(state_estimator_robot_state_source PUBLIC cxx_std_20)
 
-add_library(state_estimator_hmb_heightmap_residual
+add_library(state_estimator_heightmap_residual
   src/heightmap_residual_estimator.cpp)
-target_include_directories(state_estimator_hmb_heightmap_residual PUBLIC include)
-target_compile_features(state_estimator_hmb_heightmap_residual PUBLIC cxx_std_20)
+target_include_directories(state_estimator_heightmap_residual PUBLIC include)
+target_compile_features(state_estimator_heightmap_residual PUBLIC cxx_std_20)
 
 if(realsense2_FOUND)
   add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
@@ -158,9 +158,9 @@ if(realsense2_FOUND)
   )
   add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
   target_link_libraries(${PROJECT_NAME}
-    state_estimator_hmb_contact_source
-    state_estimator_hmb_robot_state_source
-    state_estimator_hmb_heightmap_residual
+    state_estimator_contact_source
+    state_estimator_robot_state_source
+    state_estimator_heightmap_residual
     vbcontrol
     Eigen3::Eigen
     yaml-cpp::yaml-cpp
@@ -185,7 +185,7 @@ if(realsense2_FOUND)
   )
 else()
   message(WARNING
-      "realsense2 was not found; building simulation-only state_estimator_hmb")
+      "realsense2 was not found; building simulation-only state_estimator")
   add_executable(${PROJECT_NAME}
       src/sim_main.cpp
       src/HeightMapBuilder.cpp)
@@ -199,18 +199,18 @@ lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)
 include(CTest)
 if(BUILD_TESTING)
   add_executable(contact_source_test tests/contact_source_test.cpp)
-  target_link_libraries(contact_source_test PRIVATE state_estimator_hmb_contact_source)
+  target_link_libraries(contact_source_test PRIVATE state_estimator_contact_source)
   add_test(NAME contact_source_test COMMAND contact_source_test)
 
   add_executable(robot_state_source_test tests/robot_state_source_test.cpp)
   target_link_libraries(robot_state_source_test PRIVATE
-    state_estimator_hmb_robot_state_source)
+    state_estimator_robot_state_source)
   add_test(NAME robot_state_source_test COMMAND robot_state_source_test)
 
   add_executable(heightmap_residual_estimator_test
     tests/heightmap_residual_estimator_test.cpp)
   target_link_libraries(heightmap_residual_estimator_test PRIVATE
-    state_estimator_hmb_heightmap_residual)
+    state_estimator_heightmap_residual)
   add_test(
     NAME heightmap_residual_estimator_test
     COMMAND heightmap_residual_estimator_test)

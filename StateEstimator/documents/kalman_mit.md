@@ -239,7 +239,7 @@ mit-biomimetics/Cheetah-Software). Файлы: `include/KalmanMIT.hpp`, `src/Kal
 `KalmanMITInput::terrain_height` — измерение состояния `g_i` с дисперсией
 `terrain_map_noise`; заполненное из карты высот, оно убирает калибровочную свободу, и
 `tau` можно уводить в бесконечность. Сейчас поле не заполняется:
-`StateEstimatorHMB/src/main.cpp` оставляет `terrain_height[leg].reset()`, хотя
+`StateEstimator/src/main.cpp` оставляет `terrain_height[leg].reset()`, хотя
 `heightmap_builder_->EstimateFilteredHeightAtWorldXY` в том же процессе уже есть.
 
 ## Настройка
@@ -270,16 +270,16 @@ mit-biomimetics/Cheetah-Software). Файлы: `include/KalmanMIT.hpp`, `src/Kal
 ## Проверка
 
 ```bash
-cmake -S StateEstimatorHMB -B StateEstimatorHMB/build -DCMAKE_BUILD_TYPE=Release
-cmake --build StateEstimatorHMB/build -j"$(nproc)"
-ctest --test-dir StateEstimatorHMB/build -R kalman_mit_test --output-on-failure
+cmake -S StateEstimator -B StateEstimator/build -DCMAKE_BUILD_TYPE=Release
+cmake --build StateEstimator/build -j"$(nproc)"
+ctest --test-dir StateEstimator/build -R kalman_mit_test --output-on-failure
 
 # офлайн-прогон по логу, робот не нужен
-./StateEstimatorHMB/build/kalman_mit_replay ~/mors_logs/log_260908_180053
+./StateEstimator/build/kalman_mit_replay ~/mors_logs/log_260908_180053
 
 # логи, снятые до правки BHI360_IMU, содержат вектора в сенсорном базисе; ключ
 # mount_pitch доворачивает их так, как это делает исправленный драйвер
-./StateEstimatorHMB/build/kalman_mit_replay ~/mors_logs/log_260909_132111 mount_pitch=-0.035
+./StateEstimator/build/kalman_mit_replay ~/mors_logs/log_260909_132111 mount_pitch=-0.035
 ```
 
 `tests/kalman_mit_test.cpp` закрывает 14 сценариев, в том числе три регресс-теста на

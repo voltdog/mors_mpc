@@ -32,7 +32,7 @@
 # tau_max: [6.0, 6.0, 12.0]
 # gear_ratio: 10.0
 # kt: 0.74
-algorithm: "dcm" # wbic vision dcm 
+algorithm: "vision" # wbic vision dcm 
 
 # ---------------------------------
 # best params for vision: 

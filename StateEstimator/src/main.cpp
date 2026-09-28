@@ -2,7 +2,7 @@
 // legacy X/Y/Z macro definitions that may appear in copied headers.
 #include "leg_state.hpp"
 
-#include "StateEstimatorHMB/HeightMapBuilder.hpp"
+#include "StateEstimator/HeightMapBuilder.hpp"
 #include "contact_source.hpp"
 #include "gm_force_observer.hpp"
 #include "heightmap_residual_estimator.hpp"
