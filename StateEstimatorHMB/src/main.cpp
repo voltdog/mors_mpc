@@ -365,6 +365,9 @@ StateEstimatorConfig LoadStateEstimatorConfig(
         if (kalman["terrain_swing_process_noise"])
             kf.terrain_swing_process_noise =
                 kalman["terrain_swing_process_noise"].as<double>();
+        if (kalman["terrain_touchdown_confirm_sec"])
+            kf.terrain_touchdown_confirm_sec =
+                kalman["terrain_touchdown_confirm_sec"].as<double>();
         if (kalman["terrain_relaxation_time_sec"])
             kf.terrain_relaxation_time_sec =
                 kalman["terrain_relaxation_time_sec"].as<double>();

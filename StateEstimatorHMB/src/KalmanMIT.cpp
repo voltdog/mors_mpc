@@ -78,6 +78,7 @@ public:
             std::isfinite(config_.ground_height) &&
             std::isfinite(config_.terrain_process_noise) &&
             std::isfinite(config_.terrain_swing_process_noise) &&
+            std::isfinite(config_.terrain_touchdown_confirm_sec) &&
             std::isfinite(config_.terrain_relaxation_time_sec) &&
             std::isfinite(config_.initial_terrain_covariance) &&
             std::isfinite(config_.terrain_map_noise) &&
@@ -128,6 +129,7 @@ public:
         }
         if (config_.terrain_process_noise < 0.0 ||
             config_.terrain_swing_process_noise < 0.0 ||
+            config_.terrain_touchdown_confirm_sec < 0.0 ||
             config_.terrain_relaxation_time_sec < 0.0 ||
             config_.initial_terrain_covariance < 0.0)
         {
@@ -200,6 +202,11 @@ public:
             ? 0U
             : static_cast<unsigned>(timeout_ticks + 0.5);
 
+        const double touchdown_ticks = config_.terrain_touchdown_confirm_sec / dt;
+        touchdown_confirm_ticks_ = touchdown_ticks <= 0.0
+            ? 0U
+            : static_cast<unsigned>(touchdown_ticks + 0.5);
+
         const double hold_ticks = config_.zupt_hold_sec / dt;
         zupt_hold_ticks_ = hold_ticks <= 0.0
             ? 0U
@@ -212,6 +219,8 @@ public:
         p_.setZero();
         prev_phi_.fill(0.0);
         phase_stall_ticks_.fill(0U);
+        contact_ticks_.fill(0U);
+        awaiting_touchdown_.fill(false);
         has_prev_phi_ = false;
         zupt_static_ticks_ = 0U;
         zupt_engaged_ = false;
@@ -234,6 +243,8 @@ public:
         ComputeTrust(input, trust, frozen);
         output_.trust = trust;
         output_.frozen_phase = frozen;
+        // Та же причина: выдержка постановки считается в тактах.
+        const std::array<bool, 4> landed = UpdateTouchdown(input);
 
         // Ворота ZUPT считаются здесь же и по той же причине: счётчик выдержки
         // обязан идти каждый такт, иначе выдержка зависела бы от того, сколько
@@ -288,17 +299,9 @@ public:
         // Для ВЫСОТЫ фазовое окно и не нужно: стоящая на грунте стопа даёт
         // верную высоту независимо от того, что думает планировщик, — в отличие
         // от скорости, где проскальзывание и перекат как раз и есть то, от чего
-        // окно защищает. Поэтому здесь работает бинарный признак контакта, и
-        // ровный участок того же лога даёт +0.19 мм/с.
+        // окно защищает. Поэтому здесь работает признак контакта — с выдержкой
+        // terrain_touchdown_confirm_sec, см. UpdateTouchdown.
         std::array<double, 4> height_trust{};
-        // Раздувать Q у g_i можно только на НАСТОЯЩЕМ переносе. Разгруженная
-        // нога — это ещё не перенос: когда робот ложится, контакты пропадают
-        // все сразу, а грунт под ногами никуда не девается. Раздутие по одному
-        // лишь отсутствию контакта стирало высоты опор за время лежания и
-        // лишало фильтр вертикального якоря — на логах log_260909_135813 и
-        // log_260910_134406 это давало разброс 42 и 145 мм против 1 и 23 мм у
-        // плоскости. Без планировщика перенос неотличим от разгрузки, поэтому
-        // там опоры не забываются вовсе.
         std::array<bool, 4> swinging{};
         for (int leg = 0; leg < kLegCount; ++leg)
         {
@@ -307,9 +310,8 @@ public:
                 height_trust[leg] = trust[leg];
                 continue;
             }
-            height_trust[leg] = input.contacts[leg] ? 1.0 : 0.0;
-            swinging[leg] = !input.contacts[leg] && input.has_gait_phase &&
-                input.contact_states[leg] == SWING;
+            height_trust[leg] = landed[leg] ? 1.0 : 0.0;
+            swinging[leg] = awaiting_touchdown_[leg];
         }
 
         q_ = q_base_;
@@ -846,6 +848,52 @@ public:
         has_prev_phi_ = true;
     }
 
+    // Постановка ноги: контакт держится не меньше terrain_touchdown_confirm_sec
+    // подряд. Возвращает, какие ноги стоят; заодно ведёт признак «нога ждёт
+    // постановки», под которым опора g_i отпущена (Q раздут).
+    //
+    // Отпускать опору можно только после НАСТОЯЩЕГО переноса. Разгруженная
+    // нога — это ещё не перенос: когда робот ложится, контакты пропадают все
+    // сразу, а грунт под ногами никуда не девается. Раздутие по одному лишь
+    // отсутствию контакта стирало высоты опор за время лежания и лишало фильтр
+    // вертикального якоря — на логах log_260909_135813 и log_260910_134406 это
+    // давало разброс 42 и 145 мм против 1 и 23 мм у плоскости. Без
+    // планировщика перенос неотличим от разгрузки, поэтому там опоры не
+    // забываются вовсе.
+    //
+    // Но и закрывать ожидание по фазе нельзя: планировщик переключает её в
+    // STANCE по расписанию, а стопа встаёт, когда встаёт. Ожидание снимает
+    // только подтверждённая постановка.
+    [[nodiscard]] std::array<bool, 4> UpdateTouchdown(const KalmanMITInput& input) noexcept
+    {
+        std::array<bool, 4> landed{};
+        for (int leg = 0; leg < kLegCount; ++leg)
+        {
+            if (!input.contacts[leg])
+            {
+                contact_ticks_[leg] = 0U;
+            }
+            else if (contact_ticks_[leg] < kStallCounterMax)
+            {
+                ++contact_ticks_[leg];
+            }
+            // Первый такт контакта — это уже 1, поэтому выдержка в N тактов
+            // означает N + 1 такт подряд; при нулевой выдержке — сам фронт.
+            landed[leg] = input.contacts[leg] &&
+                contact_ticks_[leg] > touchdown_confirm_ticks_;
+
+            if (input.has_gait_phase && input.contact_states[leg] == SWING)
+            {
+                awaiting_touchdown_[leg] = true;
+            }
+            if (landed[leg])
+            {
+                awaiting_touchdown_[leg] = false;
+            }
+        }
+        return landed;
+    }
+
     [[nodiscard]] const KalmanMITOutput& Initialize(
         const KalmanMITInput& input,
         const std::array<Eigen::Vector3d, 4>& p_f)
@@ -961,6 +1009,11 @@ public:
     std::array<double, 4> prev_phi_{};
     std::array<unsigned, 4> phase_stall_ticks_{};
     unsigned frozen_phase_ticks_{0U};
+    // Такты непрерывного контакта и признак «нога после переноса ещё не
+    // встала» (см. UpdateTouchdown).
+    std::array<unsigned, 4> contact_ticks_{};
+    std::array<bool, 4> awaiting_touchdown_{};
+    unsigned touchdown_confirm_ticks_{0U};
     // exp(-dt / terrain_relaxation_time_sec); 1.0 означает «возврат отключён».
     double terrain_decay_{1.0};
     bool has_prev_phi_{false};
