@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28.3)
 # set the project name
-project(state_estimator VERSION 1.0)
+project(state_estimator_hmb VERSION 1.0)
 
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 
-# check AVX2 support
+# check AVX2 
 #===============================================================================
     set(AVX_FLAGS)
 
@@ -103,18 +103,13 @@ find_package(Eigen3 3.2.10 REQUIRED)
 # find_package(OsqpEigen REQUIRED)
 find_package(lcm REQUIRED)
 find_package(pinocchio REQUIRED)
-
-include(FetchContent)
-
-FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
-)
-FetchContent_MakeAvailable(yaml-cpp)
+find_package(realsense2 QUIET)
+find_package(yaml-cpp REQUIRED)
+find_package(ZLIB REQUIRED)
 
 include(${LCM_USE_FILE})
 set(LCM_MSGS_DIR "${CMAKE_CURRENT_LIST_DIR}/../lcm_msgs")
+include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("include/")
 include_directories("../common/include/")
 include_directories("${LCM_MSGS_DIR}")
@@ -132,39 +127,228 @@ lcm_add_library(messages-cpp CPP ${cpp_headers})
 target_include_directories(messages-cpp INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
-# executable
-# add_subdirectory(/home/$ENV{USER}/vbcontrol/matplotplusplus)
-add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
-# target_link_libraries(vbcontrol PUBLIC Eigen3::Eigen)
+add_library(state_estimator_hmb_contact_source src/contact_source.cpp)
+target_include_directories(state_estimator_hmb_contact_source PUBLIC include)
+target_compile_features(state_estimator_hmb_contact_source PUBLIC cxx_std_20)
 
-set(EXEC_SOURCES src/main.cpp 
-            src/sensor_fusion.cpp
-            src/lcm_data_exchange_se.cpp
-            src/low_pass_filtering.cpp
-            src/leg_state.cpp
-            src/gm_force_observer.cpp
-            ../common/src/system_functions.cpp
-            ../common/src/leg_model.cpp
-            ../common/src/Robot.cpp
-)
-add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
-# target_link_libraries(leg_controller OsqpEigen::OsqpEigen)
-target_link_libraries(${PROJECT_NAME}
+add_library(state_estimator_hmb_robot_state_source src/robot_state_source.cpp)
+target_include_directories(state_estimator_hmb_robot_state_source PUBLIC include)
+target_compile_features(state_estimator_hmb_robot_state_source PUBLIC cxx_std_20)
+
+add_library(state_estimator_hmb_heightmap_residual
+  src/heightmap_residual_estimator.cpp)
+target_include_directories(state_estimator_hmb_heightmap_residual PUBLIC include)
+target_compile_features(state_estimator_hmb_heightmap_residual PUBLIC cxx_std_20)
+
+if(realsense2_FOUND)
+  add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
+
+  set(EXEC_SOURCES
+      src/main.cpp
+      src/KalmanMIT.cpp
+      src/sensor_fusion.cpp
+      src/low_pass_filtering.cpp
+      src/leg_state.cpp
+      src/gm_force_observer.cpp
+      src/HeightMapBuilder.cpp
+      ../common/src/system_functions.cpp
+      ../common/src/leg_model.cpp
+      ../common/src/reliable_contact.cpp
+      ../common/src/Robot.cpp
+  )
+  add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
+  target_link_libraries(${PROJECT_NAME}
+    state_estimator_hmb_contact_source
+    state_estimator_hmb_robot_state_source
+    state_estimator_hmb_heightmap_residual
+    vbcontrol
+    Eigen3::Eigen
+    yaml-cpp::yaml-cpp
+    ZLIB::ZLIB
+    pinocchio::pinocchio
+    pinocchio::pinocchio_parsers
+  )
+
+  if(TARGET realsense2::realsense2)
+    target_link_libraries(${PROJECT_NAME} realsense2::realsense2)
+  else()
+    target_link_libraries(${PROJECT_NAME} ${realsense2_LIBRARY})
+  endif()
+
+  target_compile_definitions(${PROJECT_NAME} PRIVATE
+      PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+      COAL_DISABLE_HPP_FCL_WARNINGS
+      # Match Eigen's allocation and layout policy to precompiled Pinocchio.
+      EIGEN_MALLOC_ALREADY_ALIGNED=1
+      EIGEN_MAX_ALIGN_BYTES=16
+      EIGEN_MAX_STATIC_ALIGN_BYTES=16
+  )
+else()
+  message(WARNING
+      "realsense2 was not found; building simulation-only state_estimator_hmb")
+  add_executable(${PROJECT_NAME}
+      src/sim_main.cpp
+      src/HeightMapBuilder.cpp)
+  target_link_libraries(${PROJECT_NAME}
+      yaml-cpp::yaml-cpp
+      ZLIB::ZLIB)
+endif()
+
+lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(contact_source_test tests/contact_source_test.cpp)
+  target_link_libraries(contact_source_test PRIVATE state_estimator_hmb_contact_source)
+  add_test(NAME contact_source_test COMMAND contact_source_test)
+
+  add_executable(robot_state_source_test tests/robot_state_source_test.cpp)
+  target_link_libraries(robot_state_source_test PRIVATE
+    state_estimator_hmb_robot_state_source)
+  add_test(NAME robot_state_source_test COMMAND robot_state_source_test)
+
+  add_executable(heightmap_residual_estimator_test
+    tests/heightmap_residual_estimator_test.cpp)
+  target_link_libraries(heightmap_residual_estimator_test PRIVATE
+    state_estimator_hmb_heightmap_residual)
+  add_test(
+    NAME heightmap_residual_estimator_test
+    COMMAND heightmap_residual_estimator_test)
+
+  add_executable(heightmap_builder_correction_test
+    tests/heightmap_builder_correction_test.cpp
+    src/HeightMapBuilder.cpp)
+  target_link_libraries(heightmap_builder_correction_test
+    yaml-cpp::yaml-cpp
+    ZLIB::ZLIB)
+  target_compile_definitions(heightmap_builder_correction_test PRIVATE
+    "HEIGHTMAP_BUILDER_CORRECTION_TEST_CONFIG=\"${CMAKE_CURRENT_LIST_DIR}/tests/heightmap_builder_correction_test.yaml\"")
+  lcm_target_link_libraries(
+    heightmap_builder_correction_test messages-cpp ${LCM_NAMESPACE}lcm)
+  add_test(
+    NAME heightmap_builder_correction_test
+    COMMAND heightmap_builder_correction_test)
+
+  add_executable(z_pos_estimator_test
+    tests/z_pos_estimator_test.cpp
+    src/z_pos_estimator.cpp
+    ../common/src/reliable_contact.cpp
+    ../common/src/Robot.cpp
+    ../common/src/system_functions.cpp
+  )
+  target_include_directories(z_pos_estimator_test PRIVATE
+    include
+    ../common/include
+  )
+  target_link_libraries(z_pos_estimator_test PRIVATE
+    Eigen3::Eigen
+    pinocchio::pinocchio
+    pinocchio::pinocchio_parsers
+  )
+  target_compile_definitions(z_pos_estimator_test PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
+    EIGEN_MAX_ALIGN_BYTES=16
+    EIGEN_MAX_STATIC_ALIGN_BYTES=16
+  )
+  add_test(NAME z_pos_estimator_test COMMAND z_pos_estimator_test)
+  set_tests_properties(z_pos_estimator_test PROPERTIES
+    ENVIRONMENT "CONFIGPATH=${CMAKE_CURRENT_LIST_DIR}/../config"
+  )
+
+  # Проверяет композицию, на которой держится разделение каналов: оценщик считает
+  # LegState один раз при нулевой базе, а мировое состояние ног каждого канала
+  # получает прибавлением позы его источника.
+  # LegState тянет GMBasedForceObserver -> LowPassFilter из vbcontrol, поэтому тест
+  # собирается только вместе с основным бинарём (то есть когда найден realsense2).
+  if(TARGET vbcontrol)
+  add_executable(leg_state_compose_test
+    tests/leg_state_compose_test.cpp
+    src/leg_state.cpp
+    src/gm_force_observer.cpp
+    ../common/src/Robot.cpp
+    ../common/src/system_functions.cpp
+  )
+  target_include_directories(leg_state_compose_test PRIVATE
+    include
+    ../common/include
+  )
+  target_link_libraries(leg_state_compose_test
     vbcontrol
     Eigen3::Eigen
     yaml-cpp::yaml-cpp
     pinocchio::pinocchio
     pinocchio::pinocchio_parsers
-)
-
-target_compile_definitions(${PROJECT_NAME} PRIVATE
+  )
+  lcm_target_link_libraries(leg_state_compose_test messages-cpp ${LCM_NAMESPACE}lcm)
+  target_compile_definitions(leg_state_compose_test PRIVATE
     PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
     COAL_DISABLE_HPP_FCL_WARNINGS
-    # AVX2 instructions are enabled (see CMAKE_CXX_FLAGS), but Eigen's alignment
-    # must stay at 16 bytes to match the precompiled libpinocchio ABI — otherwise
-    # pinocchio's `model.check(data)` aborts. Same recipe as LocomotionController.
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
     EIGEN_MAX_ALIGN_BYTES=16
     EIGEN_MAX_STATIC_ALIGN_BYTES=16
-)
+  )
+  add_test(NAME leg_state_compose_test COMMAND leg_state_compose_test)
+  set_tests_properties(leg_state_compose_test PROPERTIES
+    ENVIRONMENT "CONFIGPATH=${CMAKE_CURRENT_LIST_DIR}/../config"
+  )
+  endif()
 
-lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)
+  # Собирается безусловно, в том числе когда realsense2 не найден и основной
+  # исполняемый файл заменён на sim_main.cpp: иначе ошибка в KalmanMIT.cpp
+  # прошла бы незамеченной на машине без T265.
+  add_executable(kalman_mit_test
+    tests/kalman_mit_test.cpp
+    src/KalmanMIT.cpp
+    ../common/src/reliable_contact.cpp
+    ../common/src/Robot.cpp
+    ../common/src/system_functions.cpp
+  )
+  target_include_directories(kalman_mit_test PRIVATE
+    include
+    ../common/include
+  )
+  target_link_libraries(kalman_mit_test PRIVATE
+    Eigen3::Eigen
+    pinocchio::pinocchio
+    pinocchio::pinocchio_parsers
+  )
+  target_compile_definitions(kalman_mit_test PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
+    EIGEN_MAX_ALIGN_BYTES=16
+    EIGEN_MAX_STATIC_ALIGN_BYTES=16
+  )
+  add_test(NAME kalman_mit_test COMMAND kalman_mit_test)
+  set_tests_properties(kalman_mit_test PROPERTIES
+    ENVIRONMENT "CONFIGPATH=${CMAKE_CURRENT_LIST_DIR}/../config"
+  )
+
+  # Офлайн-прогон фильтра по CSV-логам MorsLogger. Гоняет тот же класс
+  # KalmanMIT, что и рабочий бинарь, поэтому проверяет поставляемый код.
+  add_executable(kalman_mit_replay
+    tools/kalman_mit_replay.cpp
+    src/KalmanMIT.cpp
+    ../common/src/reliable_contact.cpp
+    ../common/src/Robot.cpp
+    ../common/src/system_functions.cpp
+  )
+  target_include_directories(kalman_mit_replay PRIVATE
+    include
+    ../common/include
+  )
+  target_link_libraries(kalman_mit_replay PRIVATE
+    Eigen3::Eigen
+    pinocchio::pinocchio
+    pinocchio::pinocchio_parsers
+  )
+  target_compile_definitions(kalman_mit_replay PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
+    EIGEN_MAX_ALIGN_BYTES=16
+    EIGEN_MAX_STATIC_ALIGN_BYTES=16
+  )
+endif()

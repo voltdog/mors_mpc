@@ -61,26 +61,33 @@ LegData LegState::get_leg_state(RobotData &body_state, VectorXd &theta, VectorXd
 {
     update_configuration(body_state, theta, d_theta);
 
-    // forward kinematics, Jacobians and joint-space dynamics via pinocchio
+    // World-frame foot positions are used by the state estimator.
     robot_.ComputeForwardKinematics(q_, v_);
-
     std::vector<Eigen::Vector3d> pin_pos = robot_.GetToePositionsInWorldFrame();
-    std::vector<Eigen::Matrix3d> pin_jac = robot_.GetFootJacobianWorld(q_);
-    std::vector<Eigen::Matrix3d> pin_djac = robot_.GetFootJacobianDotWorld(q_, v_);
+
+    // The force observer works in the base-local frame. Fix the floating base
+    // at the local-frame origin and exclude its motion from the per-leg model.
+    Eigen::VectorXd q_local = q_;
+    Eigen::VectorXd v_local = v_;
+    q_local.segment(0, 7).setZero();
+    q_local(6) = 1.0;
+    v_local.segment(0, 6).setZero();
+
+    robot_.ComputeForwardKinematics(q_local, v_local);
+    std::vector<Eigen::Matrix3d> pin_jac = robot_.GetFootJacobian(q_local);
 
     std::vector<Eigen::Matrix3d> pin_M(4);
     std::vector<Eigen::Vector3d> pin_C(4), pin_G(4);
-    robot_.GetLegDynamics(q_, v_, pin_M, pin_C, pin_G);
+    robot_.GetLegDynamics(q_local, v_local, pin_M, pin_C, pin_G);
 
     // remap from pinocchio order (L1, L2, R1, R2) to servo order (R1, L1, R2, L2)
     X_[R1] = pin_pos[PIN_R1]; X_[L1] = pin_pos[PIN_L1]; X_[R2] = pin_pos[PIN_R2]; X_[L2] = pin_pos[PIN_L2];
     J_[R1] = pin_jac[PIN_R1]; J_[L1] = pin_jac[PIN_L1]; J_[R2] = pin_jac[PIN_R2]; J_[L2] = pin_jac[PIN_L2];
-    dJ_[R1] = pin_djac[PIN_R1]; dJ_[L1] = pin_djac[PIN_L1]; dJ_[R2] = pin_djac[PIN_R2]; dJ_[L2] = pin_djac[PIN_L2];
     M_[R1] = pin_M[PIN_R1]; M_[L1] = pin_M[PIN_L1]; M_[R2] = pin_M[PIN_R2]; M_[L2] = pin_M[PIN_L2];
     C_[R1] = pin_C[PIN_R1]; C_[L1] = pin_C[PIN_L1]; C_[R2] = pin_C[PIN_R2]; C_[L2] = pin_C[PIN_L2];
     G_[R1] = pin_G[PIN_R1]; G_[L1] = pin_G[PIN_L1]; G_[R2] = pin_G[PIN_R2]; G_[L2] = pin_G[PIN_L2];
 
-    calc_pos_vel_acc(d_theta);
+    calc_pos_vel_acc(body_state, theta, d_theta);
     calc_grf(tau, d_theta);
     calc_contacts();
 
@@ -121,34 +128,44 @@ void LegState::update_configuration(RobotData &body_state, VectorXd &theta, Vect
     q_.segment(13, 3) = theta.segment(0, 3); // R1
     q_.segment(16, 3) = theta.segment(6, 3); // R2
 
-    // keep the base fixed for joint-space dynamics so the per-leg Coriolis terms stay
-    // isolated (как в исходном поленогом наблюдателе); only joint velocities are used
-    v_.segment(0, 6).setZero();
+    Eigen::Quaterniond q_body(
+        body_state.orientation_quaternion(3),
+        body_state.orientation_quaternion(0),
+        body_state.orientation_quaternion(1),
+        body_state.orientation_quaternion(2));
+    const Eigen::Matrix3d r_body = q_body.toRotationMatrix();
+
+    v_.segment(0, 3) = r_body.transpose() * body_state.lin_vel;
+    v_.segment(3, 3) = body_state.ang_vel;
     v_.segment(6, 3)  = d_theta.segment(3, 3); // L1
     v_.segment(9, 3)  = d_theta.segment(9, 3); // L2
     v_.segment(12, 3) = d_theta.segment(0, 3); // R1
     v_.segment(15, 3) = d_theta.segment(6, 3); // R2
 }
 
-void LegState::calc_pos_vel_acc(VectorXd d_theta)
+void LegState::calc_pos_vel_acc(RobotData &body_state, VectorXd &theta, VectorXd &d_theta)
 {
-    // foot velocity / acceleration from joint motion only (world frame)
-    dX_[R1]  = J_[R1] * d_theta.segment(0, 3);
-    dX_[L1]  = J_[L1] * d_theta.segment(3, 3);
-    dX_[R2]  = J_[R2] * d_theta.segment(6, 3);
-    dX_[L2]  = J_[L2] * d_theta.segment(9, 3);
+    wbic_types::Vector12d joint_pos = theta;
+    wbic_types::Vector12d joint_vel = d_theta;
 
-    ddX_[R1] = dJ_[R1] * d_theta.segment(0, 3);
-    ddX_[L1] = dJ_[L1] * d_theta.segment(3, 3);
-    ddX_[R2] = dJ_[R2] * d_theta.segment(6, 3);
-    ddX_[L2] = dJ_[L2] * d_theta.segment(9, 3);
+    robot_.update(body_state, joint_pos, joint_vel);
+
+    dX_[R1] = robot_.get_tip_vel_global(PIN_R1);
+    dX_[L1] = robot_.get_tip_vel_global(PIN_L1);
+    dX_[R2] = robot_.get_tip_vel_global(PIN_R2);
+    dX_[L2] = robot_.get_tip_vel_global(PIN_L2);
+
+    ddX_[R1] = robot_.get_leg_pos_jdqd(PIN_R1);
+    ddX_[L1] = robot_.get_leg_pos_jdqd(PIN_L1);
+    ddX_[R2] = robot_.get_leg_pos_jdqd(PIN_R2);
+    ddX_[L2] = robot_.get_leg_pos_jdqd(PIN_L2);
 }
 
 VectorXd LegState::inv_dyn_force_observer(const VectorXd& tau, const MatrixXd& J, const VectorXd& G, const VectorXd& V)
 {
-    invJ_T = J.transpose().inverse();
-
-    f_hat = -invJ_T * (tau - V - G);
+    const MatrixXd jacobian_transpose = J.transpose();
+    const auto decomposition = jacobian_transpose.completeOrthogonalDecomposition();
+    VectorXd f_hat = decomposition.solve(-(tau - V - G));
 
     // for (int i = 0; i < 3; i++)
     // {
@@ -161,17 +178,17 @@ VectorXd LegState::inv_dyn_force_observer(const VectorXd& tau, const MatrixXd& J
 
 void LegState::calc_grf(VectorXd tau, VectorXd d_theta)
 {
-    // general momentum based force observer (f_hat in world frame, z = vertical)
-    f_hat_[R1] = gm_observer_r1.step(tau.segment(0, 3), d_theta.segment(0, 3), M_[R1], C_[R1], G_[R1], J_[R1]);
-    f_hat_[L1] = gm_observer_l1.step(tau.segment(3, 3), d_theta.segment(3, 3), M_[L1], C_[L1], G_[L1], J_[L1]);
-    f_hat_[R2] = gm_observer_r2.step(tau.segment(6, 3), d_theta.segment(6, 3), M_[R2], C_[R2], G_[R2], J_[R2]);
-    f_hat_[L2] = gm_observer_l2.step(tau.segment(9, 3), d_theta.segment(9, 3), M_[L2], C_[L2], G_[L2], J_[L2]);
+    // general momentum based force observer (f_hat in the base-local frame)
+    // f_hat_[R1] = gm_observer_r1.step(tau.segment(0, 3), d_theta.segment(0, 3), M_[R1], C_[R1], G_[R1], J_[R1]);
+    // f_hat_[L1] = gm_observer_l1.step(tau.segment(3, 3), d_theta.segment(3, 3), M_[L1], C_[L1], G_[L1], J_[L1]);
+    // f_hat_[R2] = gm_observer_r2.step(tau.segment(6, 3), d_theta.segment(6, 3), M_[R2], C_[R2], G_[R2], J_[R2]);
+    // f_hat_[L2] = gm_observer_l2.step(tau.segment(9, 3), d_theta.segment(9, 3), M_[L2], C_[L2], G_[L2], J_[L2]);
 
     // inverse dynamics force observer
-//     f_hat_[R1] = inv_dyn_force_observer(tau.segment(0, 3), J_[R1], G_[R1], C_[R1]);
-//     f_hat_[L1] = inv_dyn_force_observer(tau.segment(3, 3), J_[L1], G_[L1], C_[L1]);
-//     f_hat_[R2] = inv_dyn_force_observer(tau.segment(6, 3), J_[R2], G_[R2], C_[R2]);
-//     f_hat_[L2] = inv_dyn_force_observer(tau.segment(9, 3), J_[L2], G_[L2], C_[L2]);
+    f_hat_[R1] = inv_dyn_force_observer(tau.segment(0, 3), J_[R1], G_[R1], C_[R1]);
+    f_hat_[L1] = inv_dyn_force_observer(tau.segment(3, 3), J_[L1], G_[L1], C_[L1]);
+    f_hat_[R2] = inv_dyn_force_observer(tau.segment(6, 3), J_[R2], G_[R2], C_[R2]);
+    f_hat_[L2] = inv_dyn_force_observer(tau.segment(9, 3), J_[L2], G_[L2], C_[L2]);
 }
 
 void LegState::calc_contacts()
