@@ -130,7 +130,7 @@ SwingController::step(const std::vector<int>& phase_signal,
             if (segment_start_time[i] > 0.0) {
                 p_rise_z = std::max(p_start[i][Z], p_finish[i][Z] + ref_stride_height);
             } else if ((p_finish[i][Z] - p_start[i][Z]) > 0) {
-                p_rise_z = p_finish[i][Z] + ref_stride_height + abs(p_finish[i][Z] - p_start[i][Z]) * 0.4;
+                p_rise_z = p_finish[i][Z] + ref_stride_height;// + abs(p_finish[i][Z] - p_start[i][Z]) * 0.4;
             } else {
                 p_rise_z = p_start[i][Z] + ref_stride_height;
             }

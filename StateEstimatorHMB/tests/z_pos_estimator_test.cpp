@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -191,6 +192,29 @@ void TestInitializationAndLegOrder(ReferenceKinematics& reference)
         "Four-contact mean is wrong");
 }
 
+// Прокручивает такты с неизменной позой, пока опора не будет перенесена на все
+// ноги с флагом контакта. Возвращает последнюю оценку.
+std::optional<ZPosEstimate> AdvanceUntilAnchored(
+    ZPosEstimator& estimator,
+    const Eigen::VectorXd& joints,
+    const Eigen::Matrix3d& rotation,
+    const ZPosEstimator::Contacts& contacts,
+    std::size_t expected_contacts,
+    const std::string& message)
+{
+    constexpr int kMaxTicks = 1000;
+    std::optional<ZPosEstimate> estimate;
+    for (int tick = 0; tick < kMaxTicks; ++tick)
+    {
+        estimate = UpdateEstimator(estimator, joints, rotation, contacts);
+        if (estimate.has_value() && estimate->contacts_used == expected_contacts)
+        {
+            return estimate;
+        }
+    }
+    throw std::runtime_error(message + ": support was never anchored");
+}
+
 void TestSupportHandoff(ReferenceKinematics& reference)
 {
     const Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity();
@@ -210,12 +234,23 @@ void TestSupportHandoff(ReferenceKinematics& reference)
 
     const auto relative_overlap =
         reference.RelativeFootZ(overlap_joints, rotation);
-    const ZPosEstimator::Contacts overlap{true, true, true, true};
-    estimate = UpdateEstimator(estimator, overlap_joints, rotation, overlap);
-    CheckReliable(estimate, 2, "New contacts were used before anchoring");
     const double overlap_z =
         (-relative_overlap[0] - relative_overlap[3]) / 2.0;
+
+    // Свежие контакты не становятся опорой сразу: якорь ставится только после
+    // выдержки, когда переходный процесс приземления закончился.
+    const ZPosEstimator::Contacts overlap{true, true, true, true};
+    estimate = UpdateEstimator(estimator, overlap_joints, rotation, overlap);
+    CheckReliable(estimate, 2, "New contacts were used before the settle window");
     CheckNear(estimate->position_z, overlap_z, "Old support estimate is wrong");
+
+    estimate = AdvanceUntilAnchored(
+        estimator, overlap_joints, rotation, overlap, 4, "Support handoff");
+    Check(estimate->updated_from_contacts, "Anchored handoff is unreliable");
+    CheckNear(
+        estimate->position_z,
+        overlap_z,
+        "Anchoring the new legs moved Z");
 
     const auto relative_final = reference.RelativeFootZ(final_joints, rotation);
     const double l1_anchor = overlap_z + relative_overlap[1];
@@ -272,59 +307,113 @@ void TestInsufficientSupportAndInvalidInputs()
     Check(wrong_size_rejected, "Wrong joint-vector size was accepted");
 }
 
-void TestContactTrust()
+void TestContactTrust(ReferenceKinematics& reference)
 {
     const Eigen::VectorXd joints = NominalJointPositions();
     const Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity();
+    const auto relative_z = reference.RelativeFootZ(joints, rotation);
     const ZPosEstimator::Contacts pair{true, false, true, false};
     ZPosEstimator estimator;
 
+    // Нога с доверием ниже порога якорения не может стать опорой, поэтому на
+    // одной оставшейся ноге оценщик не инициализируется.
     auto phases = kTrustedPhases;
-    phases[0] = 0.198;
+    phases[0] = 0.005;
     Check(!UpdateEstimator(estimator, joints, rotation, pair, phases).has_value(),
-          "Estimator initialized at trust <= 0.99");
+          "Estimator initialized from a leg below the anchor trust threshold");
 
     auto estimate = UpdateEstimator(estimator, joints, rotation, pair);
     CheckReliable(estimate, 2, "Trusted-contact initialization failed");
+
+    // Доверие входит в оценку весом, а не отключает её целиком.
+    phases = kTrustedPhases;
+    phases[2] = 0.1;  // доверие 0.5 против 1.0 у первой ноги
+    estimate = UpdateEstimator(estimator, joints, rotation, pair, phases);
+    CheckReliable(estimate, 2, "Weighted support was rejected");
+    const double weighted_z =
+        (1.0 * -relative_z[0] + 0.5 * -relative_z[2]) / 1.5;
+    CheckNear(estimate->position_z, weighted_z, "Trust weighting is wrong");
     const double held_z = estimate->position_z;
 
-    Eigen::VectorXd moved_joints = joints;
-    moved_joints(1) += 0.12;
-    moved_joints(7) -= 0.10;
-
+    // Ниже порога участия нога выпадает из оценки, и опоры больше не хватает.
     phases = kTrustedPhases;
-    phases[0] = 0.19;
-    estimate = UpdateEstimator(estimator, moved_joints, rotation, pair, phases);
-    Check(estimate.has_value() && !estimate->updated_from_contacts,
-          "Transition-phase contact was treated as reliable");
+    phases[0] = 0.005;
+    estimate = UpdateEstimator(estimator, joints, rotation, pair, phases);
+    Check(estimate.has_value() && !estimate->updated_from_contacts &&
+              estimate->contacts_used == 1,
+          "Leg below the support trust threshold was used");
     CheckNear(estimate->position_z, held_z, "Low trust changed Z");
 
     phases = kTrustedPhases;
     phases[2] = std::numeric_limits<double>::quiet_NaN();
-    estimate = UpdateEstimator(estimator, moved_joints, rotation, pair, phases);
-    Check(estimate.has_value() && !estimate->updated_from_contacts,
+    estimate = UpdateEstimator(estimator, joints, rotation, pair, phases);
+    Check(estimate.has_value() && !estimate->updated_from_contacts &&
+              estimate->contacts_used == 1,
           "Invalid gait phase was treated as reliable");
     CheckNear(estimate->position_z, held_z, "Invalid gait phase changed Z");
 
     auto states = kStanceStates;
     states[0] = SWING;
     estimate = UpdateEstimator(
-        estimator, moved_joints, rotation, pair, kTrustedPhases, states);
-    Check(estimate.has_value() && !estimate->updated_from_contacts,
+        estimator, joints, rotation, pair, kTrustedPhases, states);
+    Check(estimate.has_value() && !estimate->updated_from_contacts &&
+              estimate->contacts_used == 1,
           "Non-stance contact was treated as reliable");
     CheckNear(estimate->position_z, held_z, "Non-stance contact changed Z");
 
-    const ZPosEstimator::Contacts all_contacts{true, true, true, true};
-    phases = kTrustedPhases;
-    phases[1] = 0.1;
-    estimate = UpdateEstimator(
-        estimator, moved_joints, rotation, all_contacts, phases);
-    Check(estimate.has_value() && !estimate->updated_from_contacts,
-          "Four-contact support ignored one unreliable leg");
-    CheckNear(estimate->position_z, held_z, "Unreliable four-leg support changed Z");
+    estimate = UpdateEstimator(estimator, joints, rotation, pair);
+    CheckReliable(estimate, 2, "Update did not resume with trusted contacts");
+}
 
-    estimate = UpdateEstimator(estimator, moved_joints, rotation, all_contacts);
-    CheckReliable(estimate, 4, "Update did not resume with trusted contacts");
+// Короткий пропуск флага контакта — дребезг датчика, а не отрыв ноги: якорь
+// должен уцелеть, иначе нога переякоривается по несколько раз за опорную фазу.
+void TestContactGlitchKeepsAnchor()
+{
+    const Eigen::VectorXd joints = NominalJointPositions();
+    const Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity();
+    const ZPosEstimator::Contacts pair{true, false, true, false};
+    const ZPosEstimator::Contacts glitch{false, false, true, false};
+    ZPosEstimator estimator;
+
+    auto estimate = UpdateEstimator(estimator, joints, rotation, pair);
+    CheckReliable(estimate, 2, "Glitch-test setup failed");
+    const double held_z = estimate->position_z;
+
+    estimate = UpdateEstimator(estimator, joints, rotation, glitch);
+    Check(estimate.has_value() && !estimate->updated_from_contacts,
+          "Single-leg support was treated as reliable");
+
+    estimate = UpdateEstimator(estimator, joints, rotation, pair);
+    CheckReliable(estimate, 2, "Anchor did not survive a contact glitch");
+    CheckNear(estimate->position_z, held_z, "Contact glitch shifted Z");
+}
+
+// Если за время пропадания флага стопа сместилась, значит нога действительно
+// оторвалась: старый якорь недействителен и нога заново ждёт выдержку.
+void TestMovedFootDropsAnchor(ReferenceKinematics& reference)
+{
+    const Eigen::VectorXd joints = NominalJointPositions();
+    Eigen::VectorXd lifted_joints = joints;
+    lifted_joints(2) += 0.25;  // сгибает колено R1 примерно на 2 см по вертикали
+    const Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity();
+    const auto relative_z = reference.RelativeFootZ(joints, rotation);
+    const auto relative_lifted = reference.RelativeFootZ(lifted_joints, rotation);
+    Check(std::fabs(relative_lifted[0] - relative_z[0]) > 0.005,
+          "Test setup does not move the foot far enough");
+
+    const ZPosEstimator::Contacts pair{true, false, true, false};
+    const ZPosEstimator::Contacts released{false, false, true, false};
+    ZPosEstimator estimator;
+
+    auto estimate = UpdateEstimator(estimator, joints, rotation, pair);
+    CheckReliable(estimate, 2, "Liftoff-test setup failed");
+
+    estimate = UpdateEstimator(estimator, joints, rotation, released);
+    estimate = UpdateEstimator(estimator, lifted_joints, rotation, released);
+    estimate = UpdateEstimator(estimator, lifted_joints, rotation, pair);
+    Check(estimate.has_value() && !estimate->updated_from_contacts &&
+              estimate->contacts_used == 1,
+          "Stale anchor was reused after the foot had moved");
 }
 
 }  // namespace
@@ -337,7 +426,9 @@ int main()
         TestInitializationAndLegOrder(reference);
         TestSupportHandoff(reference);
         TestInsufficientSupportAndInvalidInputs();
-        TestContactTrust();
+        TestContactTrust(reference);
+        TestContactGlitchKeepsAnchor();
+        TestMovedFootDropsAnchor(reference);
         std::cout << "z_pos_estimator_test passed\n";
         return EXIT_SUCCESS;
     }

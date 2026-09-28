@@ -131,6 +131,10 @@ add_library(state_estimator_hmb_contact_source src/contact_source.cpp)
 target_include_directories(state_estimator_hmb_contact_source PUBLIC include)
 target_compile_features(state_estimator_hmb_contact_source PUBLIC cxx_std_20)
 
+add_library(state_estimator_hmb_robot_state_source src/robot_state_source.cpp)
+target_include_directories(state_estimator_hmb_robot_state_source PUBLIC include)
+target_compile_features(state_estimator_hmb_robot_state_source PUBLIC cxx_std_20)
+
 add_library(state_estimator_hmb_heightmap_residual
   src/heightmap_residual_estimator.cpp)
 target_include_directories(state_estimator_hmb_heightmap_residual PUBLIC include)
@@ -141,7 +145,7 @@ if(realsense2_FOUND)
 
   set(EXEC_SOURCES
       src/main.cpp
-      src/z_pos_estimator.cpp
+      src/KalmanMIT.cpp
       src/sensor_fusion.cpp
       src/low_pass_filtering.cpp
       src/leg_state.cpp
@@ -155,6 +159,7 @@ if(realsense2_FOUND)
   add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
   target_link_libraries(${PROJECT_NAME}
     state_estimator_hmb_contact_source
+    state_estimator_hmb_robot_state_source
     state_estimator_hmb_heightmap_residual
     vbcontrol
     Eigen3::Eigen
@@ -196,6 +201,11 @@ if(BUILD_TESTING)
   add_executable(contact_source_test tests/contact_source_test.cpp)
   target_link_libraries(contact_source_test PRIVATE state_estimator_hmb_contact_source)
   add_test(NAME contact_source_test COMMAND contact_source_test)
+
+  add_executable(robot_state_source_test tests/robot_state_source_test.cpp)
+  target_link_libraries(robot_state_source_test PRIVATE
+    state_estimator_hmb_robot_state_source)
+  add_test(NAME robot_state_source_test COMMAND robot_state_source_test)
 
   add_executable(heightmap_residual_estimator_test
     tests/heightmap_residual_estimator_test.cpp)
@@ -245,5 +255,100 @@ if(BUILD_TESTING)
   add_test(NAME z_pos_estimator_test COMMAND z_pos_estimator_test)
   set_tests_properties(z_pos_estimator_test PROPERTIES
     ENVIRONMENT "CONFIGPATH=${CMAKE_CURRENT_LIST_DIR}/../config"
+  )
+
+  # Проверяет композицию, на которой держится разделение каналов: оценщик считает
+  # LegState один раз при нулевой базе, а мировое состояние ног каждого канала
+  # получает прибавлением позы его источника.
+  # LegState тянет GMBasedForceObserver -> LowPassFilter из vbcontrol, поэтому тест
+  # собирается только вместе с основным бинарём (то есть когда найден realsense2).
+  if(TARGET vbcontrol)
+  add_executable(leg_state_compose_test
+    tests/leg_state_compose_test.cpp
+    src/leg_state.cpp
+    src/gm_force_observer.cpp
+    ../common/src/Robot.cpp
+    ../common/src/system_functions.cpp
+  )
+  target_include_directories(leg_state_compose_test PRIVATE
+    include
+    ../common/include
+  )
+  target_link_libraries(leg_state_compose_test
+    vbcontrol
+    Eigen3::Eigen
+    yaml-cpp::yaml-cpp
+    pinocchio::pinocchio
+    pinocchio::pinocchio_parsers
+  )
+  lcm_target_link_libraries(leg_state_compose_test messages-cpp ${LCM_NAMESPACE}lcm)
+  target_compile_definitions(leg_state_compose_test PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
+    EIGEN_MAX_ALIGN_BYTES=16
+    EIGEN_MAX_STATIC_ALIGN_BYTES=16
+  )
+  add_test(NAME leg_state_compose_test COMMAND leg_state_compose_test)
+  set_tests_properties(leg_state_compose_test PROPERTIES
+    ENVIRONMENT "CONFIGPATH=${CMAKE_CURRENT_LIST_DIR}/../config"
+  )
+  endif()
+
+  # Собирается безусловно, в том числе когда realsense2 не найден и основной
+  # исполняемый файл заменён на sim_main.cpp: иначе ошибка в KalmanMIT.cpp
+  # прошла бы незамеченной на машине без T265.
+  add_executable(kalman_mit_test
+    tests/kalman_mit_test.cpp
+    src/KalmanMIT.cpp
+    ../common/src/reliable_contact.cpp
+    ../common/src/Robot.cpp
+    ../common/src/system_functions.cpp
+  )
+  target_include_directories(kalman_mit_test PRIVATE
+    include
+    ../common/include
+  )
+  target_link_libraries(kalman_mit_test PRIVATE
+    Eigen3::Eigen
+    pinocchio::pinocchio
+    pinocchio::pinocchio_parsers
+  )
+  target_compile_definitions(kalman_mit_test PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
+    EIGEN_MAX_ALIGN_BYTES=16
+    EIGEN_MAX_STATIC_ALIGN_BYTES=16
+  )
+  add_test(NAME kalman_mit_test COMMAND kalman_mit_test)
+  set_tests_properties(kalman_mit_test PROPERTIES
+    ENVIRONMENT "CONFIGPATH=${CMAKE_CURRENT_LIST_DIR}/../config"
+  )
+
+  # Офлайн-прогон фильтра по CSV-логам MorsLogger. Гоняет тот же класс
+  # KalmanMIT, что и рабочий бинарь, поэтому проверяет поставляемый код.
+  add_executable(kalman_mit_replay
+    tools/kalman_mit_replay.cpp
+    src/KalmanMIT.cpp
+    ../common/src/reliable_contact.cpp
+    ../common/src/Robot.cpp
+    ../common/src/system_functions.cpp
+  )
+  target_include_directories(kalman_mit_replay PRIVATE
+    include
+    ../common/include
+  )
+  target_link_libraries(kalman_mit_replay PRIVATE
+    Eigen3::Eigen
+    pinocchio::pinocchio
+    pinocchio::pinocchio_parsers
+  )
+  target_compile_definitions(kalman_mit_replay PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
+    EIGEN_MAX_ALIGN_BYTES=16
+    EIGEN_MAX_STATIC_ALIGN_BYTES=16
   )
 endif()

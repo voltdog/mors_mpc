@@ -17,8 +17,12 @@ depth:
   max_depth_m: 1.0
 
 compression:
-  enabled: false
+  enabled: true
   zlib_level: 1
 
 runtime:
   verbose: false
+  # Публикация кадра глубины в LCM-канал channels.depth_image.
+  # Контуру высот она не нужна (кадр идёт внутри процесса), но без неё
+  # мост robot_state_viewer не выдаёт /camera/depth_image для rviz.
+  publish_depth_image: true

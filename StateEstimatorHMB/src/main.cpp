@@ -7,8 +7,9 @@
 #include "gm_force_observer.hpp"
 #include "heightmap_residual_estimator.hpp"
 #include "low_pass_filtering.hpp"
+#include "robot_state_source.hpp"
 #include "sensor_fusion.hpp"
-#include "z_pos_estimator.hpp"
+#include "KalmanMIT.hpp"
 
 #include <algorithm>
 #include <array>
@@ -25,17 +26,21 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include <Eigen/Dense>
 #include <librealsense2/rs.hpp>
 #include <lcm/lcm-cpp.hpp>
 #include <yaml-cpp/yaml.h>
+#include <zlib.h>
 
 #include "mors_msgs/contact_sensor_msg.hpp"
+#include "mors_msgs/depth_image_msg.hpp"
 #include "mors_msgs/imu_lcm_data.hpp"
 #include "mors_msgs/phase_signal_msg.hpp"
 #include "mors_msgs/robot_state_msg.hpp"
@@ -47,9 +52,12 @@ namespace
 {
 
 constexpr int kStateHistoryCapacity = 2048;
+constexpr int kNumJoints = 12;
 constexpr double kTorqueScale = 0.73 / 10.0;
-const std::string kStateEstimatorCheckChannel{"ROBOT_STATE_CHECK"};
 std::atomic_bool g_running{true};
+
+constexpr int8_t kCompressionRawU16Mm = 0;
+constexpr int8_t kCompressionZlibU16Mm = 1;
 
 int64_t NowNs()
 {
@@ -141,6 +149,7 @@ struct ChannelsConfig
     std::string contact_state;
     std::string gait_phase;
     std::string robot_state;
+    std::string robot_state_check;
 };
 
 struct StateEstimatorConfig
@@ -150,6 +159,14 @@ struct StateEstimatorConfig
     state_estimator_hmb::ContactSource contact_source{
         state_estimator_hmb::ContactSource::GrfObserver};
     Eigen::Vector3d camera_offset{0.0, 0.0, 0.0};
+
+    // Источник канала ROBOT_STATE. Канал ROBOT_STATE_CHECK всегда получает
+    // противоположную оценку — см. state_estimator_hmb::Other().
+    state_estimator_hmb::RobotStateSource robot_state_source{
+        state_estimator_hmb::RobotStateSource::T265};
+
+    state_estimator_hmb::KalmanMITConfig kalman_mit{};
+    bool kalman_mit_enabled{true};
 };
 
 struct T265Config
@@ -167,6 +184,14 @@ struct D435iConfig
     double min_depth_m{0.105};
     double max_depth_m{3.0};
     bool verbose{false};
+
+    // Контур высот берёт кадр внутри процесса и в LCM его не отдаёт (см. ТЗ),
+    // но мост robot_state_viewer -> rviz читает картинку только с этого канала,
+    // поэтому кадр дополнительно уходит наружу как телеметрия.
+    std::string depth_image_channel{"DEPTH_IMAGE"};
+    bool publish_depth_image{false};
+    bool compression_enabled{false};
+    int zlib_level{1};
 };
 
 struct DepthProcessingConfig
@@ -189,9 +214,9 @@ struct SharedInputs
     ServoData servo;
     Odometry odometry;
     std::array<bool, NUM_LEGS> contacts{};
-    state_estimator_hmb::ZPosEstimator::GaitPhases gait_phases{};
-    state_estimator_hmb::ZPosEstimator::ContactStates contact_states{
-        STANCE, STANCE, STANCE, STANCE};
+    // Совпадает с KalmanMITInput::gait_phases/contact_states.
+    std::array<double, NUM_LEGS> gait_phases{};
+    std::array<int, NUM_LEGS> contact_states{STANCE, STANCE, STANCE, STANCE};
     int64_t odometry_timestamp_ns{0};
     bool has_imu{false};
     bool has_servo{false};
@@ -225,7 +250,8 @@ ChannelsConfig LoadChannels(const std::string& path)
         root["servo_state"].as<std::string>(),
         root["contact_state"].as<std::string>(),
         root["gait_phase"].as<std::string>(),
-        root["robot_state"].as<std::string>()};
+        root["robot_state"].as<std::string>(),
+        root["robot_state_check"].as<std::string>()};
 }
 
 StateEstimatorConfig LoadStateEstimatorConfig(
@@ -258,10 +284,151 @@ StateEstimatorConfig LoadStateEstimatorConfig(
             error.what());
     }
 
+    // Ключи необязательные: умолчания в StateEstimatorConfig повторяют прежнее
+    // поведение, а тот же файл читают StateEstimatorIKZ и StateEstimatorMK.
+    const auto load_robot_state_source =
+        [&se](const char* key, state_estimator_hmb::RobotStateSource& target)
+    {
+        const YAML::Node node = se[key];
+        if (!node)
+        {
+            return;
+        }
+        if (!node.IsScalar())
+        {
+            throw std::runtime_error(
+                std::string("[StateEstimatorHMB] state_estimator.yaml: '") + key +
+                "' must be a scalar with value 'kalman' or 't265'.");
+        }
+        try
+        {
+            target = state_estimator_hmb::ParseRobotStateSource(node.as<std::string>());
+        }
+        catch (const std::invalid_argument& error)
+        {
+            throw std::runtime_error(
+                std::string("[StateEstimatorHMB] invalid state_estimator.yaml key '") +
+                key + "': " + error.what());
+        }
+    };
+    load_robot_state_source("robot_state_source", config.robot_state_source);
+
     config.camera_offset <<
         se["camera_offset_x"].as<double>(),
         se["camera_offset_y"].as<double>(),
         se["camera_offset_z"].as<double>();
+
+    // Период фильтра всегда берётся из timesteps.yaml, а не из его блока.
+    config.kalman_mit.dt = config.dt;
+    // Каждый ключ необязателен: тот же файл читают StateEstimatorIKZ и
+    // StateEstimatorMK, и новый блок не должен их ломать.
+    if (const YAML::Node kalman = se["kalman_mit"])
+    {
+        state_estimator_hmb::KalmanMITConfig& kf = config.kalman_mit;
+        if (kalman["enabled"])
+            config.kalman_mit_enabled = kalman["enabled"].as<bool>();
+
+        if (kalman["imu_process_noise_position"])
+            kf.imu_process_noise_position = kalman["imu_process_noise_position"].as<double>();
+        if (kalman["imu_process_noise_velocity"])
+            kf.imu_process_noise_velocity = kalman["imu_process_noise_velocity"].as<double>();
+        if (kalman["foot_process_noise_position"])
+            kf.foot_process_noise_position = kalman["foot_process_noise_position"].as<double>();
+        if (kalman["estimate_accel_bias"])
+            kf.estimate_accel_bias = kalman["estimate_accel_bias"].as<bool>();
+        if (kalman["accel_bias_process_noise"])
+            kf.accel_bias_process_noise = kalman["accel_bias_process_noise"].as<double>();
+        if (kalman["initial_accel_bias_covariance"])
+            kf.initial_accel_bias_covariance =
+                kalman["initial_accel_bias_covariance"].as<double>();
+        if (kalman["max_accel_bias"])
+            kf.max_accel_bias = kalman["max_accel_bias"].as<double>();
+        if (kalman["foot_sensor_noise_position"])
+            kf.foot_sensor_noise_position = kalman["foot_sensor_noise_position"].as<double>();
+        if (kalman["foot_sensor_noise_velocity"])
+            kf.foot_sensor_noise_velocity = kalman["foot_sensor_noise_velocity"].as<double>();
+        if (kalman["foot_height_sensor_noise"])
+            kf.foot_height_sensor_noise = kalman["foot_height_sensor_noise"].as<double>();
+        if (kalman["high_suspect_number"])
+            kf.high_suspect_number = kalman["high_suspect_number"].as<double>();
+        if (kalman["scale_position_measurement_noise"])
+            kf.scale_position_measurement_noise =
+                kalman["scale_position_measurement_noise"].as<bool>();
+        if (kalman["use_foot_height_measurement"])
+            kf.use_foot_height_measurement = kalman["use_foot_height_measurement"].as<bool>();
+        if (kalman["ground_height"])
+            kf.ground_height = kalman["ground_height"].as<double>();
+        if (kalman["estimate_terrain_height"])
+            kf.estimate_terrain_height = kalman["estimate_terrain_height"].as<bool>();
+        if (kalman["terrain_process_noise"])
+            kf.terrain_process_noise = kalman["terrain_process_noise"].as<double>();
+        if (kalman["terrain_swing_process_noise"])
+            kf.terrain_swing_process_noise =
+                kalman["terrain_swing_process_noise"].as<double>();
+        if (kalman["terrain_relaxation_time_sec"])
+            kf.terrain_relaxation_time_sec =
+                kalman["terrain_relaxation_time_sec"].as<double>();
+        if (kalman["initial_terrain_covariance"])
+            kf.initial_terrain_covariance =
+                kalman["initial_terrain_covariance"].as<double>();
+        if (kalman["terrain_map_noise"])
+            kf.terrain_map_noise = kalman["terrain_map_noise"].as<double>();
+        if (kalman["initial_covariance"])
+            kf.initial_covariance = kalman["initial_covariance"].as<double>();
+        if (kalman["min_init_contacts"])
+        {
+            const int contacts = kalman["min_init_contacts"].as<int>();
+            kf.min_init_contacts =
+                static_cast<std::size_t>(std::clamp(contacts, 1, 4));
+        }
+        if (kalman["xy_covariance_reset_threshold"])
+            kf.xy_covariance_reset_threshold =
+                kalman["xy_covariance_reset_threshold"].as<double>();
+        if (kalman["xy_covariance_reset_factor"])
+            kf.xy_covariance_reset_factor = kalman["xy_covariance_reset_factor"].as<double>();
+        if (kalman["max_velocity"])
+            kf.max_velocity = kalman["max_velocity"].as<double>();
+        if (kalman["gravity"])
+            kf.gravity = kalman["gravity"].as<double>();
+        if (kalman["frozen_phase_fallback"])
+            kf.frozen_phase_fallback = kalman["frozen_phase_fallback"].as<bool>();
+        if (kalman["frozen_phase_epsilon"])
+            kf.frozen_phase_epsilon = kalman["frozen_phase_epsilon"].as<double>();
+        if (kalman["frozen_phase_timeout_sec"])
+            kf.frozen_phase_timeout_sec = kalman["frozen_phase_timeout_sec"].as<double>();
+        if (kalman["contact_trust_floor"])
+            kf.contact_trust_floor = kalman["contact_trust_floor"].as<double>();
+        if (kalman["zupt_enabled"])
+            kf.zupt_enabled = kalman["zupt_enabled"].as<bool>();
+        if (kalman["zupt_trust_threshold"])
+            kf.zupt_trust_threshold = kalman["zupt_trust_threshold"].as<double>();
+        if (kalman["zupt_accel_tolerance"])
+            kf.zupt_accel_tolerance = kalman["zupt_accel_tolerance"].as<double>();
+        if (kalman["zupt_omega_tolerance"])
+            kf.zupt_omega_tolerance = kalman["zupt_omega_tolerance"].as<double>();
+        if (kalman["zupt_hold_sec"])
+            kf.zupt_hold_sec = kalman["zupt_hold_sec"].as<double>();
+        if (kalman["zupt_measurement_noise"])
+            kf.zupt_measurement_noise = kalman["zupt_measurement_noise"].as<double>();
+        if (kalman["zupt_hold_position"])
+            kf.zupt_hold_position = kalman["zupt_hold_position"].as<bool>();
+        if (kalman["zupt_position_measurement_noise"])
+            kf.zupt_position_measurement_noise =
+                kalman["zupt_position_measurement_noise"].as<double>();
+    }
+
+    // Молчаливый откат на T265 при выключенном фильтре скрывал бы подмену
+    // источника, поэтому несогласованный конфиг — отказ на старте. На check-канал
+    // это не распространяется: при выключенном фильтре он просто не публикуется.
+    if (!config.kalman_mit_enabled &&
+        config.robot_state_source == state_estimator_hmb::RobotStateSource::Kalman)
+    {
+        throw std::runtime_error(
+            "[StateEstimatorHMB] state_estimator.yaml: 'robot_state_source' is "
+            "'kalman', but 'kalman_mit.enabled' is false. Set kalman_mit.enabled: "
+            "true or switch the source to 't265'.");
+    }
+
     return config;
 }
 
@@ -293,9 +460,27 @@ D435iConfig LoadD435iConfig(const std::string& path)
         if (depth["min_depth_m"]) config.min_depth_m = depth["min_depth_m"].as<double>();
         if (depth["max_depth_m"]) config.max_depth_m = depth["max_depth_m"].as<double>();
     }
+    if (const YAML::Node channels = root["channels"])
+    {
+        if (channels["depth_image"])
+            config.depth_image_channel = channels["depth_image"].as<std::string>();
+    }
+    if (const YAML::Node compression = root["compression"])
+    {
+        if (compression["enabled"])
+            config.compression_enabled = compression["enabled"].as<bool>();
+        if (compression["zlib_level"])
+            config.zlib_level = std::clamp(compression["zlib_level"].as<int>(), 0, 9);
+    }
     if (const YAML::Node runtime = root["runtime"])
     {
         if (runtime["verbose"]) config.verbose = runtime["verbose"].as<bool>();
+        if (runtime["publish_depth_image"])
+            config.publish_depth_image = runtime["publish_depth_image"].as<bool>();
+    }
+    if (config.depth_image_channel.empty())
+    {
+        config.publish_depth_image = false;
     }
     return config;
 }
@@ -398,13 +583,18 @@ public:
           gait_phase_lcm_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
           robot_state_publisher_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
           servo_filtered_publisher_(std::make_unique<lcm::LCM>(servo_lcm_url_)),
+          depth_image_publisher_(
+              d435i_config_.publish_depth_image
+                  ? std::make_unique<lcm::LCM>(locomotion_lcm_url_)
+                  : nullptr),
           heightmap_builder_(std::make_unique<hmb::HeightMapBuilderNode>(
               ConfigPath(config_dir_, "heightmap_builder.yaml"),
               false))
     {
         if (!imu_lcm_->good() || !servo_lcm_->good() || !contact_lcm_->good() ||
             !gait_phase_lcm_->good() ||
-            !robot_state_publisher_->good() || !servo_filtered_publisher_->good())
+            !robot_state_publisher_->good() || !servo_filtered_publisher_->good() ||
+            (depth_image_publisher_ && !depth_image_publisher_->good()))
         {
             throw std::runtime_error("[StateEstimatorHMB] failed to initialize one or more LCM endpoints.");
         }
@@ -417,9 +607,25 @@ public:
                   << "  state dt: " << se_config_.dt << " sec\n"
                   << "  contact source: "
                   << state_estimator_hmb::ToString(se_config_.contact_source) << "\n"
+                  << "  " << channels_.robot_state << " source: "
+                  << state_estimator_hmb::ToString(se_config_.robot_state_source) << "\n"
+                  << "  " << channels_.robot_state_check << " source: "
+                  << state_estimator_hmb::ToString(
+                         state_estimator_hmb::Other(se_config_.robot_state_source))
+                  << (se_config_.kalman_mit_enabled
+                          ? ""
+                          : " (not published: kalman_mit.enabled is false)")
+                  << "\n"
                   << "  D435i: " << d435i_config_.width << "x" << d435i_config_.height
                   << "@" << d435i_config_.fps << "\n"
-                  << "  depth/state sync max dt: " << depth_config_.max_sync_dt_sec << " sec"
+                  << "  depth/state sync max dt: " << depth_config_.max_sync_dt_sec << " sec\n"
+                  << "  depth image telemetry: "
+                  << (d435i_config_.publish_depth_image
+                          ? d435i_config_.depth_image_channel +
+                                (d435i_config_.compression_enabled
+                                     ? " (zlib if smaller)"
+                                     : " (raw u16 mm)")
+                          : std::string("disabled"))
                   << std::endl;
     }
 
@@ -681,7 +887,10 @@ private:
             LegData leg_state;
             LegState leg_state_estimator(robot_params_);
             ReliableContact reliable_contact;
-            state_estimator_hmb::ZPosEstimator z_pos_estimator;
+            // Конструктор поднимает модель pinocchio (чтение URDF), поэтому он
+            // обязан оставаться вне цикла.
+            state_estimator_hmb::KalmanMIT kalman_mit(se_config_.kalman_mit);
+            state_estimator_hmb::KalmanMITInput kalman_input;
 
             Eigen::VectorXd p(3);
             p << 0.032, -0.01, 0.001;
@@ -693,6 +902,15 @@ private:
             bool first_yaw = true;
             Eigen::Vector3d pos_offset = Eigen::Vector3d::Zero();
             double yaw_offset = 0.0;
+
+            // ROBOT_STATE идёт от выбранного источника, ROBOT_STATE_CHECK — от
+            // противоположного. Оба канала целиком формируются своим источником.
+            const state_estimator_hmb::RobotStateSource primary_source =
+                se_config_.robot_state_source;
+            const state_estimator_hmb::RobotStateSource check_source =
+                state_estimator_hmb::Other(primary_source);
+            std::optional<bool> reported_t265_validity;
+            std::optional<bool> reported_kalman_validity;
 
             const auto period = std::chrono::duration<double>(se_config_.dt);
             auto next_tick = std::chrono::steady_clock::now();
@@ -712,11 +930,15 @@ private:
                 ServoData servo_state = inputs.servo;
                 servo_state.torq *= kTorqueScale;
 
-                robot_state.orientation_quaternion = inputs.imu.orientation_quaternion;
+                // Ориентация и угловая скорость всегда берутся из ИМУ и одинаковы
+                // в обоих каналах: они не зависят от robot_state_source.
                 robot_state.orientation = sensor_fusion.update_orientation(
                     inputs.imu.orientation_euler,
                     inputs.imu.orientation_euler);
-                if (first_yaw)
+                // Так же, как со смещением T265: yaw защёлкивается на первом
+                // сообщении ИМУ, а не на первом такте, иначе обнулялся бы нулевой
+                // курс от ещё не пришедших данных.
+                if (first_yaw && inputs.has_imu)
                 {
                     yaw_offset = robot_state.orientation(2);
                     first_yaw = false;
@@ -727,25 +949,30 @@ private:
                     robot_state.orientation(0),
                     robot_state.orientation(1),
                     robot_state.orientation(2));
+                // Кватернион строится из той же матрицы, что и углы Эйлера. Сырой
+                // кватернион ИМУ не годится: из углов вычтен стартовый yaw_offset,
+                // и стопы (LegState считает FK по кватерниону) оказались бы в другом
+                // yaw-фрейме, чем корпус.
+                const Eigen::Quaterniond q_body(r_body);
+                robot_state.orientation_quaternion << q_body.x(), q_body.y(),
+                    q_body.z(), q_body.w();
                 robot_state.ang_vel = inputs.imu.ang_vel;
+                // Позу и линейную скорость даёт источник канала (build_channel_state),
+                // здесь их нет: robot_state держит только общую часть обоих каналов.
+                robot_state.pos.setZero();
+                robot_state.lin_vel.setZero();
 
-                const Eigen::Vector3d body_pos =
-                    inputs.odometry.position - pos_offset + r_body * se_config_.camera_offset;
-                if (first_pos)
-                {
-                    pos_offset = body_pos - Eigen::Vector3d(0.0, 0.0, 0.038);
-                    first_pos = false;
-                }
-                robot_state.pos = body_pos;
-
-                const Eigen::Vector3d ang_vel_world = r_body * robot_state.ang_vel;
-                Eigen::Matrix3d ang_vel_world_cross;
-                ang_vel_world_cross << 0.0, -ang_vel_world(2), ang_vel_world(1),
-                                       ang_vel_world(2), 0.0, -ang_vel_world(0),
-                                      -ang_vel_world(1), ang_vel_world(0), 0.0;
-                robot_state.lin_vel =
-                    inputs.odometry.lin_vel + ang_vel_world_cross * r_body * se_config_.camera_offset;
-
+                // Кинематика ног считается ровно один раз за такт: наблюдатель GRF
+                // имеет внутреннее состояние, и второй вызов сдвинул бы его фильтры.
+                // База обнулена, поэтому результат не привязан ни к одному источнику:
+                //   *_pos = R * p_rel            — вектор от корпуса до стопы,
+                //   *_vel = w x (R * p_rel) + R * dp_rel — скорость стопы относительно корпуса.
+                // Мировые величины канала получаются прибавлением позы его источника
+                // (см. build_channel_state). GRF и контакты от позы не зависят вовсе:
+                // они считаются на конфигурации с явно обнулённой базой.
+                // Побочный эффект: LegData::*_acc (J_dot * q_dot) теперь считается при
+                // нулевой скорости базы. Эти поля не входят в robot_state_msg и нигде
+                // в модуле не читаются.
                 leg_state = leg_state_estimator.get_leg_state(
                     robot_state,
                     servo_state.pos,
@@ -772,53 +999,158 @@ private:
                     }
                 }
 
-                PublishRobotState(
-                    channels_.robot_state,
-                    timestamp_ns,
-                    robot_state,
-                    leg_state);
-                PushEstimatorSnapshot(
-                    timestamp_ns,
-                    robot_state,
-                    leg_state,
-                    trust_coefficients,
-                    inputs.has_imu &&
-                        inputs.has_servo &&
-                        inputs.has_odometry &&
-                        inputs.has_gait_phase);
-
-                RobotData robot_state_check = robot_state;
-                if (inputs.has_imu && inputs.has_servo && inputs.has_gait_phase)
+                // Две независимые оценки корпуса. Ориентация и угловая скорость у
+                // них общие (ИМУ), различаются только положение и линейная скорость.
+                struct BodyEstimate
                 {
-                    state_estimator_hmb::ZPosEstimator::Contacts contacts{};
-                    for (std::size_t leg = 0; leg < contacts.size(); ++leg)
+                    Eigen::Vector3d pos{Eigen::Vector3d::Zero()};
+                    Eigen::Vector3d lin_vel{Eigen::Vector3d::Zero()};
+                    bool valid{false};
+                };
+
+                BodyEstimate t265;
+                if (inputs.has_odometry)
+                {
+                    // Смещение защёлкивается на первом кадре одометрии, а не на
+                    // первом такте: до появления кадра позиция ещё нулевая, и
+                    // защёлка на ней сместила бы всю траекторию.
+                    const Eigen::Vector3d camera_lever = r_body * se_config_.camera_offset;
+                    if (first_pos)
                     {
-                        contacts[leg] = leg_state.contacts[leg];
+                        pos_offset = inputs.odometry.position + camera_lever -
+                                     Eigen::Vector3d(0.0, 0.0, 0.038);
+                        first_pos = false;
+                    }
+                    t265.pos = inputs.odometry.position - pos_offset + camera_lever;
+
+                    const Eigen::Vector3d ang_vel_world = r_body * robot_state.ang_vel;
+                    t265.lin_vel =
+                        inputs.odometry.lin_vel + ang_vel_world.cross(camera_lever);
+                    t265.valid = true;
+                }
+
+                BodyEstimate kalman;
+                if (se_config_.kalman_mit_enabled &&
+                    inputs.has_imu && inputs.has_servo &&
+                    servo_state.pos.size() >= kNumJoints &&
+                    servo_state.vel.size() >= kNumJoints)
+                {
+                    // Планировщик походки не обязателен: без него доверие к ноге
+                    // определяется датчиками контакта, и оценка продолжает идти.
+                    kalman_input.joint_positions = servo_state.pos.head<kNumJoints>();
+                    kalman_input.joint_velocities = servo_state.vel.head<kNumJoints>();
+                    kalman_input.world_R_body = r_body;
+                    kalman_input.omega_body = robot_state.ang_vel;
+                    kalman_input.accel_body = inputs.imu.lin_accel;
+                    kalman_input.gait_phases = inputs.gait_phases;
+                    kalman_input.contact_states = inputs.contact_states;
+                    kalman_input.has_gait_phase = inputs.has_gait_phase;
+                    for (std::size_t leg = 0; leg < kalman_input.contacts.size(); ++leg)
+                    {
+                        // Контакты и GRF от позы корпуса не зависят, поэтому их можно
+                        // передать фильтру до того, как поза будет выбрана.
+                        kalman_input.contacts[leg] = leg_state.contacts[leg];
+                        // Точка расширения под высоту грунта из карты высот.
+                        kalman_input.terrain_height[leg].reset();
                     }
 
-                    const auto z_estimate = z_pos_estimator.Update(
-                        servo_state.pos,
-                        r_body,
-                        contacts,
-                        inputs.gait_phases,
-                        inputs.contact_states);
-                    if (z_estimate.has_value())
+                    const auto& kalman_estimate = kalman_mit.Update(kalman_input);
+                    if (kalman_estimate.valid)
                     {
-                        robot_state_check.pos.z() = z_estimate->position_z;
+                        kalman.pos = kalman_estimate.position;
+                        kalman.lin_vel = kalman_estimate.velocity;
+                        kalman.valid = true;
                     }
                 }
 
-                const auto residuals = GetLatestHeightmapResiduals();
-                LegData leg_state_check = leg_state;
-                leg_state_check.r1_pos(0) = residuals[0];
-                leg_state_check.l1_pos(0) = residuals[1];
-                leg_state_check.r2_pos(0) = residuals[2];
-                leg_state_check.l2_pos(0) = residuals[3];
-                PublishRobotState(
-                    kStateEstimatorCheckChannel,
-                    timestamp_ns,
-                    robot_state_check,
-                    leg_state_check);
+                const auto source_estimate =
+                    [&](state_estimator_hmb::RobotStateSource source) -> const BodyEstimate&
+                {
+                    return source == state_estimator_hmb::RobotStateSource::Kalman
+                               ? kalman
+                               : t265;
+                };
+
+                const auto report_validity =
+                    [](state_estimator_hmb::RobotStateSource source,
+                       const BodyEstimate& estimate,
+                       std::optional<bool>& reported)
+                {
+                    if (reported.value_or(!estimate.valid) == estimate.valid)
+                    {
+                        return;
+                    }
+                    std::cout << "[StateEstimatorHMB] " << ToString(source)
+                              << " estimate is "
+                              << (estimate.valid
+                                      ? "valid; its channel is published"
+                                      : "not valid; its channel is not published")
+                              << std::endl;
+                    reported = estimate.valid;
+                };
+                report_validity(
+                    state_estimator_hmb::RobotStateSource::T265, t265, reported_t265_validity);
+                if (se_config_.kalman_mit_enabled)
+                {
+                    report_validity(
+                        state_estimator_hmb::RobotStateSource::Kalman,
+                        kalman,
+                        reported_kalman_validity);
+                }
+
+                // Канал целиком формируется своим источником: поза и линейная
+                // скорость — из его оценки, стопы — та же поза плюс относительная
+                // кинематика (leg_state посчитан при нулевой базе). Ориентация и
+                // угловая скорость общие. Подмены источника не бывает: невалидный
+                // источник означает, что канал в этом такте не публикуется.
+                const auto build_channel_state =
+                    [&](const BodyEstimate& estimate) -> std::pair<RobotData, LegData>
+                {
+                    std::pair<RobotData, LegData> state{robot_state, leg_state};
+                    state.first.pos = estimate.pos;
+                    state.first.lin_vel = estimate.lin_vel;
+
+                    state.second.r1_pos += estimate.pos;
+                    state.second.l1_pos += estimate.pos;
+                    state.second.r2_pos += estimate.pos;
+                    state.second.l2_pos += estimate.pos;
+
+                    state.second.r1_vel += estimate.lin_vel;
+                    state.second.l1_vel += estimate.lin_vel;
+                    state.second.r2_vel += estimate.lin_vel;
+                    state.second.l2_vel += estimate.lin_vel;
+
+                    return state;
+                };
+
+                const BodyEstimate& primary_estimate = source_estimate(primary_source);
+                if (primary_estimate.valid)
+                {
+                    const auto published_state = build_channel_state(primary_estimate);
+                    PublishRobotState(
+                        channels_.robot_state,
+                        timestamp_ns,
+                        published_state.first,
+                        published_state.second);
+                    // Карта высот строится в той же системе координат, что публикуется.
+                    PushEstimatorSnapshot(
+                        timestamp_ns,
+                        published_state.first,
+                        published_state.second,
+                        trust_coefficients,
+                        inputs.has_imu && inputs.has_servo && inputs.has_gait_phase);
+                }
+
+                const BodyEstimate& check_estimate = source_estimate(check_source);
+                if (check_estimate.valid)
+                {
+                    const auto check_state = build_channel_state(check_estimate);
+                    PublishRobotState(
+                        channels_.robot_state_check,
+                        timestamp_ns,
+                        check_state.first,
+                        check_state.second);
+                }
 
                 std::this_thread::sleep_until(next_tick);
             }
@@ -902,7 +1234,14 @@ private:
                     } while (next_publish_time <= now);
                 }
 
+                const int64_t frame_timestamp_ns = NowNs();
+                if (depth_image_publisher_)
+                {
+                    PublishDepthImage(depth_frame, depth_scale, frame_timestamp_ns);
+                }
+
                 DepthFrameData data = BuildDepthFrameData(depth_frame, pointcloud, depth_scale, ++frame_index);
+                data.timestamp_ns = frame_timestamp_ns;
                 {
                     std::lock_guard<std::mutex> lock(depth_mutex_);
                     latest_depth_frame_ = std::move(data);
@@ -953,6 +1292,77 @@ private:
             std::cerr << "[StateEstimatorHMB] RealSense stop fatal: " << e.what() << std::endl;
         }
         pipe.reset();
+    }
+
+    // Телеметрия для ROS-моста: тот же кадр Z16, переведённый в миллиметры,
+    // 0 = невалидный пиксель. Формат совпадает с depth_image_msg, который
+    // публиковал отдельный RealsenseCameraD435i, поэтому robot_state_viewer и
+    // симуляция читают канал одинаково.
+    void PublishDepthImage(
+        const rs2::depth_frame& depth_frame,
+        double depth_scale,
+        int64_t timestamp_ns)
+    {
+        const int width = depth_frame.get_width();
+        const int height = depth_frame.get_height();
+        if (width <= 0 || height <= 0 || !(depth_scale > 0.0))
+        {
+            return;
+        }
+
+        const size_t pixel_count = static_cast<size_t>(width) * static_cast<size_t>(height);
+        const auto* raw_depth = static_cast<const uint16_t*>(depth_frame.get_data());
+        if (raw_depth == nullptr)
+        {
+            return;
+        }
+
+        std::vector<uint8_t> payload(2u * pixel_count, 0u);
+        const double scale_to_mm = depth_scale * 1000.0;
+        for (size_t i = 0; i < pixel_count; ++i)
+        {
+            if (raw_depth[i] == 0u)
+            {
+                continue;
+            }
+            const double depth_mm = static_cast<double>(raw_depth[i]) * scale_to_mm;
+            const auto depth_mm_u32 = static_cast<uint32_t>(std::llround(depth_mm));
+            if (depth_mm_u32 == 0u || depth_mm_u32 > std::numeric_limits<uint16_t>::max())
+            {
+                continue;
+            }
+            const auto value = static_cast<uint16_t>(depth_mm_u32);
+            payload[2u * i] = static_cast<uint8_t>(value & 0xFFu);
+            payload[2u * i + 1u] = static_cast<uint8_t>((value >> 8u) & 0xFFu);
+        }
+
+        mors_msgs::depth_image_msg msg;
+        msg.timestamp = timestamp_ns;
+        msg.width = width;
+        msg.height = height;
+        msg.compression = kCompressionRawU16Mm;
+
+        if (d435i_config_.compression_enabled)
+        {
+            uLongf compressed_size = compressBound(static_cast<uLong>(payload.size()));
+            std::vector<uint8_t> compressed(compressed_size);
+            const int status = compress2(
+                compressed.data(),
+                &compressed_size,
+                payload.data(),
+                static_cast<uLong>(payload.size()),
+                d435i_config_.zlib_level);
+            if (status == Z_OK && static_cast<size_t>(compressed_size) < payload.size())
+            {
+                compressed.resize(static_cast<size_t>(compressed_size));
+                msg.compression = kCompressionZlibU16Mm;
+                payload = std::move(compressed);
+            }
+        }
+
+        msg.data_size = static_cast<int32_t>(payload.size());
+        msg.data = std::move(payload);
+        depth_image_publisher_->publish(d435i_config_.depth_image_channel, &msg);
     }
 
     DepthFrameData BuildDepthFrameData(
@@ -1097,10 +1507,6 @@ private:
                 heightmap_builder_->FootContactOffsetM());
             correction_observation.residuals = estimate.residuals;
             correction_observation.valid = estimate.valid;
-            {
-                std::lock_guard<std::mutex> lock(heightmap_residual_mutex_);
-                latest_heightmap_residuals_ = estimate.residuals;
-            }
 
             if (!heightmap_builder_->ProcessCameraPointCloudFrame(
                     frame.timestamp_ns,
@@ -1235,13 +1641,6 @@ private:
         return out->robot_state.valid;
     }
 
-    state_estimator_hmb::HeightmapResidualEstimator::Residuals
-    GetLatestHeightmapResiduals() const
-    {
-        std::lock_guard<std::mutex> lock(heightmap_residual_mutex_);
-        return latest_heightmap_residuals_;
-    }
-
     std::string config_dir_;
     std::string locomotion_lcm_url_;
     std::string servo_lcm_url_;
@@ -1258,6 +1657,7 @@ private:
     std::unique_ptr<lcm::LCM> gait_phase_lcm_;
     std::unique_ptr<lcm::LCM> robot_state_publisher_;
     std::unique_ptr<lcm::LCM> servo_filtered_publisher_;
+    std::unique_ptr<lcm::LCM> depth_image_publisher_;
     std::unique_ptr<hmb::HeightMapBuilderNode> heightmap_builder_;
 
     std::atomic_bool running_{false};
@@ -1268,10 +1668,6 @@ private:
 
     mutable std::mutex state_history_mutex_;
     std::deque<EstimatorSnapshot> state_history_;
-
-    mutable std::mutex heightmap_residual_mutex_;
-    state_estimator_hmb::HeightmapResidualEstimator::Residuals
-        latest_heightmap_residuals_{};
 
     std::mutex depth_mutex_;
     std::condition_variable depth_cv_;

@@ -143,6 +143,22 @@ Quaternion makePitchCorrection(float pitch_offset) {
     };
 }
 
+// Перекос платы ИМУ учитывается доворотом кватерниона: q_body = q_sensor * q_mount,
+// то есть R_world<-body = R_world<-sensor * Ry(PITCH_OFFSET). Значит векторные
+// показания, приходящие в сенсорном базисе, надо доворачивать обратным поворотом
+// R_body<-sensor = Ry(-PITCH_OFFSET). Без этого ориентация и вектора живут в
+// системах, расходящихся на PITCH_OFFSET, и потребитель, поворачивающий
+// акселерометр в мир через world_R_body, получает постоянное смещение
+// -g*sin(PITCH_OFFSET) по X (0.34 м/с^2 при 0.035 рад).
+void sensorToBody(float& x, float& z) {
+    static const float cos_mount = cos(-PITCH_OFFSET);
+    static const float sin_mount = sin(-PITCH_OFFSET);
+    const float x_body =  cos_mount * x + sin_mount * z;
+    const float z_body = -sin_mount * x + cos_mount * z;
+    x = x_body;
+    z = z_body;
+}
+
 void quat_to_rpy(float w, float x, float y, float z, float& roll, float& pitch, float& yaw)
 {
   //from my MATLAB implementation
@@ -247,15 +263,17 @@ int main(int argc, char **argv)
 				imu_msg.linear_acceleration[X] = acc_x * 9.81f * 1.0f / 4096.0f;
 				imu_msg.linear_acceleration[Y] = acc_y * 9.81f * 1.0f / 4096.0f;
 				imu_msg.linear_acceleration[Z] = acc_z * 9.81f * 1.0f / 4096.0f;
-				
+				sensorToBody(imu_msg.linear_acceleration[X], imu_msg.linear_acceleration[Z]);
+
 				int16_t gyr_x = *(int16_t*)&buffer[8];
 				int16_t gyr_y = *(int16_t*)&buffer[10];
 				int16_t gyr_z = *(int16_t*)&buffer[12];
 				
 				imu_msg.angular_velocity[X] = gyr_x * 6.28f * 2000.0f / 32768.0f / 360.0f;
 				imu_msg.angular_velocity[Y] = gyr_y * 6.28f * 2000.0f / 32768.0f / 360.0f;
-				imu_msg.angular_velocity[Z] = gyr_z * 6.28f * 2000.0f / 32768.0f / 360.0f;	
-				
+				imu_msg.angular_velocity[Z] = gyr_z * 6.28f * 2000.0f / 32768.0f / 360.0f;
+				sensorToBody(imu_msg.angular_velocity[X], imu_msg.angular_velocity[Z]);
+
 				int16_t quat_x = *(int16_t*)&buffer[14];
 				int16_t quat_y = *(int16_t*)&buffer[16];
 				int16_t quat_z = *(int16_t*)&buffer[18];
