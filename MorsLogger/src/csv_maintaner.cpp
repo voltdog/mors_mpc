@@ -150,7 +150,7 @@ void CSVMaintainer::init()
     // create_csv(odometry_csv, odometry_head, odometry_addr);
     create_csv(robot_state_csv, robot_state_head, robot_state_addr);
     create_csv(robot_state_check_csv, robot_state_check_head, robot_state_check_addr);
-    // create_csv(robot_cmd_csv, robot_cmd_head, robot_cmd_addr);
+    create_csv(robot_cmd_csv, robot_cmd_head, robot_cmd_addr);
     if (debug_mode)
     {
         create_csv(phase_sig_csv, phase_sig_head, phase_sig_addr);

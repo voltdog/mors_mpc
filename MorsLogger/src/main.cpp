@@ -111,7 +111,7 @@ int main() {
         
         csv.write_robot_state(t, body_state, leg_state);
         csv.write_robot_state_check(t, body_state_check, leg_state_check);
-        // csv.write_robot_cmd(t, body_cmd);
+        csv.write_robot_cmd(t, body_cmd);
         if (debug_mode)
         {
             csv.write_mpc_cmd(t, mpc_robot_cmd);
