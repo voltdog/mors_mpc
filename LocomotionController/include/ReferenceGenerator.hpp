@@ -15,7 +15,7 @@ class ReferenceGenerator {
 public:
 
     // Constructor
-    ReferenceGenerator(double dt, double c_freq = 1.0);
+    ReferenceGenerator(double dt, double c_freq, double zero_vel_thresh, double foot_valid_radius);
     ~ReferenceGenerator();
 
     // Methods
@@ -30,6 +30,8 @@ private:
     // Parameters
     double c_freq;
     double dt;
+    double zero_vel_thresh;     // below this commanded speed the position is held
+    double foot_valid_radius;   // max foot-to-body distance for a valid foot sample
     LowPassFilter lpf_x_vel, lpf_y_vel, lpf_z_vel;
     LowPassFilter lpf_pitch_pos, lpf_z_pos, lpf_yaw_vel;
 

@@ -6,15 +6,11 @@
 #include <cmath>
 #include <vector>
 
+#include "structs.hpp"
 
 using namespace std;
 using namespace Eigen;
 // using namespace YAML;
-
-#define    SWING         0
-#define    STANCE        1
-#define    LATE_CONTACT  2
-#define    EARLY_CONTACT 3
 
 class SimpleGaitScheduler {
 public:

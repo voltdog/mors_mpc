@@ -1,8 +1,8 @@
 #include "SwingTrajectoryGenerator.hpp"
 #include <cmath>
 
-SwingTrajectoryGenerator::SwingTrajectoryGenerator(double sim_freq)
-    : sim_freq(sim_freq), inc(1.0 / sim_freq), dz_near_ground(0.0),
+SwingTrajectoryGenerator::SwingTrajectoryGenerator(double sim_freq, double rising_proportion)
+    : sim_freq(sim_freq), rising_proportion(rising_proportion), inc(1.0 / sim_freq), dz_near_ground(0.0),
       t_zr(4, 0.0), t_zd(4, 0.0), t_xsw(4, 0.0), t_ysw(4, 0.0),
       a_zr(4, std::vector<double>(6)), a_zd(4, std::vector<double>(6)),
       a_xsw(4, std::vector<double>(6)), a_ysw(4, std::vector<double>(6)),

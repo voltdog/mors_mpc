@@ -6,8 +6,8 @@ SwingController::SwingController(double timestep, double bx, double by, double l
                                        double max_leg_length,
                                        const std::array<double, 4>& interleave_x,
                                        const std::array<double, 4>& interleave_y,
-                                       double dz_near_ground, double k1_fsp)
-    : dz_near_ground(dz_near_ground), cnt(4, -1), it_swing(4, 0.0), swing_traj_gen(1.0 / timestep),
+                                       double dz_near_ground, double rising_proportion, double k1_fsp)
+    : dz_near_ground(dz_near_ground), cnt(4, -1), it_swing(4, 0.0), swing_traj_gen(1.0 / timestep, rising_proportion),
       pre_phase_signal(4, STANCE), p_start(4), p_rise(4), p_finish(4), d_p_start(4, {0.0, 0.0, 0.0}),
       step_planner(4), p0_b(4)
 {

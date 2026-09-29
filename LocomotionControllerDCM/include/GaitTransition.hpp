@@ -5,14 +5,9 @@
 #include <cmath>
 #include <vector>
 
+#include "structs.hpp"
 
 using namespace std;
-
-
-#define    SWING         0
-#define    STANCE        1
-#define    LATE_CONTACT  2
-#define    EARLY_CONTACT 3
 
 class GaitTransition {
 public:

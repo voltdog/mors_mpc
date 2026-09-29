@@ -38,10 +38,18 @@ wbic:
   joint_kp_swing: 6.0
   joint_kd_swing: 0.25
 
+  # ground_fric, fz_min, fz_max берутся из stance_controller_mpc (friction, f_min, f_max)
+
+reference_generator:
+  c_freq: 0.5               # частота среза LPF референсных траекторий [Гц]
+  zero_vel_thresh: 0.01     # ниже этой скорости команда считается нулевой -> удержание позиции [м/с]
+  foot_valid_radius: 1.0    # стопа дальше этого расстояния от корпуса считается невалидной [м]
+
 swing_controller:
   interleave_x: [0.0, 0.0, 0.0, 0.0]
   interleave_y: [0.09, 0.09, 0.09, 0.09]
   dz_near_ground: -0.05
+  rising_proportion: 0.35   # доля времени переноса на подъём стопы
 
   # foot step planner
   k1_fsp: 0.01
@@ -71,6 +79,7 @@ swing_controller:
 
 gait_scheduler:
   start_td_detecting: 0.55
+  delta_T_gt: 1.0           # длительность плавного перехода между походками [с]
 
   contact_debounce: 2       # больше -> надёжнее против шума, но позже ловит ранний контакт
   vz_contact_thresh: 0.2    # меньше -> строже отсев ложных касаний (стопа должна почти стоять)

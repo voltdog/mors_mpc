@@ -8,7 +8,6 @@ FootStepPlanner::FootStepPlanner()
     : p0_b(0.1655, -0.067, 0.0),
       hip_anchor_b(0.1655, -0.067, 0.0),
       g(9.81),
-      h(0.22),
       k1(0.03),
       max_leg_length(0.3),
       has_vision_map_(false),

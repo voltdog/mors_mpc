@@ -97,6 +97,13 @@ int main() {
                                ? gait_sched_config["contact_debounce"].as<int>() : 3;
     double vz_contact_thresh = gait_sched_config["vz_contact_thresh"]
                                ? gait_sched_config["vz_contact_thresh"].as<double>() : 0.1;
+    double delta_T_gt = gait_sched_config["delta_T_gt"].as<double>();
+
+    // reference generator params
+    YAML::Node ref_gen_config = locomotion_config["reference_generator"];
+    double c_freq = ref_gen_config["c_freq"].as<double>();
+    double zero_vel_thresh = ref_gen_config["zero_vel_thresh"].as<double>();
+    double foot_valid_radius = ref_gen_config["foot_valid_radius"].as<double>();
 
     // swing controller params
     YAML::Node swing_controller_config = locomotion_config["swing_controller"];
@@ -108,6 +115,7 @@ int main() {
         interleave_y[i] = swing_controller_config["interleave_y"][i].as<double>(); 
     }
     double dz_near_ground = swing_controller_config["dz_near_ground"].as<double>(); 
+    double rising_proportion = swing_controller_config["rising_proportion"].as<double>();
     double k1_fsp = swing_controller_config["k1_fsp"].as<double>(); 
     const bool line_hold_enabled = swing_controller_config["line_hold_enabled"]
                                        ? swing_controller_config["line_hold_enabled"].as<bool>() : false;
@@ -159,6 +167,9 @@ int main() {
     wbic_thread_config.joint_kd_stance = wbic_config["joint_kd_stance"].as<double>();
     wbic_thread_config.joint_kp_swing = wbic_config["joint_kp_swing"].as<double>();
     wbic_thread_config.joint_kd_swing = wbic_config["joint_kd_swing"].as<double>();
+    wbic_thread_config.ground_fric = friction;
+    wbic_thread_config.fz_min = f_min;
+    wbic_thread_config.fz_max = f_max;
     if (wbic_config["realtime_priority"]) {
         wbic_thread_config.realtime_priority = wbic_config["realtime_priority"].as<int>();
     }
@@ -224,7 +235,7 @@ int main() {
     ContactStateFSM contact_fsm(start_td_detecting, contact_debounce, vz_contact_thresh);
     // init reference generator
     int adaptation_type = 0;
-    ReferenceGenerator ref_generator(module_dt, 0.5, horizon, mpc_dt);
+    ReferenceGenerator ref_generator(module_dt, c_freq, zero_vel_thresh, foot_valid_radius, horizon, mpc_dt);
     MatrixXd R_body_yaw_align(3,3);
     R_body_yaw_align.setIdentity();
     ref_generator.set_body_adaptation_mode(adaptation_type);
@@ -245,7 +256,8 @@ int main() {
                                     robot.bx, 
                                     robot.by,  
                                     robot.l1,
-                                    dz_near_ground);
+                                    dz_near_ground,
+                                    rising_proportion);
     // foot step generator
     FootStepGenerator footstep_generator;
     footstep_generator.set_gait_params(t_sw, t_st);
@@ -328,7 +340,7 @@ int main() {
     // gait transition
     GaitTransition gait_transition;
     gait_transition.set_gait_params(t_st, t_sw, phase_offsets, stride_height);
-    gait_transition.set_transition_duration(1.0);
+    gait_transition.set_transition_duration(delta_T_gt);
     const auto tick_period = std::chrono::duration_cast<std::chrono::steady_clock::duration>(dt);
     auto next_tick = now();
 

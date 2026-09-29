@@ -4,10 +4,13 @@
 #include <cmath>
 
 // Constructor
-ReferenceGenerator::ReferenceGenerator(double dt, double c_freq, int mpc_horizon, double mpc_dt)
+ReferenceGenerator::ReferenceGenerator(double dt, double c_freq, double zero_vel_thresh, double foot_valid_radius,
+                                       int mpc_horizon, double mpc_dt)
 {
     this->c_freq = c_freq;
     this->dt = dt;
+    this->zero_vel_thresh = zero_vel_thresh;
+    this->foot_valid_radius = foot_valid_radius;
     this->mpc_dt = (mpc_dt > 0.0) ? mpc_dt : dt;
     this->mpc_horizon = mpc_horizon;
     pre_phase_signal = {STANCE, STANCE, STANCE, STANCE};
@@ -106,13 +109,13 @@ void ReferenceGenerator::step(const std::vector<int>& phase_signal,
     ref_body_yaw_vel_filtered = lpf_yaw_vel.update(robot_cmd.ang_vel(Z)); 
     
     // Update reference position
-    if (abs(ref_body_vel_filtered(X)) < 0.01 && abs(prev_x_vel) >= 0.01)
+    if (abs(ref_body_vel_filtered(X)) < zero_vel_thresh && abs(prev_x_vel) >= zero_vel_thresh)
         saved_x_pos = robot_state.pos(X);
-    if (abs(ref_body_vel_filtered(Y)) < 0.01 && abs(prev_y_vel) >= 0.01)
+    if (abs(ref_body_vel_filtered(Y)) < zero_vel_thresh && abs(prev_y_vel) >= zero_vel_thresh)
         saved_y_pos = robot_state.pos(Y);
 
-    ref_x_pos = (abs(ref_body_vel_filtered(X)) < 0.01) ? saved_x_pos : (robot_state.pos(X) + ref_body_vel_filtered(X) * dt);
-    ref_y_pos = (abs(ref_body_vel_filtered(Y)) < 0.01) ? saved_y_pos : (robot_state.pos(Y) + ref_body_vel_filtered(Y) * dt);
+    ref_x_pos = (abs(ref_body_vel_filtered(X)) < zero_vel_thresh) ? saved_x_pos : (robot_state.pos(X) + ref_body_vel_filtered(X) * dt);
+    ref_y_pos = (abs(ref_body_vel_filtered(Y)) < zero_vel_thresh) ? saved_y_pos : (robot_state.pos(Y) + ref_body_vel_filtered(Y) * dt);
     // ref_x_pos += ref_body_vel_filtered(X) * dt;
     // ref_y_pos += ref_body_vel_filtered(Y) * dt;
     bool use_dcm = true;
@@ -285,7 +288,7 @@ bool ReferenceGenerator::is_valid_foot_pos(const Eigen::Vector3d& foot_pos_globa
     }
 
     const Eigen::Vector3d foot_pos_rel = foot_pos_global - robot_state.pos;
-    return foot_pos_rel.norm() < 1.0;
+    return foot_pos_rel.norm() < foot_valid_radius;
 }
 
 Eigen::Vector3d ReferenceGenerator::foot_pos_to_yaw_aligned_local(

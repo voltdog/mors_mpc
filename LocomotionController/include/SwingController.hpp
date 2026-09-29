@@ -15,7 +15,7 @@ public:
                        double max_leg_length,
                        const std::array<double, 4>& interleave_x,
                        const std::array<double, 4>& interleave_y,
-                       double dz_near_ground, double k1_fsp);
+                       double dz_near_ground, double rising_proportion, double k1_fsp);
 
     void set_gait_params(double t_sw, double t_st, double ref_stride_height);
     void set_heightmap(const VisionBasedMap& vision_map);

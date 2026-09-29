@@ -21,7 +21,8 @@ public:
     };
 
     // Constructor
-    ReferenceGenerator(double dt, double c_freq = 1.0, int mpc_horizon = 16, double mpc_dt = -1.0);
+    ReferenceGenerator(double dt, double c_freq, double zero_vel_thresh, double foot_valid_radius,
+                       int mpc_horizon, double mpc_dt);
     ~ReferenceGenerator();
 
     // Methods
@@ -48,6 +49,8 @@ private:
     // Parameters
     double c_freq;
     double dt;
+    double zero_vel_thresh;     // below this commanded speed the position is held
+    double foot_valid_radius;   // max foot-to-body distance for a valid foot sample
     double mpc_dt;
     int mpc_horizon;
     LowPassFilter lpf_x_vel, lpf_y_vel, lpf_z_vel;

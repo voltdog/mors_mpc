@@ -13,7 +13,7 @@ class SwingController {
 public:
     SwingController(double timestep, 
         double bx, double by, double l1,
-        double dz_near_ground);
+        double dz_near_ground, double rising_proportion);
 
     void set_gait_params(double t_sw, double t_st, double ref_stride_height);
     // void set_heightmap(const VisionBasedMap& vision_map);

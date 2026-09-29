@@ -38,9 +38,9 @@ double phase_to_time(const std::vector<double>& phi_cur, int leg, double t_sw)
 
 SwingController::SwingController(double timestep, 
                                 double bx, double by, double l1,
-                                double dz_near_ground)
+                                double dz_near_ground, double rising_proportion)
     : dz_near_ground(dz_near_ground), control_dt(timestep),
-      cnt(4, -1), it_swing(4, 0.0), swing_traj_gen(1.0 / timestep),
+      cnt(4, -1), it_swing(4, 0.0), swing_traj_gen(1.0 / timestep, rising_proportion),
       pre_phase_signal(4, STANCE), p_start(4), p_rise(4), p_finish(4),
       d_p_start(4, {0.0, 0.0, 0.0}), dd_p_start(4, {0.0, 0.0, 0.0}),
       p0_b(4), p_finish_local(4),
@@ -119,7 +119,7 @@ SwingController::step(const std::vector<int>& phase_signal,
 
                     segment_start_time[i] = swing_time;
                     segment_duration[i] = remaining_time;
-                    single_segment_z[i] = swing_time >= t_sw * SwingTrajectoryGenerator::rising_proportion;
+                    single_segment_z[i] = swing_time >= t_sw * swing_traj_gen.get_rising_proportion();
                     cnt[i] = -1;
                 }
             }

@@ -133,6 +133,7 @@ void WBICThread::configure(const RobotPhysicalParams& robot, const WBICThreadCon
     joint_vel_min_ = -joint_vel_max_;
 
     wbic_.set_q_entries(config_.Qa_entry, config_.Qf_entry);
+    wbic_.set_contact_limits(config_.ground_fric, config_.fz_min, config_.fz_max);
     wbic_.set_task_gains(config_.body_ori_task_kp,
                          config_.body_ori_task_kd,
                          config_.body_pos_task_kp,

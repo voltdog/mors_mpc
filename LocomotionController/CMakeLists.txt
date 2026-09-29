@@ -162,6 +162,7 @@ set(EXEC_SOURCES  src/main.cpp
                   src/ReferenceGenerator.cpp
                   src/ConvexMpcThread.cpp
                   src/GaitTransition.cpp
+                  src/SimpleGaitScheduler.cpp
                   src/wbic/wbic_control.cpp
                   src/wbic/tasks/wbc_task.cpp
                   src/wbic/tasks/body_ori_task.cpp
@@ -169,7 +170,6 @@ set(EXEC_SOURCES  src/main.cpp
                   src/wbic/tasks/tip_pos_task.cpp
                   ../common/src/Robot.cpp
                   ../common/src/system_functions.cpp
-                  ../common/src/SimpleGaitScheduler.cpp
 )
 add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
 

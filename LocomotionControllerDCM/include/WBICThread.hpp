@@ -17,6 +17,9 @@ struct WBICThreadConfig
     bool debug_mode = false;
     double Qf_entry = 1.0;
     double Qa_entry = 1.0;
+    double ground_fric = 0.3;
+    double fz_min = 5.0;
+    double fz_max = 80.0;
     double body_ori_task_kp = 50.0;
     double body_ori_task_kd = 1.0;
     double body_pos_task_kp = 50.0;

@@ -34,10 +34,6 @@ public:
     static constexpr int max_qp_vars = wbic_types::kMaxQpVars;
     static constexpr int qp_eq_dim = 6;
     static constexpr int max_tasks = 2 + n_leg;
-
-    static constexpr double ground_fric = 0.3;
-    static constexpr double fz_min = 5.0;
-    static constexpr double fz_max = 80.0;
     const std::array<double, 3> leg_jnt_range_max{{1.0, 2.0, 3.0}};
     const std::array<double, 3> leg_jnt_range_min{{-1.0, -2.0, -3.0}};
 
@@ -53,6 +49,7 @@ public:
                 wbic_types::Vector12d& new_tau);
 
     void set_q_entries(double Qa_entry, double Qf_entry);
+    void set_contact_limits(double ground_fric, double fz_min, double fz_max);
     void set_task_gains(double body_ori_task_kp, double body_ori_task_kd,
                         double body_pos_task_kp, double body_pos_task_kd,
                         double tip_pos_task_kp, double tip_pos_task_kd);

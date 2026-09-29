@@ -61,14 +61,9 @@ WBIC_Control::WBIC_Control()
     qp_ineq_offset_buf.setZero();
     qp_solution_buf.setZero();
 
-    // Linearized friction pyramid and vertical force bounds for one support foot.
-    U_support_buf << 0,  0,  1,
-                     0,  0, -1,
-                     1,  0, -ground_fric,
-                    -1,  0, -ground_fric,
-                     0,  1, -ground_fric,
-                     0, -1, -ground_fric;
-    u_support_buf << fz_max, -fz_min, 0, 0, 0, 0;
+    // Support cone is filled in set_contact_limits().
+    U_support_buf.setZero();
+    u_support_buf.setZero();
 
     H_buf.setZero();
 }
@@ -130,6 +125,18 @@ void WBIC_Control::set_q_entries(double Qa_entry, double Qf_entry)
     // Qa penalizes floating-base acceleration correction, Qf penalizes force correction.
     this->Qa_entry = Qa_entry;
     this->Qf_entry = Qf_entry;
+}
+
+void WBIC_Control::set_contact_limits(double ground_fric, double fz_min, double fz_max)
+{
+    // Linearized friction pyramid and vertical force bounds for one support foot.
+    U_support_buf << 0,  0,  1,
+                     0,  0, -1,
+                     1,  0, -ground_fric,
+                    -1,  0, -ground_fric,
+                     0,  1, -ground_fric,
+                     0, -1, -ground_fric;
+    u_support_buf << fz_max, -fz_min, 0, 0, 0, 0;
 }
 
 void WBIC_Control::set_task_gains(double body_ori_task_kp, double body_ori_task_kd,

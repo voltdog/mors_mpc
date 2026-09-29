@@ -20,9 +20,9 @@
 
 class SwingTrajectoryGenerator {
 public:
-    static constexpr double rising_proportion = 0.35;
+    SwingTrajectoryGenerator(double sim_freq, double rising_proportion);
 
-    SwingTrajectoryGenerator(double sim_freq = 200.0);
+    double get_rising_proportion() const { return rising_proportion; }
 
     void set_parameters(double t_swing, double dz_near_ground);
     void set_points(const std::vector<std::array<double, 3>>& p_start,
@@ -62,6 +62,7 @@ private:
         double d_p_start, double dd_p_start, double tf);
 
     double sim_freq;
+    double rising_proportion;  // fraction of swing time spent on foot lift-off
     double inc;
     double dz_near_ground;
     int cnt_stride;

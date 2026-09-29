@@ -15,6 +15,7 @@ PATHS=(
   lcm_msgs
   LocomotionController
   MorsLogger
+  HeightMapBuilder
   ros_ws/src/mors_keyboard_control
   ros_ws/src/robot_mode_controller
   ros_ws/src/mors_ros_msgs
