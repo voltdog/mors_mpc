@@ -22,13 +22,16 @@ find_package(Eigen3 REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
-include(FetchContent)
-FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
-)
-FetchContent_MakeAvailable(yaml-cpp)
+find_package(yaml-cpp CONFIG QUIET)
+if(NOT yaml-cpp_FOUND)
+  include(FetchContent)
+  FetchContent_Declare(
+    yaml-cpp
+    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+    GIT_TAG yaml-cpp-0.8.0
+  )
+  FetchContent_MakeAvailable(yaml-cpp)
+endif()
 
 include(${LCM_USE_FILE})
 set(LCM_MSGS_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../lcm_msgs")

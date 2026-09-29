@@ -84,7 +84,7 @@ Main keys:
 
 ## Viewing Logs
 
-If you use the `--log` flag when starting the robot, the `MorsLogger` module is enabled during execution and continuously writes data from all LCM channels to CSV files in the `~/mors_logs` directory.
+If you use the `--log` flag when starting the robot, the `MorsLogger` module is enabled during execution and continuously writes data from all LCM channels to CSV files in the `~/mors_logs` directory. Logging stops automatically after 120 seconds.
 For plotting and log inspection, [plotjuggler](https://github.com/facontidavide/PlotJuggler) is convenient to use.
 
 ## Configuration
@@ -99,6 +99,13 @@ Main files:
 It is not recommended to modify the other config files.
 
 The path to the configs is defined by the `CONFIGPATH` variable (it is configured automatically by `install.sh`).
+
+## Choose the Control Algorithm
+
+The control algorithm is selected by the `algorithm` parameter in `config/locomotion_controller.yaml`:
+
+- `wbic` - MPC + WBIC without vision (blind locomotion).
+- `vision` - MPC + WBIC with the height map from `HeightMapBuilder`: footholds are adjusted to the terrain height and moved to steppable cells.
 
 ## Render Quality
 
@@ -116,6 +123,7 @@ The environment type is loaded by the `scene` parameter in `config/simulation.ya
 - `boxes`
 - `ramp`
 - `boards`
+- `stumps`
 
 Try different environments and motion parameters using the hotkeys and see how the robot handles various obstacles.
 
@@ -134,6 +142,7 @@ Try different environments and motion parameters using the hotkeys and see how t
 ├── ros_ws/src/mors_keyboard_control
 ├── ros_ws/src/robot_mode_controller
 ├── ros_ws/src/mors_ros_msgs
+├── ros_ws/src/robot_state_viewer
 ├── Simulator
 ├── run.sh
 └── install.sh
@@ -150,6 +159,7 @@ Try different environments and motion parameters using the hotkeys and see how t
 - `ros_ws/src/mors_ros_msgs` - ROS 2 interfaces (`GaitParams.msg`, `RobotCmd.srv`).
 - `ros_ws/src/robot_mode_controller` - ROS 2 node for modes and actions.
 - `ros_ws/src/mors_keyboard_control` - ROS 2 keyboard control node.
+- `ros_ws/src/robot_state_viewer` - ROS 2 node for visualizing the robot state and the height map in rviz.
 - `Simulator` - MuJoCo simulator with [LCM](https://lcm-proj.github.io/lcm/) communication.
 - `run.sh` - script for launching the main components.
 - `install.sh` - dependency installation, build, and environment setup.

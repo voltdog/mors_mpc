@@ -317,8 +317,6 @@ export LCM_SERVO_URL=udpm://224.0.0.7:1557?ttl=1 # for connection with servo mot
 export CLASSPATH="\$MORS_MPC_ROOT/lcm_msgs/lcm_types.jar\${CLASSPATH:+:\$CLASSPATH}"
 
 export PYTHONPATH="\$MORS_MPC_ROOT/lcm_msgs/:\$PYTHONPATH"
-export PYTHONPATH="\$HOME/ProgramFiles/LCM-Grapher/examples/scalar/:\$PYTHONPATH"
-export PYTHONPATH="\$HOME/ProgramFiles/LCM-Grapher/examples/scalar/graphing_ex:\$PYTHONPATH"
 
 export CONFIGPATH=\$MORS_MPC_ROOT/config
 source /opt/ros/jazzy/setup.bash
