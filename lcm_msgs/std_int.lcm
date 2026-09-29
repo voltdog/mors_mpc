@@ -1,6 +1,0 @@
-package mors_msgs;
-
-struct std_int
-{
-    int32_t data;
-}
