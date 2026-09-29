@@ -18,10 +18,10 @@ namespace hmb
 
 struct ChannelsConfig
 {
-    std::string depth_image{"DEPTH_IMAGE"};
-    std::string robot_state{"ROBOT_STATE"};
-    std::string pointcloud{"POINCLOUD"};
-    std::string heightmap{"HEIGHTMAP"};
+    std::string depth_image;
+    std::string robot_state;
+    std::string pointcloud;
+    std::string heightmap;
 };
 
 struct CameraConfig

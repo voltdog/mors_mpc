@@ -128,7 +128,12 @@ Config LoadConfig(const std::string& path) {
         ThrowConfigError(path, "root must be a map");
     }
 
-    const YAML::Node serial_port = root["serial_port"];
+    const YAML::Node section = root["contact_sensor"];
+    if (!section || !section.IsMap()) {
+        ThrowConfigError(path, "contact_sensor must be a map");
+    }
+
+    const YAML::Node serial_port = section["serial_port"];
     if (!serial_port || !serial_port.IsScalar()) {
         ThrowConfigError(path, "serial_port must be a non-empty string");
     }
@@ -144,14 +149,14 @@ Config LoadConfig(const std::string& path) {
     }
 
     config.raw_data_divisor =
-        ParseFiniteFloat(root["raw_data_divisor"], path, "raw_data_divisor");
+        ParseFiniteFloat(section["raw_data_divisor"], path, "raw_data_divisor");
     if (config.raw_data_divisor <= 0.0F) {
         ThrowConfigError(path, "raw_data_divisor must be greater than zero");
     }
 
-    config.calibration_samples = ParseCalibrationSamples(root, path);
+    config.calibration_samples = ParseCalibrationSamples(section, path);
 
-    const YAML::Node thresholds = root["thresholds"];
+    const YAML::Node thresholds = section["thresholds"];
     if (!thresholds || !thresholds.IsMap()) {
         ThrowConfigError(path, "thresholds must be a map");
     }

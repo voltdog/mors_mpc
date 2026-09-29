@@ -44,7 +44,7 @@
 - `map.rolling_margin_cells_x`, `map.rolling_margin_cells_y`
 - `map.local_window_cells_x`, `map.local_window_cells_y`
 - `map.height_min`, `map.height_max`, `map.height_resolution`
-- `channels.heightmap`
+- имя канала карты (`heightmap`) берётся из `config/channels.yaml`
 
 ### Rolling global map
 

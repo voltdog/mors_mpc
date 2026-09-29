@@ -308,19 +308,6 @@ private:
               "Failed to load heightmap config '" + resolved_path + "': " + e.what());
     }
 
-    const YAML::Node channels = root["channels"];
-    if (!channels || !channels["heightmap"]) {
-      throw std::runtime_error(
-              "heightmap config '" + resolved_path +
-              "' missing required key: channels.heightmap");
-    }
-    heightmap_lcm_channel_ = channels["heightmap"].as<std::string>();
-    if (heightmap_lcm_channel_.empty()) {
-      throw std::runtime_error(
-              "heightmap config '" + resolved_path +
-              "': channels.heightmap must be non-empty");
-    }
-
     const YAML::Node map = root["map"];
     if (!map) {
       throw std::runtime_error(
@@ -371,6 +358,10 @@ private:
     depth_lcm_channel_ = GetConfigChannel(root, "depth_image", depth_lcm_channel_);
     pointcloud_lcm_channel_ = GetConfigChannel(root, "pointcloud", pointcloud_lcm_channel_);
     heightmap_lcm_channel_ = GetConfigChannel(root, "heightmap", heightmap_lcm_channel_);
+    if (heightmap_lcm_channel_.empty()) {
+      throw std::runtime_error(
+              "channels config '" + channels_config_path + "' missing required key: heightmap");
+    }
     robot_state_lcm_channel_ = GetConfigChannel(root, "robot_state", robot_state_lcm_channel_);
     servo_state_lcm_channel_ = GetConfigChannel(root, "servo_state", servo_state_lcm_channel_);
     footstep_sequence_lcm_channel_ =

@@ -314,14 +314,15 @@ void TestAbsoluteRawData() {
 
 void TestLoadValidConfig() {
     const TemporaryConfig config_file{R"(
-serial_port: /dev/ttyACM7
-raw_data_divisor: 71.5
-calibration_samples: 3
-thresholds:
-  r1: -12.5
-  l1: -1.25
-  r2: 0.5
-  l2: 42.75
+contact_sensor:
+  serial_port: /dev/ttyACM7
+  raw_data_divisor: 71.5
+  calibration_samples: 3
+  thresholds:
+    r1: -12.5
+    l1: -1.25
+    r2: 0.5
+    l2: 42.75
 )"};
 
     const contact_sensor::Config config =
@@ -341,96 +342,113 @@ void TestRejectInvalidConfigs() {
     ExpectRuntimeError([] { contact_sensor::LoadConfig(""); },
                        "path must not be empty");
 
+    const TemporaryConfig missing_section{R"(
+serial_port: /dev/ttyACM0
+)"};
+    ExpectRuntimeError(
+        [&] { contact_sensor::LoadConfig(missing_section.path()); },
+        "contact_sensor must be a map");
+
     const TemporaryConfig missing_port{R"(
-thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
+contact_sensor:
+  thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(missing_port.path()); },
         "serial_port");
 
     const TemporaryConfig empty_port{R"(
-serial_port: ""
-raw_data_divisor: 71
-calibration_samples: 10
-thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
+contact_sensor:
+  serial_port: ""
+  raw_data_divisor: 71
+  calibration_samples: 10
+  thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(empty_port.path()); },
         "serial_port");
 
     const TemporaryConfig missing_divisor{R"(
-serial_port: /dev/ttyACM0
-calibration_samples: 10
-thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
+contact_sensor:
+  serial_port: /dev/ttyACM0
+  calibration_samples: 10
+  thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(missing_divisor.path()); },
         "raw_data_divisor");
 
     const TemporaryConfig zero_divisor{R"(
-serial_port: /dev/ttyACM0
-raw_data_divisor: 0
-calibration_samples: 10
-thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
+contact_sensor:
+  serial_port: /dev/ttyACM0
+  raw_data_divisor: 0
+  calibration_samples: 10
+  thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(zero_divisor.path()); },
         "raw_data_divisor must be greater than zero");
 
     const TemporaryConfig invalid_divisor{R"(
-serial_port: /dev/ttyACM0
-raw_data_divisor: invalid
-calibration_samples: 10
-thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
+contact_sensor:
+  serial_port: /dev/ttyACM0
+  raw_data_divisor: invalid
+  calibration_samples: 10
+  thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(invalid_divisor.path()); },
         "raw_data_divisor must be a finite number");
 
     const TemporaryConfig missing_sample_count{R"(
-serial_port: /dev/ttyACM0
-raw_data_divisor: 71
-thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
+contact_sensor:
+  serial_port: /dev/ttyACM0
+  raw_data_divisor: 71
+  thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(missing_sample_count.path()); },
         "calibration_samples");
 
     const TemporaryConfig zero_sample_count{R"(
-serial_port: /dev/ttyACM0
-raw_data_divisor: 71
-calibration_samples: 0
-thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
+contact_sensor:
+  serial_port: /dev/ttyACM0
+  raw_data_divisor: 71
+  calibration_samples: 0
+  thresholds: {r1: 1, l1: 2, r2: 3, l2: 4}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(zero_sample_count.path()); },
         "calibration_samples");
 
     const TemporaryConfig missing_leg{R"(
-serial_port: /dev/ttyACM0
-raw_data_divisor: 71
-calibration_samples: 10
-thresholds: {r1: 1, l1: 2, r2: 3}
+contact_sensor:
+  serial_port: /dev/ttyACM0
+  raw_data_divisor: 71
+  calibration_samples: 10
+  thresholds: {r1: 1, l1: 2, r2: 3}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(missing_leg.path()); },
         "thresholds.l2");
 
     const TemporaryConfig invalid_threshold{R"(
-serial_port: /dev/ttyACM0
-raw_data_divisor: 71
-calibration_samples: 10
-thresholds: {r1: 1, l1: invalid, r2: 3, l2: 4}
+contact_sensor:
+  serial_port: /dev/ttyACM0
+  raw_data_divisor: 71
+  calibration_samples: 10
+  thresholds: {r1: 1, l1: invalid, r2: 3, l2: 4}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(invalid_threshold.path()); },
         "thresholds.l1 must be a finite number");
 
     const TemporaryConfig infinite_threshold{R"(
-serial_port: /dev/ttyACM0
-raw_data_divisor: 71
-calibration_samples: 10
-thresholds: {r1: .inf, l1: 2, r2: 3, l2: 4}
+contact_sensor:
+  serial_port: /dev/ttyACM0
+  raw_data_divisor: 71
+  calibration_samples: 10
+  thresholds: {r1: .inf, l1: 2, r2: 3, l2: 4}
 )"};
     ExpectRuntimeError(
         [&] { contact_sensor::LoadConfig(infinite_threshold.path()); },

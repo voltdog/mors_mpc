@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <numbers>
@@ -577,24 +578,32 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         return false;
     }
 
-    if (const YAML::Node channels = root["channels"])
+    // Имена LCM-каналов общие для всех модулей: берём их из channels.yaml рядом с конфигом.
+    const std::filesystem::path channels_path =
+        std::filesystem::path(config_path).parent_path() / "channels.yaml";
+    YAML::Node channels;
+    try
     {
-        if (channels["depth_image"])
-        {
-            config_.channels.depth_image = channels["depth_image"].as<std::string>();
-        }
-        if (channels["robot_state"])
-        {
-            config_.channels.robot_state = channels["robot_state"].as<std::string>();
-        }
-        if (channels["pointcloud"])
-        {
-            config_.channels.pointcloud = channels["pointcloud"].as<std::string>();
-        }
-        if (channels["heightmap"])
-        {
-            config_.channels.heightmap = channels["heightmap"].as<std::string>();
-        }
+        channels = YAML::LoadFile(channels_path.string());
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[HeightMapBuilder] Cannot read channels config '" << channels_path.string()
+                  << "': " << e.what() << std::endl;
+        return false;
+    }
+    try
+    {
+        config_.channels.depth_image = channels["depth_image"].as<std::string>();
+        config_.channels.robot_state = channels["robot_state"].as<std::string>();
+        config_.channels.pointcloud = channels["pointcloud"].as<std::string>();
+        config_.channels.heightmap = channels["heightmap"].as<std::string>();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[HeightMapBuilder] Invalid channels config '" << channels_path.string()
+                  << "': " << e.what() << std::endl;
+        return false;
     }
 
     if (const YAML::Node camera = root["camera"])

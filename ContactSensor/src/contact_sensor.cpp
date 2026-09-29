@@ -253,7 +253,7 @@ int Run()
     const std::string contact_channel =
         LoadContactChannel(config_directory / "channels.yaml");
     const contact_sensor::Config config =
-        contact_sensor::LoadConfig(config_directory / "contact_sensor.yaml");
+        contact_sensor::LoadConfig(config_directory / "sensors.yaml");
 
     lcm::LCM publisher(lcm_url);
     if (!publisher.good())

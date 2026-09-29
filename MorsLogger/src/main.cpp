@@ -25,8 +25,8 @@ int main() {
     cout << "MORS Logger starting..." << endl;
     // load config
     string config_address = mors_sys::GetEnv("CONFIGPATH");
-    string robot_config_address = config_address + "/robot_config.yaml";
-    YAML::Node robot_config = YAML::LoadFile(robot_config_address);
+    string robot_config_address = config_address + "/robot.yaml";
+    YAML::Node robot_config = YAML::LoadFile(robot_config_address)["robot_config"];
     const bool debug_mode = robot_config["debug_mode"] ? robot_config["debug_mode"].as<bool>() : false;
 
     string dt_config_address = config_address + "/timesteps.yaml";

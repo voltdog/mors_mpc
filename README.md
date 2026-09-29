@@ -80,12 +80,10 @@ For plotting and log inspection, [plotjuggler](https://github.com/facontidavide/
 
 All configuration files are located in the `config` directory.
 Main files:
-- MPC controller parameters - `stance_controller_mpc.yaml`
-- Swing controller parameters - `swing_controller.yaml`
-- WBIC parameters - `wbic.yaml`
+- Locomotion controller parameters (MPC, WBIC, swing controller, gait scheduler) - `locomotion_controller.yaml`
 - Simulation parameters - `simulation.yaml`
-- Robot physical parameters - `robot_config.yaml`
-- Maximum/minimum allowed joint angles - `emergency.yaml`
+- Robot physical parameters and maximum/minimum allowed joint angles - `robot.yaml`
+- Sensor parameters (contact sensors, RealSense T265 and D435i) - `sensors.yaml`
 
 It is not recommended to modify the the other config files.
 

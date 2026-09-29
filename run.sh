@@ -121,7 +121,7 @@ assert hasattr(robot_state_msg(), "timestamp")
 
 	config_dir="$SCRIPT_DIR/config/"
 	echo "Config Location: ${config_dir}"
-    robot_config="${config_dir}/robot_config.yaml"
+    locomotion_config="${config_dir}/locomotion_controller.yaml"
     algorithm="$(
         awk '
             /^[[:space:]]*algorithm[[:space:]]*:/ {
@@ -134,7 +134,7 @@ assert hasattr(robot_state_msg(), "timestamp")
                 print value
                 exit
             }
-        ' "$robot_config"
+        ' "$locomotion_config"
     )"
 
     case "$algorithm" in
@@ -142,11 +142,11 @@ assert hasattr(robot_state_msg(), "timestamp")
             echo "Selected Algorithm: ${algorithm}"
             ;;
         "")
-            echo "Missing algorithm in ${robot_config}" >&2
+            echo "Missing algorithm in ${locomotion_config}" >&2
             exit 1
             ;;
         *)
-            echo "Unknown algorithm in ${robot_config}: ${algorithm}" >&2
+            echo "Unknown algorithm in ${locomotion_config}: ${algorithm}" >&2
             echo "Supported algorithms: wbic, vision, dcm" >&2
             exit 1
             ;;

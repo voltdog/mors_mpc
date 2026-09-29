@@ -7,8 +7,8 @@ namespace robot_mode_controller
     {
         // read config
         string config_address = GetEnv("CONFIGPATH");
-        string emerg_config_address = config_address + "/emergency.yaml";
-        YAML::Node emerg_config = YAML::LoadFile(emerg_config_address);
+        string robot_config_address = config_address + "/robot.yaml";
+        YAML::Node emerg_config = YAML::LoadFile(robot_config_address)["emergency"];
         
         for (int i = 0; i < 12; i++)
         {

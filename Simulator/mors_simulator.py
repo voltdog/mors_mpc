@@ -37,7 +37,6 @@ import math
 from scipy.spatial.transform import Rotation
 
 class Hardware_Level_Sim():
-    DEPTH_IMAGE_CHANNEL = "DEPTH_IMAGE"
     DEPTH_IMAGE_DEFAULT_FPS = 10
     DEPTH_IMAGE_DEFAULT_SIZE = [424, 240]
     DEPTH_IMAGE_ALLOWED_SIZES = {(424, 240), (640, 480)}
@@ -136,10 +135,14 @@ class Hardware_Level_Sim():
         self.joint_dir = sim_config.get("joint_dir", [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
         self.joint_offset = sim_config.get("joint_offset", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-        self.vel_max = sim_config.get("vel_max", [28.0, 28.0, 14.0])
-        self.tau_max = sim_config.get("tau_max", [6.0, 6.0, 12.0])
-        self.gear_ratio = sim_config.get("gear_ratio", 10.0)
-        self.kt = sim_config.get("kt", 0.74)
+        # параметры приводов общие с реальным роботом
+        with open(f"{BASE_DIR}/../config/robot.yaml", "r") as f:
+            robot_config = yaml.safe_load(f)["robot_config"]
+
+        self.vel_max = robot_config["vel_max"]
+        self.tau_max = robot_config["tau_max"]
+        self.gear_ratio = robot_config["gear_ratio"]
+        self.kt = robot_config["kt"]
 
         depth_image_enabled = sim_config.get("depth_image", False)
         if not isinstance(depth_image_enabled, bool):
@@ -150,10 +153,12 @@ class Hardware_Level_Sim():
         self.depth_image_enabled = depth_image_enabled
         self.depth_image_fps = self.DEPTH_IMAGE_DEFAULT_FPS
         self.depth_image_size = self.DEPTH_IMAGE_DEFAULT_SIZE[:]
-        self.depth_image_channel = self.DEPTH_IMAGE_CHANNEL
         if self.depth_image_enabled:
-            depth_image_fps = sim_config.get("depth_image_fps", self.DEPTH_IMAGE_DEFAULT_FPS)
-            depth_image_size = sim_config.get("depth_image_size", self.DEPTH_IMAGE_DEFAULT_SIZE)
+            # симулируемая камера повторяет поток реальной D435i
+            with open(f"{BASE_DIR}/../config/sensors.yaml", "r") as f:
+                d435i_stream = yaml.safe_load(f)["realsense_camera_d435i"]["stream"]
+            depth_image_fps = d435i_stream["fps"]
+            depth_image_size = [d435i_stream["width"], d435i_stream["height"]]
             self._validate_depth_config(depth_image_fps, depth_image_size)
             self.depth_image_fps = depth_image_fps
             self.depth_image_size = [depth_image_size[0], depth_image_size[1]]
@@ -162,13 +167,13 @@ class Hardware_Level_Sim():
         with open(f"{BASE_DIR}/../config/channels.yaml", "r") as f:
             lcm_config = yaml.safe_load(f)
 
-        self.lcm_servo_cmd_channel = lcm_config.get("servo_cmd", "SERVO_CMD")
-        self.lcm_servo_state_channel = lcm_config.get("servo_state", "SERVO_STATE")
-        self.lcm_imu_channel = lcm_config.get("imu_data", "IMU_DATA")
-        self.lcm_odom_channel = lcm_config.get("odometry", "ODOMETRY")
-        self.lcm_contact_sensor_channel = lcm_config.get("contact_state", "CONTACT_SENSOR")
-        self.lcm_robot_state_channel = lcm_config.get("robot_state", "ROBOT_STATE")
-        self.depth_image_channel = lcm_config.get("depth_image", self.DEPTH_IMAGE_CHANNEL)
+        self.lcm_servo_cmd_channel = lcm_config["servo_cmd"]
+        self.lcm_servo_state_channel = lcm_config["servo_state"]
+        self.lcm_imu_channel = lcm_config["imu_data"]
+        self.lcm_odom_channel = lcm_config["odometry"]
+        self.lcm_contact_sensor_channel = lcm_config["contact_state"]
+        self.lcm_robot_state_channel = lcm_config["robot_state"]
+        self.depth_image_channel = lcm_config["depth_image"]
 
         self.lcm_locomotion_url = os.environ.get("LCM_LOCOMOTION_URL")
         self.lcm_servo_url = os.environ.get("LCM_SERVO_URL")

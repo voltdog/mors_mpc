@@ -36,10 +36,10 @@ int main() {
     cout << "[LocomotionControllerDCM]: Starting..." << endl;
     // load config
     string config_address = mors_sys::GetEnv("CONFIGPATH");
-    string robot_config_address = config_address + "/robot_config.yaml";
+    string robot_config_address = config_address + "/robot.yaml";
 
     // robot physical params
-    YAML::Node robot_config = YAML::LoadFile(robot_config_address);
+    YAML::Node robot_config = YAML::LoadFile(robot_config_address)["robot_config"];
     const bool debug_mode = robot_config["debug_mode"] ? robot_config["debug_mode"].as<bool>() : false;
     RobotPhysicalParams robot;
     robot.bx = robot_config["bx"].as<double>(); 
@@ -68,9 +68,11 @@ int main() {
         robot.joint_vel_max_array[i] = robot_config["vel_max"][i].as<double>();
     }
 
+    string locomotion_config_address = config_address + "/locomotion_controller.yaml";
+    const YAML::Node locomotion_config = YAML::LoadFile(locomotion_config_address);
+
     // mpc params
-    string mpc_config_address = config_address + "/stance_controller_mpc.yaml";
-    YAML::Node mpc_config = YAML::LoadFile(mpc_config_address);
+    YAML::Node mpc_config = locomotion_config["stance_controller_mpc"];
     int horizon = mpc_config["horizon"].as<int>();
     double friction = mpc_config["friction"].as<double>();
     double f_min = mpc_config["f_min"].as<double>();
@@ -88,8 +90,7 @@ int main() {
     cout << "Q_gain: " << Q_gain << " | R_gain: " << R_gain << endl;
 
     // gait scheduler params
-    string gait_scheduler_config_address = config_address + "/gait_scheduler.yaml";
-    YAML::Node gait_sched_config = YAML::LoadFile(gait_scheduler_config_address);
+    YAML::Node gait_sched_config = locomotion_config["gait_scheduler"];
     double start_td_detecting = gait_sched_config["start_td_detecting"].as<double>(); 
     // дебаунс детектора контакта (опционально, есть значения по умолчанию)
     int contact_debounce = gait_sched_config["contact_debounce"]
@@ -98,8 +99,7 @@ int main() {
                                ? gait_sched_config["vz_contact_thresh"].as<double>() : 0.1;
 
     // swing controller params
-    string swing_controller_config_address = config_address + "/swing_controller.yaml";
-    YAML::Node swing_controller_config = YAML::LoadFile(swing_controller_config_address);
+    YAML::Node swing_controller_config = locomotion_config["swing_controller"];
     std::array<double, 4> interleave_x; 
     std::array<double, 4> interleave_y;
     for (int i=0; i<4; i++)
@@ -143,8 +143,7 @@ int main() {
     double mpc_dt = dt_config["stance_controller_dt"].as<double>(); 
     double wbic_dt = dt_config["wbic_controller_dt"].as<double>();
 
-    string wbic_config_address = config_address + "/wbic.yaml";
-    YAML::Node wbic_config = YAML::LoadFile(wbic_config_address);
+    YAML::Node wbic_config = locomotion_config["wbic"];
     WBICThreadConfig wbic_thread_config;
     wbic_thread_config.timestep = wbic_dt;
     wbic_thread_config.debug_mode = debug_mode;

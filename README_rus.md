@@ -108,12 +108,10 @@ ros2 run mors_keyboard_control mors_keyboard_control
 
 Все файлы конфигурации находятся в папке `config`.
 Список основных файлов: 
-- Параметры MPC-контроллера - `stance_controller_mpc.yaml`
-- Параметры swing-контроллера - `swing_controller.yaml`
-- Параметры WBIC - `wbic.yaml`
+- Параметры контроллера локомоции (MPC, WBIC, swing-контроллер, планировщик походки) - `locomotion_controller.yaml`
 - Параматры симуляции - `simulation.yaml`
-- Физические параметры робота - `robot_config.yaml`
-- Максимально/минимальные допустимые углы суставов - `emergency.yaml`
+- Физические параметры робота и максимально/минимальные допустимые углы суставов - `robot.yaml`
+- Параметры датчиков (датчики контакта, RealSense T265 и D435i) - `sensors.yaml`
 
 Остальные параметры трогать не стоит.
 

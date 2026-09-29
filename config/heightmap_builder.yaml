@@ -1,12 +1,4 @@
-channels:
-  depth_image: "DEPTH_IMAGE"
-  robot_state: "ROBOT_STATE"
-  pointcloud: "POINCLOUD"
-  heightmap: "HEIGHTMAP"
-
 camera:
-  width: 424
-  height: 240
   fx: 212.101 #216.5
   fy: 212.101 #216.5
   cx: 213.576 #211.5

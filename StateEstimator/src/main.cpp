@@ -121,7 +121,7 @@ void T265QuaternionToEuler(
 
 RobotPhysicalParams LoadRobotPhysicalParams(const std::string& path)
 {
-    const YAML::Node robot_config = YAML::LoadFile(path);
+    const YAML::Node robot_config = YAML::LoadFile(path)["robot_config"];
     RobotPhysicalParams robot;
     robot.bx = robot_config["bx"].as<double>();
     robot.by = robot_config["by"].as<double>();
@@ -150,6 +150,7 @@ struct ChannelsConfig
     std::string gait_phase;
     std::string robot_state;
     std::string robot_state_check;
+    std::string depth_image;
 };
 
 struct StateEstimatorConfig
@@ -181,14 +182,11 @@ struct D435iConfig
     int height{240};
     int fps{30};
     double publish_fps{30.0};
-    double min_depth_m{0.105};
-    double max_depth_m{3.0};
     bool verbose{false};
 
     // Контур высот берёт кадр внутри процесса и в LCM его не отдаёт (см. ТЗ),
-    // но мост robot_state_viewer -> rviz читает картинку только с этого канала,
-    // поэтому кадр дополнительно уходит наружу как телеметрия.
-    std::string depth_image_channel{"DEPTH_IMAGE"};
+    // но мост robot_state_viewer -> rviz читает картинку только с канала
+    // depth_image, поэтому кадр дополнительно уходит наружу как телеметрия.
     bool publish_depth_image{false};
     bool compression_enabled{false};
     int zlib_level{1};
@@ -251,7 +249,8 @@ ChannelsConfig LoadChannels(const std::string& path)
         root["contact_state"].as<std::string>(),
         root["gait_phase"].as<std::string>(),
         root["robot_state"].as<std::string>(),
-        root["robot_state_check"].as<std::string>()};
+        root["robot_state_check"].as<std::string>(),
+        root["depth_image"].as<std::string>()};
 }
 
 StateEstimatorConfig LoadStateEstimatorConfig(
@@ -437,7 +436,7 @@ StateEstimatorConfig LoadStateEstimatorConfig(
 
 T265Config LoadT265Config(const std::string& path)
 {
-    const YAML::Node root = YAML::LoadFile(path);
+    const YAML::Node root = YAML::LoadFile(path)["realsense_camera"];
     T265Config config;
     if (root["stream"] && root["stream"]["serial"])
     {
@@ -448,7 +447,7 @@ T265Config LoadT265Config(const std::string& path)
 
 D435iConfig LoadD435iConfig(const std::string& path)
 {
-    const YAML::Node root = YAML::LoadFile(path);
+    const YAML::Node root = YAML::LoadFile(path)["realsense_camera_d435i"];
     D435iConfig config;
     if (const YAML::Node stream = root["stream"])
     {
@@ -457,16 +456,6 @@ D435iConfig LoadD435iConfig(const std::string& path)
         if (stream["height"]) config.height = stream["height"].as<int>();
         if (stream["fps"]) config.fps = stream["fps"].as<int>();
         if (stream["publish_fps"]) config.publish_fps = stream["publish_fps"].as<double>();
-    }
-    if (const YAML::Node depth = root["depth"])
-    {
-        if (depth["min_depth_m"]) config.min_depth_m = depth["min_depth_m"].as<double>();
-        if (depth["max_depth_m"]) config.max_depth_m = depth["max_depth_m"].as<double>();
-    }
-    if (const YAML::Node channels = root["channels"])
-    {
-        if (channels["depth_image"])
-            config.depth_image_channel = channels["depth_image"].as<std::string>();
     }
     if (const YAML::Node compression = root["compression"])
     {
@@ -480,10 +469,6 @@ D435iConfig LoadD435iConfig(const std::string& path)
         if (runtime["verbose"]) config.verbose = runtime["verbose"].as<bool>();
         if (runtime["publish_depth_image"])
             config.publish_depth_image = runtime["publish_depth_image"].as<bool>();
-    }
-    if (config.depth_image_channel.empty())
-    {
-        config.publish_depth_image = false;
     }
     return config;
 }
@@ -576,9 +561,9 @@ public:
           se_config_(LoadStateEstimatorConfig(
               ConfigPath(config_dir_, "timesteps.yaml"),
               ConfigPath(config_dir_, "state_estimator.yaml"))),
-          robot_params_(LoadRobotPhysicalParams(ConfigPath(config_dir_, "robot_config.yaml"))),
-          t265_config_(LoadT265Config(ConfigPath(config_dir_, "realsense_camera.yaml"))),
-          d435i_config_(LoadD435iConfig(ConfigPath(config_dir_, "realsense_camera_d435i.yaml"))),
+          robot_params_(LoadRobotPhysicalParams(ConfigPath(config_dir_, "robot.yaml"))),
+          t265_config_(LoadT265Config(ConfigPath(config_dir_, "sensors.yaml"))),
+          d435i_config_(LoadD435iConfig(ConfigPath(config_dir_, "sensors.yaml"))),
           depth_config_(LoadDepthProcessingConfig(ConfigPath(config_dir_, "heightmap_builder.yaml"))),
           imu_lcm_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
           servo_lcm_(std::make_unique<lcm::LCM>(servo_lcm_url_)),
@@ -624,7 +609,7 @@ public:
                   << "  depth/state sync max dt: " << depth_config_.max_sync_dt_sec << " sec\n"
                   << "  depth image telemetry: "
                   << (d435i_config_.publish_depth_image
-                          ? d435i_config_.depth_image_channel +
+                          ? channels_.depth_image +
                                 (d435i_config_.compression_enabled
                                      ? " (zlib if smaller)"
                                      : " (raw u16 mm)")
@@ -1365,7 +1350,7 @@ private:
 
         msg.data_size = static_cast<int32_t>(payload.size());
         msg.data = std::move(payload);
-        depth_image_publisher_->publish(d435i_config_.depth_image_channel, &msg);
+        depth_image_publisher_->publish(channels_.depth_image, &msg);
     }
 
     DepthFrameData BuildDepthFrameData(
@@ -1404,8 +1389,8 @@ private:
         data.cam_y.reserve(data.cam_x.capacity());
         data.cam_z.reserve(data.cam_x.capacity());
 
-        const double min_depth = std::max(depth_config_.min_depth_m, d435i_config_.min_depth_m);
-        const double max_depth = std::min(depth_config_.max_depth_m, d435i_config_.max_depth_m);
+        const double min_depth = depth_config_.min_depth_m;
+        const double max_depth = depth_config_.max_depth_m;
 
         for (int v = 0; v < height; v += downsample)
         {
