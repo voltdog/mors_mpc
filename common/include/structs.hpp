@@ -270,30 +270,6 @@ struct WbcDesiredCommand
     // std::uint64_t sequence = 0;
 };
 
-struct WbcOutputData
-{
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    WbcOutputData()
-    {
-        joint_pos.setZero();
-        joint_vel.setZero();
-        joint_torque.setZero();
-        motor_kp.setZero();
-        motor_kd.setZero();
-        grf.setZero();
-    }
-
-    JointVector12d joint_pos;
-    JointVector12d joint_vel;
-    JointVector12d joint_torque;
-    JointVector12d motor_kp;
-    JointVector12d motor_kd;
-    JointVector12d grf;
-    bool valid = false;
-    // std::uint64_t sequence = 0;
-};
-
 struct FootPlanData
 {
     FootSequence foot_sequence;

@@ -77,49 +77,4 @@ struct LegData
     VectorXd l2_kd; 
 };
 
-struct RobotPhysicalParams
-{
-    double M_b;
-    MatrixXd I_b;
-    double bx, by;
-
-    double m1, m2, m3;
-    double l1, l2, l3;
-    double d1, d2, d3;
-    double l_cx_3, l_cz_2;
-    
-    double g;
-
-    double joint_tau_max_array[3];
-    double kt;
-    double gear_ratio;
-};
-
-struct ImuData
-{
-    VectorXd orientation_euler;
-    VectorXd orientation_quaternion;
-    VectorXd ang_vel;
-    VectorXd lin_accel;
-};
-
-struct ServoData
-{
-    VectorXd pos;
-    VectorXd vel;
-    VectorXd torq;
-    VectorXd kp;
-    VectorXd kd;
-};
-
-struct Odometry
-{
-    VectorXd position;
-    VectorXd orientation;
-    VectorXd lin_vel;
-    VectorXd ang_vel;
-};
-
-
-
 #endif //_structs_hpp_

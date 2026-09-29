@@ -6,7 +6,6 @@
 #include "contact_source.hpp"
 #include "gm_force_observer.hpp"
 #include "heightmap_residual_estimator.hpp"
-#include "low_pass_filtering.hpp"
 #include "robot_state_source.hpp"
 #include "sensor_fusion.hpp"
 #include "KalmanMIT.hpp"

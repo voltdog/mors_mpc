@@ -41,7 +41,6 @@ public:
     void configure(const RobotPhysicalParams& robot, const WBICThreadConfig& config);
     void start_thread(LCMExchanger& lcm_exchanger);
     void set_desired_command(const WbcDesiredCommand& desired_command);
-    WbcOutputData get_last_output() const;
 
 private:
     using Clock = std::chrono::steady_clock;
@@ -69,9 +68,6 @@ private:
 
     WbcDesiredCommand desired_command_;
     mutable std::mutex desired_mutex_;
-
-    WbcOutputData last_output_;
-    mutable std::mutex output_mutex_;
 
     std::thread worker_thread_;
     std::atomic<bool> running_{false};
