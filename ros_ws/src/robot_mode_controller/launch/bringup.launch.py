@@ -87,7 +87,7 @@ def generate_launch_description():
     )
 
     ld = LaunchDescription(launch_args)
-    ld.add_action(joy_node)
+    # ld.add_action(joy_node)
     # ld.add_action(radiolink_control_node)
     ld.add_action(robot_mode_node)
 

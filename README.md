@@ -1,6 +1,6 @@
 # MORS Quadruped Robot Control
 
-This repository contains the control stack for the [MORS](https://docs.voltbro.ru/mors/) quadruped robot, using an MPC/WBIC controller + Vision-based height map builder. [MuJoCo](https://mujoco.org/) is used for simulation. Commands can be sent through the ROS 2 `keyboard_teleop` interface.
+This repository contains the control stack for the [MORS](https://docs.voltbro.ru/mors/) quadruped robot, using an MPC/WBIC controller + Vision-based height map builder. [MuJoCo](https://mujoco.org/) is used for simulation. Commands can be sent through the ROS 2 interface.
 
 ![Watch the video](./pictures/vision.png)
 
@@ -18,7 +18,7 @@ The control algorithm is based on the following publications:
 ## Requirements
 
 - Ubuntu 24.x
-- [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/index.html) (`/opt/ros/jazzy`)
+- [ROS 2 Jazzy Desktop](https://docs.ros.org/en/jazzy/index.html) (`/opt/ros/jazzy`)
 - `sudo` access
 
 ## Quick Start
@@ -29,7 +29,7 @@ The control algorithm is based on the following publications:
 cd ~
 git clone https://github.com/voltdog/mors_quadruped.git
 cd mors_quadruped
-chmod +x install.sh start_controller.sh
+chmod +x install.sh run.sh
 ./install.sh
 source ~/.bashrc
 ```
@@ -45,7 +45,7 @@ Start the simulator together with the locomotion controller:
 Start with the logger enabled:
 
 ```bash
-./start_controller.sh --sim --log
+./run.sh --sim --log
 ```
 
 If you want to watch the heightmap in rviz:
@@ -66,7 +66,7 @@ Then run the following in a second terminal:
 ros2 run mors_keyboard_control mors_keyboard_control
 ```
 
-Rviz-config for the heightmap visualization is located in `ros_ws/src/mors_keyboard_control/config/rviz_config.rviz`.
+Rviz-config for the heightmap visualization is located in `ros_ws/src/robot_state_viewer/rviz/rviz_config.rviz`.
 
 ## Keyboard Control
 
@@ -84,7 +84,7 @@ Main keys:
 
 ## Viewing Logs
 
-If you use the `--log` flag when starting the robot, the `MorsLogger` module is enabled during execution and continuously writes data from all LCM channels to CSV files in the `mors_logs` directory.
+If you use the `--log` flag when starting the robot, the `MorsLogger` module is enabled during execution and continuously writes data from all LCM channels to CSV files in the `~/mors_logs` directory.
 For plotting and log inspection, [plotjuggler](https://github.com/facontidavide/PlotJuggler) is convenient to use.
 
 ## Configuration
@@ -96,7 +96,7 @@ Main files:
 - Robot physical parameters and maximum/minimum allowed joint angles - `robot.yaml`
 - Sensor parameters (contact sensors, RealSense T265 and D435i) - `sensors.yaml`
 
-It is not recommended to modify the the other config files.
+It is not recommended to modify the other config files.
 
 The path to the configs is defined by the `CONFIGPATH` variable (it is configured automatically by `install.sh`).
 
@@ -104,11 +104,11 @@ The path to the configs is defined by the `CONFIGPATH` variable (it is configure
 
 There are two render quality modes: `low` and `high`. The default is `low`. In this mode, rendering shadows, reflections and sky box is turned off. This allows to significantly increase the simulation speed on less powerful machines. If you have a good GPU and want to see better graphics, you can switch to `high` mode.
 
-You can choose render quality in the file `config\simulation.yaml`. Simply change the parameter `render_quality` from `low` to `high`. This parameter turns on rendering shadows, reflections and sky box. 
+You can choose render quality in the file `config/simulation.yaml`. Simply change the parameter `render_quality` from `low` to `high`. This parameter turns on rendering shadows, reflections and sky box. 
 
 ## Choose the Robot Environment
 
-The environment type is loaded by the `scene` parameter in `config\simulation.yaml`. You can choose one of the following environments:
+The environment type is loaded by the `scene` parameter in `config/simulation.yaml`. You can choose one of the following environments:
 
 - `flat`
 - `stairs`
@@ -119,7 +119,7 @@ The environment type is loaded by the `scene` parameter in `config\simulation.ya
 
 Try different environments and motion parameters using the hotkeys and see how the robot handles various obstacles.
 
-![Enironments](./pictures/environments.png)
+![Environments](./pictures/environments.png)
 
 ## Project Structure
 
@@ -151,7 +151,7 @@ Try different environments and motion parameters using the hotkeys and see how t
 - `ros_ws/src/robot_mode_controller` - ROS 2 node for modes and actions.
 - `ros_ws/src/mors_keyboard_control` - ROS 2 keyboard control node.
 - `Simulator` - MuJoCo simulator with [LCM](https://lcm-proj.github.io/lcm/) communication.
-- `start_controller.sh` - script for launching the main components.
+- `run.sh` - script for launching the main components.
 - `install.sh` - dependency installation, build, and environment setup.
 
 ## Manual Rebuild (If Needed)
@@ -162,7 +162,7 @@ bash lcm_gen.sh
 
 source /opt/ros/jazzy/setup.bash
 cd ../ros_ws
-colcon build --symlink-install --packages-select mors_ros_msgs robot_mode_controller mors_keyboard_control
+colcon build --symlink-install --packages-select mors_ros_msgs robot_mode_controller mors_keyboard_control robot_state_viewer
 cd ..
 
 cmake -S LocomotionController -B LocomotionController/build -DCMAKE_BUILD_TYPE=Release

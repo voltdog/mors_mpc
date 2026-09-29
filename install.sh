@@ -265,7 +265,7 @@ build_ros_workspace() {
 
   (
     cd "$REPO_ROOT/ros_ws"
-    colcon build --symlink-install --packages-select mors_ros_msgs robot_mode_controller mors_keyboard_control --cmake-args -Wno-deprecated
+    colcon build --symlink-install --packages-select mors_ros_msgs robot_mode_controller mors_keyboard_control robot_state_viewer --cmake-args -Wno-deprecated
   )
 }
 
@@ -311,6 +311,9 @@ export PYTHONPATH=/opt/openrobots/lib/python3.12/site-packages:\$PYTHONPATH
 export CMAKE_PREFIX_PATH=/opt/openrobots:\$CMAKE_PREFIX_PATH
 
 export LCM_JAR=/usr/share/java/lcm.jar
+export LCM_DEFAULT_URL=udpm://224.0.0.7:1557?ttl=1
+export LCM_LOCOMOTION_URL='udpm://239.255.76.67:7667?ttl=0' # for locomotion controller
+export LCM_SERVO_URL=udpm://224.0.0.7:1557?ttl=1 # for connection with servo motors
 export CLASSPATH="\$MORS_MPC_ROOT/lcm_msgs/lcm_types.jar\${CLASSPATH:+:\$CLASSPATH}"
 
 export PYTHONPATH="\$MORS_MPC_ROOT/lcm_msgs/:\$PYTHONPATH"
@@ -353,7 +356,7 @@ main() {
 
   log "Installation complete."
   log "Run: source ~/.bashrc"
-  log "Then start simulation with: ./start_controller.sh --sim"
+  log "Then start simulation with: ./run.sh --sim"
 }
 
 main "$@"

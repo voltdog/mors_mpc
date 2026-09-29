@@ -19,8 +19,10 @@ PATHS=(
   ros_ws/src/mors_keyboard_control
   ros_ws/src/robot_mode_controller
   ros_ws/src/mors_ros_msgs
+  ros_ws/src/robot_state_viewer
   Simulator
   pictures
+  run.sh
   install.sh
   README.md
   README_rus.md
