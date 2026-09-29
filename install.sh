@@ -278,6 +278,9 @@ build_cpp_modules() {
 
   cmake -Wno-deprecated -S "$REPO_ROOT/MorsLogger" -B "$REPO_ROOT/MorsLogger/build" -DCMAKE_BUILD_TYPE=Release
   cmake --build "$REPO_ROOT/MorsLogger/build" -j "$CPP_NUM_JOBS"
+
+  cmake -Wno-deprecated -S "$REPO_ROOT/HeightMapBuilder" -B "$REPO_ROOT/HeightMapBuilder/build" -DCMAKE_BUILD_TYPE=Release
+  cmake --build "$REPO_ROOT/HeightMapBuilder/build" -j "$CPP_NUM_JOBS"
 }
 
 update_bashrc() {

@@ -1,4 +1,4 @@
-algorithm: "dcm" # wbic vision dcm 
+algorithm: "vision" # wbic vision dcm 
 
 stance_controller_mpc:
   horizon: 16

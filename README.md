@@ -1,16 +1,18 @@
 # MORS Quadruped Robot Control
 
-This repository contains the basic control stack for the [MORS](https://docs.voltbro.ru/mors/) quadruped robot, using an MPC/WBIC controller. [MuJoCo](https://mujoco.org/) is used for simulation. Commands can be sent through the ROS 2 `keyboard_teleop` interface.
+This repository contains the control stack for the [MORS](https://docs.voltbro.ru/mors/) quadruped robot, using an MPC/WBIC controller + Vision-based height map builder. [MuJoCo](https://mujoco.org/) is used for simulation. Commands can be sent through the ROS 2 `keyboard_teleop` interface.
 
-Click on the picture below to watch the video:
+![Watch the video](./pictures/vision.png)
 
-[![Watch the video](https://i9.ytimg.com/vi_webp/28EshOERJ94/mqdefault.webp?v=69bc15a6&sqp=CNTQms4G&rs=AOn4CLBik6T9q3Eg3SajVOnM9THA6gmlKw)](https://youtu.be/28EshOERJ94?si=7QsEtfh_oUpAAv3s)
+Here is the link to the video demonstration of the WBIC+MPC in action: [https://youtu.be/28EshOERJ94](https://youtu.be/28EshOERJ94?si=7QsEtfh_oUpAAv3s)
 
 The control algorithm is based on the following publications:
 
 - Di Carlo, Jared, et al. "Dynamic locomotion in the mit cheetah 3 through convex model-predictive control." 2018 IEEE/RSJ international conference on intelligent robots and systems (IROS). IEEE, 2018. [Link](https://dspace.mit.edu/handle/1721.1/138000)
 
 - Kim, Donghyun, et al. "Highly dynamic quadruped locomotion via whole-body impulse control and model predictive control." arXiv preprint arXiv:1909.06586, 2019. [Link](https://arxiv.org/abs/1909.06586)
+
+- Kim, Donghyun et al. “Vision Aided Dynamic Exploration of Unstructured Terrain with a Small-Scale Quadruped Robot.” 2020 IEEE International Conference on Robotics and Automation (ICRA) (2020): 2464-2470. [Link](https://dspace.mit.edu/entities/publication/580c4721-a611-4d73-8b53-53a58434aebf)
 
 
 ## Requirements
@@ -37,7 +39,7 @@ source ~/.bashrc
 Start the simulator together with the locomotion controller:
 
 ```bash
-./start_controller.sh --sim
+./run.sh --sim
 ```
 
 Start with the logger enabled:
@@ -45,6 +47,13 @@ Start with the logger enabled:
 ```bash
 ./start_controller.sh --sim --log
 ```
+
+If you want to watch the heightmap in rviz:
+
+```bash
+./run.sh --sim --rviz
+```
+
 
 After launch, wait until the following message appears in the console:
 ```
@@ -56,6 +65,8 @@ Then run the following in a second terminal:
 ```bash
 ros2 run mors_keyboard_control mors_keyboard_control
 ```
+
+Rviz-config for the heightmap visualization is located in `ros_ws/src/mors_keyboard_control/config/rviz_config.rviz`.
 
 ## Keyboard Control
 
@@ -116,6 +127,7 @@ Try different environments and motion parameters using the hotkeys and see how t
 .
 ├── common
 ├── config
+├── HeightMapBuilder
 ├── lcm_msgs
 ├── LocomotionController
 ├── MorsLogger
@@ -123,7 +135,7 @@ Try different environments and motion parameters using the hotkeys and see how t
 ├── ros_ws/src/robot_mode_controller
 ├── ros_ws/src/mors_ros_msgs
 ├── Simulator
-├── start_controller.sh
+├── run.sh
 └── install.sh
 ```
 
@@ -132,7 +144,8 @@ Try different environments and motion parameters using the hotkeys and see how t
 - `common` - shared C++ types, utility functions, leg models, and URDF files.
 - `config` - YAML configs for the controller, simulation, safety limits, and channels.
 - `lcm_msgs` - `.lcm` message definitions and [LCM](https://lcm-proj.github.io/lcm/) type generation (`lcm_gen.sh`).
-- `LocomotionController` - the main C++ controller (`locomotionControllerMPC`).
+- `HeightMapBuilder` - C++ vision-based height map builder (`height_map_builder`).
+- `LocomotionController` - the main C++ controller containing MPC and WBIC(`locomotionControllerMPC`).
 - `MorsLogger` - C++ telemetry logger (`mors_logger`).
 - `ros_ws/src/mors_ros_msgs` - ROS 2 interfaces (`GaitParams.msg`, `RobotCmd.srv`).
 - `ros_ws/src/robot_mode_controller` - ROS 2 node for modes and actions.
@@ -157,6 +170,9 @@ cmake --build LocomotionController/build -j"$(nproc)"
 
 cmake -S MorsLogger -B MorsLogger/build -DCMAKE_BUILD_TYPE=Release
 cmake --build MorsLogger/build -j"$(nproc)"
+
+cmake -S HeightMapBuilder -B HeightMapBuilder/build -DCMAKE_BUILD_TYPE=Release
+cmake --build HeightMapBuilder/build -j"$(nproc)"
 ```
 
 ## Publications
@@ -168,4 +184,3 @@ If you use this work in an academic context, please cite one of the following pu
 
 - В. М. Буданов, В. А. Данилов, Д. В. Капытов, and К. В. Климов. Малогабаритный четырехногий шагающий робот на базе бесколлекторных моторов. Известия Российской академии наук. Теория и системы управления, (3):152–176, 2025. 
 
-- К. В. Климов, Д. В. Капытов, В. А. Данилов, and А. А. Романов. Разработка конструкции компактной шагающей машины на электрических приводах для исследовательских задач. Известия высших учебных заведений. Машиностроение, 11(788), 2025.
