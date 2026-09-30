@@ -70,6 +70,14 @@ int main() {
 
     string locomotion_config_address = config_address + "/locomotion_controller.yaml";
     const YAML::Node locomotion_config = YAML::LoadFile(locomotion_config_address);
+    const string vel_cmd_frame = locomotion_config["vel_cmd_frame"]
+                                     ? locomotion_config["vel_cmd_frame"].as<string>() : "local";
+    if (vel_cmd_frame != "local" && vel_cmd_frame != "global") {
+        cerr << "[LocomotionControllerDCM]: vel_cmd_frame must be 'local' or 'global'" << endl;
+        return -1;
+    }
+    const bool vel_cmd_is_local = (vel_cmd_frame == "local");
+    cout << "[LocomotionControllerDCM]: vel_cmd_frame: " << vel_cmd_frame << endl;
 
     // mpc params
     YAML::Node mpc_config = locomotion_config["stance_controller_mpc"];
@@ -385,9 +393,14 @@ int main() {
             foot_pos_global[2] = leg_state.r2_pos;
             foot_pos_global[3] = leg_state.l2_pos;
 
-            // transform robot command velocity to WCS
-            Vector3d cmd_loc_lin_vel = robot_cmd.lin_vel;
-            robot_cmd.lin_vel = R_body_yaw_align * cmd_loc_lin_vel;
+            // command velocity in local frame (used by line/x hold) and in WCS
+            Vector3d cmd_loc_lin_vel;
+            if (vel_cmd_is_local) {
+                cmd_loc_lin_vel = robot_cmd.lin_vel;
+                robot_cmd.lin_vel = R_body_yaw_align * cmd_loc_lin_vel;
+            } else {
+                cmd_loc_lin_vel = R_body_yaw_align.transpose() * robot_cmd.lin_vel;
+            }
 
             const bool translation_command_is_zero =
                 std::abs(cmd_loc_lin_vel(X)) < x_hold_deadband &&

@@ -1,0 +1,10 @@
+date=2026-09-30 12:50:00
+algorithm=vision
+scene=flat
+body_z=0.2
+t_sw=0.26
+t_st=0.35
+stride_height=0.06
+ref_velocity_x=0.6
+walk_time=10.0
+ramp_time=2.0

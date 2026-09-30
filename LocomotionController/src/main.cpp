@@ -41,9 +41,17 @@ int main() {
     const string algorithm = locomotion_config["algorithm"] ? locomotion_config["algorithm"].as<string>() : "";
     const bool use_heightmap = (algorithm == "vision");
     const bool debug_mode = robot_config["debug_mode"] ? robot_config["debug_mode"].as<bool>() : false;
+    const string vel_cmd_frame = locomotion_config["vel_cmd_frame"]
+                                     ? locomotion_config["vel_cmd_frame"].as<string>() : "local";
+    if (vel_cmd_frame != "local" && vel_cmd_frame != "global") {
+        cerr << "[LocomotionController]: vel_cmd_frame must be 'local' or 'global'" << endl;
+        return -1;
+    }
+    const bool vel_cmd_is_local = (vel_cmd_frame == "local");
     cout << "[LocomotionController]: Algorithm: "
          << (algorithm.empty() ? "unset" : algorithm)
-         << " | heightmap: " << (use_heightmap ? "enabled" : "disabled") << endl;
+         << " | heightmap: " << (use_heightmap ? "enabled" : "disabled")
+         << " | vel_cmd_frame: " << vel_cmd_frame << endl;
     RobotPhysicalParams robot;
     robot.bx = robot_config["bx"].as<double>(); 
     robot.by = robot_config["by"].as<double>(); 
@@ -344,9 +352,9 @@ int main() {
             // ------------------
             // REFERENCE GENERATOR
             // ------------------
-            // transform robot command velocity to WCS
-            Vector3d cmd_loc_lin_vel = robot_cmd.lin_vel;
-            robot_cmd.lin_vel = R_body_yaw_align * cmd_loc_lin_vel;
+            // transform robot command velocity from local frame to WCS
+            if (vel_cmd_is_local)
+                robot_cmd.lin_vel = R_body_yaw_align * robot_cmd.lin_vel;
 
             // step reference generator
             ref_generator.set_body_adaptation_mode(adaptation_type);

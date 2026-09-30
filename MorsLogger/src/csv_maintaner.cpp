@@ -1,7 +1,7 @@
 #include "csv_maintaner.hpp"
 
-CSVMaintainer::CSVMaintainer(bool debug_mode)
-    : debug_mode(debug_mode)
+CSVMaintainer::CSVMaintainer(bool debug_mode, const string& log_root)
+    : log_root(log_root), debug_mode(debug_mode)
 {
 
 }
@@ -19,8 +19,7 @@ void CSVMaintainer::init()
     std::ostringstream oss;
     oss << std::put_time(&tm, "%y%m%d_%H%M%S");//"%d-%m-%Y %H-%M-%S");
     auto folder_postfix = oss.str();
-    string user = mors_sys::GetEnv("USER");
-    log_folder = "/home/" + user + "/mors_logs/log_" + folder_postfix + "/";
+    log_folder = (filesystem::path(log_root) / ("log_" + folder_postfix)).string() + "/";
     filesystem::create_directories(log_folder);
     cout << "[MORS Logger]: folder addr: " << log_folder << endl;
 

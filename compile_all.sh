@@ -39,7 +39,7 @@ build_project() {
 
 # echo "🚀 Сборка ROS2-пакетов..."
 cd "${ROOT_DIR}/ros_ws"
-colcon build --packages-select robot_mode_controller robot_state_viewer mors_radiolink_control mors_keyboard_control mors_ros_msgs
+colcon build --packages-select robot_mode_controller robot_state_viewer mors_radiolink_control mors_experiments_sim mors_keyboard_control mors_ros_msgs
 
 # Основной цикл
 echo " "

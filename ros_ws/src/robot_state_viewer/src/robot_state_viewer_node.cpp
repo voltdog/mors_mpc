@@ -19,6 +19,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -104,6 +105,7 @@ public:
     pointcloud_frame_id_ =
       this->declare_parameter<std::string>("pointcloud_frame_id", world_frame_id_);
     joint_states_topic_ = this->declare_parameter<std::string>("joint_states_topic", "/joint_states");
+    odom_topic_ = this->declare_parameter<std::string>("odom_topic", "/odom");
     heightmap_ros_topic_ =
       this->declare_parameter<std::string>("heightmap_ros_topic", "/heightmap/pointcloud");
     footstep_sequence_markers_topic_ =
@@ -137,6 +139,8 @@ public:
       pointcloud_ros_topic_, rclcpp::QoS(10).reliable());
     joint_state_pub_ = this->create_publisher<sensor_msgs::msg::JointState>(
       joint_states_topic_, rclcpp::QoS(20).reliable());
+    odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(
+      odom_topic_, rclcpp::QoS(20).reliable());
     heightmap_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       heightmap_ros_topic_, rclcpp::QoS(10).reliable());
     footstep_sequence_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
@@ -184,7 +188,7 @@ public:
       " depth LCM='%s' -> ROS='%s', pointcloud LCM='%s' -> ROS='%s',"
       " heightmap LCM='%s' -> ROS='%s', robot_state LCM='%s', servo_state LCM='%s',"
       " footsteps LCM='%s' -> ROS='%s', DCM/CoM LCM='%s' -> ROS='%s',"
-      " tf('%s'->'%s'), cloud_frame='%s', joint_states='%s',"
+      " tf('%s'->'%s'), cloud_frame='%s', joint_states='%s', odom='%s',"
       " heightmap_cfg='%s', heightmap_grid=%dx%d cell=%.4f hmin=%.3f hres=%.4f",
       depth_lcm_channel_.c_str(),
       depth_ros_topic_.c_str(),
@@ -202,6 +206,7 @@ public:
       base_link_frame_id_.c_str(),
       pointcloud_frame_id_.c_str(),
       joint_states_topic_.c_str(),
+      odom_topic_.c_str(),
       heightmap_config_resolved_path_.c_str(),
       heightmap_window_cells_x_,
       heightmap_window_cells_y_,
@@ -260,6 +265,22 @@ private:
     const double qy = cr * sp * cy + sr * cp * sy;
     const double qz = cr * cp * sy - sr * sp * cy;
     return {qx, qy, qz, qw};
+  }
+
+  // v' = q^-1 * v * q for a unit quaternion q = (x, y, z, w).
+  static std::array<double, 3> rotateByInverseQuaternion(
+    const std::array<double, 3> & v, double qx, double qy, double qz, double qw)
+  {
+    const double ux = -qx;
+    const double uy = -qy;
+    const double uz = -qz;
+    const double tx = 2.0 * (uy * v[2] - uz * v[1]);
+    const double ty = 2.0 * (uz * v[0] - ux * v[2]);
+    const double tz = 2.0 * (ux * v[1] - uy * v[0]);
+    return {
+      v[0] + qw * tx + (uy * tz - uz * ty),
+      v[1] + qw * ty + (uz * tx - ux * tz),
+      v[2] + qw * tz + (ux * ty - uy * tx)};
   }
 
   static std::string resolveHeightmapConfigPath(const std::string & configured_path)
@@ -957,6 +978,25 @@ private:
     tf_msg.transform.rotation.w = qw;
     tf_broadcaster_->sendTransform(tf_msg);
 
+    // Odometry twist is expressed in child_frame_id: body.lin_vel is given in the
+    // world frame and is rotated into the body frame, body.ang_vel is already in it.
+    nav_msgs::msg::Odometry odom_msg;
+    odom_msg.header = tf_msg.header;
+    odom_msg.child_frame_id = base_link_frame_id_;
+    odom_msg.pose.pose.position.x = msg->body.position[0];
+    odom_msg.pose.pose.position.y = msg->body.position[1];
+    odom_msg.pose.pose.position.z = msg->body.position[2];
+    odom_msg.pose.pose.orientation = tf_msg.transform.rotation;
+    const auto lin_vel_body = rotateByInverseQuaternion(
+      {msg->body.lin_vel[0], msg->body.lin_vel[1], msg->body.lin_vel[2]}, qx, qy, qz, qw);
+    odom_msg.twist.twist.linear.x = lin_vel_body[0];
+    odom_msg.twist.twist.linear.y = lin_vel_body[1];
+    odom_msg.twist.twist.linear.z = lin_vel_body[2];
+    odom_msg.twist.twist.angular.x = msg->body.ang_vel[0];
+    odom_msg.twist.twist.angular.y = msg->body.ang_vel[1];
+    odom_msg.twist.twist.angular.z = msg->body.ang_vel[2];
+    odom_pub_->publish(std::move(odom_msg));
+
     if (!have_servo_state_) {
       RCLCPP_WARN_THROTTLE(
         this->get_logger(), *this->get_clock(), 2000,
@@ -989,6 +1029,7 @@ private:
   std::string world_frame_id_;
   std::string base_link_frame_id_;
   std::string joint_states_topic_;
+  std::string odom_topic_;
   int heightmap_window_cells_x_{0};
   int heightmap_window_cells_y_{0};
   double heightmap_cell_size_{0.0};
@@ -1010,6 +1051,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr heightmap_pub_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr footstep_sequence_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr dcm_com_trajectory_pub_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;

@@ -167,9 +167,12 @@ assert hasattr(robot_state_msg(), "timestamp")
     sim_mode=false
     rviz_enabled=false
     logging_enabled=false
+    log_dir=""
+    log_time=120
+    usage="Usage: $0 [--sim] [--rviz] [--log] [--log-dir DIR] [--log-time SEC]"
 
-    for arg in "$@"; do
-        case "$arg" in
+    while [ $# -gt 0 ]; do
+        case "$1" in
             --sim)
                 sim_mode=true
                 ;;
@@ -179,16 +182,37 @@ assert hasattr(robot_state_msg(), "timestamp")
             --log)
                 logging_enabled=true
                 ;;
+            --log-dir)
+                if [ $# -lt 2 ] || [ -z "$2" ]; then
+                    echo "Missing directory for --log-dir" >&2
+                    echo "$usage" >&2
+                    exit 1
+                fi
+                logging_enabled=true
+                log_dir="$2"
+                shift
+                ;;
+            --log-time)
+                if [ $# -lt 2 ] || ! [[ "$2" =~ ^[0-9]+([.][0-9]+)?$ ]] || [[ "$2" =~ ^0+([.]0+)?$ ]]; then
+                    echo "--log-time expects a positive number of seconds" >&2
+                    echo "$usage" >&2
+                    exit 1
+                fi
+                logging_enabled=true
+                log_time="$2"
+                shift
+                ;;
             -h|--help)
-                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
+                echo "$usage" >&2
                 exit 0
                 ;;
             *)
-                echo "Unknown option: $arg" >&2
-                echo "Usage: $0 [--sim] [--rviz] [--log]" >&2
+                echo "Unknown option: $1" >&2
+                echo "$usage" >&2
                 exit 1
                 ;;
         esac
+        shift
     done
 
     if [ "$sim_mode" = true ]; then
@@ -297,15 +321,15 @@ assert hasattr(robot_state_msg(), "timestamp")
     if [ "$logging_enabled" = true ]; then
         start_component \
             "MorsLogger" \
-            "${SCRIPT_DIR}/MorsLogger/build/mors_logger"
+            "${SCRIPT_DIR}/MorsLogger/build/mors_logger" ${log_dir:+"$log_dir"}
         logger_pgid="$LAST_PGID"
 
         setsid -- env --default-signal=INT,QUIT,TERM bash -c '
-            sleep 120
+            sleep "$2"
             if kill -INT -- "-$1" 2>/dev/null; then
-                echo "[MorsLogger]: stopped after 120 seconds"
+                echo "[MorsLogger]: stopped after $2 seconds"
             fi
-        ' bash "$logger_pgid" &
+        ' bash "$logger_pgid" "$log_time" &
         helper_groups+=("$!")
     fi
 

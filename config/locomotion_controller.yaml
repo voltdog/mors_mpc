@@ -1,4 +1,5 @@
-algorithm: "vision" # wbic vision dcm 
+algorithm: "vision" # wbic vision dcm
+vel_cmd_frame: "global" # local global - СК, в которой задана команда линейной скорости
 
 stance_controller_mpc:
   horizon: 16
@@ -41,7 +42,7 @@ wbic:
   # ground_fric, fz_min, fz_max берутся из stance_controller_mpc (friction, f_min, f_max)
 
 reference_generator:
-  c_freq: 0.5               # частота среза LPF референсных траекторий [Гц]
+  c_freq: 50.5               # частота среза LPF референсных траекторий [Гц]
   zero_vel_thresh: 0.01     # ниже этой скорости команда считается нулевой -> удержание позиции [м/с]
   foot_valid_radius: 1.0    # стопа дальше этого расстояния от корпуса считается невалидной [м]
 

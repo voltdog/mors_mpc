@@ -21,8 +21,11 @@ auto now()
   return std::chrono::steady_clock::now(); 
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     cout << "MORS Logger starting..." << endl;
+    // log root folder: first cli argument or ~/mors_logs by default
+    const string log_root = argc > 1 ? argv[1] : "/home/" + mors_sys::GetEnv("USER") + "/mors_logs";
+
     // load config
     string config_address = mors_sys::GetEnv("CONFIGPATH");
     string robot_config_address = config_address + "/robot.yaml";
@@ -63,7 +66,7 @@ int main() {
     // bool action_ctr_enable, action_ctr_reset;
 
     // define csv
-    CSVMaintainer csv(debug_mode);
+    CSVMaintainer csv(debug_mode, log_root);
     csv.init();
 
     cout << "[MORS Logger]: started" << endl;

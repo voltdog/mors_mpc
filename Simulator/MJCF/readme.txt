@@ -37,3 +37,9 @@ python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_stumps.py \
   --min-stump-diameter 0.08 \
   --max-stump-diameter 0.2 \
   --seed 7
+
+python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_platform.py \
+  --height 0.1 \
+  --length 1.0 \
+  --width 2.0 \
+  --center-x 1.0

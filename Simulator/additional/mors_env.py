@@ -50,8 +50,10 @@ class MorsMujocoEnv():
                  init_motor_angles=[ 0.0, -1.57,  3.14,
                                     -0.0,  1.57, -3.14,
                                     -0.0, -1.57,  3.14,
-                                     0.0,  1.57, -3.14]):
-        
+                                     0.0,  1.57, -3.14],
+                 init_body_pos=None,
+                 init_body_ori=None):
+
         self._motor_kp = motor_kp
         self._motor_kd = motor_kd
         self._xml_path = xml_path
@@ -82,6 +84,11 @@ class MorsMujocoEnv():
                                                    self.data,
                                                    show_left_ui=False,
                                                    show_right_ui=False)
+        if init_body_pos is not None:
+            self.data.qpos[0:3] = init_body_pos[:]
+        if init_body_ori is not None:
+            # MuJoCo freejoint quaternion is [w, x, y, z]
+            self.data.qpos[3:7] = Rotation.from_euler('xyz', init_body_ori).as_quat(scalar_first=True)
         self.data.qpos[7:7+NUM_MOTORS] = init_motor_angles[:]
         mujoco.mj_forward(self.model, self.data)
         self._apply_render_quality()
