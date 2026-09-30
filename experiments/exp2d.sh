@@ -7,6 +7,9 @@
 ALGORITHM="vision"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="global"   # local | global -> config/locomotion_controller.yaml
 
+# Initial state -> config/simulation.yaml
+KIN_SCHEME="<<"         # >> | << | >< | <> -> init_motor_angles
+
 # ROS parameters of exp2d (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
 GAIT_OFFSETS="[0.0, 0.5, 0.5, 0.0]"
@@ -29,6 +32,7 @@ source "$(dirname -- "$0")/common.sh"
 require_float BODY_Z T_SW T_ST STRIDE_HEIGHT REF_VELOCITY_X REF_VELOCITY_Y REF_VELOCITY_Z WALK_TIME RAMP_TIME
 require_float_list GAIT_OFFSETS
 setup_configs "$ALGORITHM" "$VEL_CMD_FRAME"
+setup_kin_scheme "$KIN_SCHEME"
 
 ros_params=(
     body_z:="$BODY_Z"

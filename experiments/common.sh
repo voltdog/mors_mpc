@@ -153,6 +153,26 @@ setup_configs() {
     config_params=(algorithm="$algorithm" vel_cmd_frame="$vel_cmd_frame" scene="$scene")
 }
 
+# setup_kin_scheme KIN_SCHEME: initial leg configuration -> init_motor_angles,
+# call after setup_configs
+setup_kin_scheme() {
+    local kin_scheme="$1" init_motor_angles
+
+    case "$kin_scheme" in
+        ">>") init_motor_angles="[0.0, 1.57, -3.14, -0.0, -1.57, 3.14, -0.0, 1.57, -3.14, 0.0, -1.57, 3.14]" ;;
+        "<<") init_motor_angles="[0.0, -1.57, 3.14, -0.0, 1.57, -3.14, -0.0, -1.57, 3.14, 0.0, 1.57, -3.14]" ;;
+        "><") init_motor_angles="[0.0, -1.57, 3.14, -0.0, 1.57, -3.14, -0.0, 1.57, -3.14, 0.0, -1.57, 3.14]" ;;
+        "<>") init_motor_angles="[0.0, 1.57, -3.14, -0.0, -1.57, 3.14, -0.0, -1.57, 3.14, 0.0, 1.57, -3.14]" ;;
+        *)
+            echo "Unknown KIN_SCHEME: ${kin_scheme} (supported: >>, <<, ><, <>)" >&2
+            exit 1
+            ;;
+    esac
+
+    override_yaml_list "$sim_config" init_motor_angles "$init_motor_angles"
+    config_params+=(kin_scheme="$kin_scheme" init_motor_angles="$init_motor_angles")
+}
+
 run_pid=""
 
 cleanup() {
