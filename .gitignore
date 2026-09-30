@@ -13,6 +13,7 @@ ros_ws/log/
 lcm_msgs/mors_msgs/
 tests/
 tools/
+*_logs/
 
 # ros_ws/
 # mors_sim/

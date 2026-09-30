@@ -45,9 +45,90 @@ set_yaml_string() {
     fi
 }
 
-# setup_configs ALGORITHM VEL_CMD_FRAME: flat scene plus the controller settings
+# "SETTER|FILE|KEY|VALUE" of the overridden keys, restored on exit by restore_configs
+config_backup=()
+
+# override_yaml_string FILE KEY VALUE: set_yaml_string remembering the original value
+override_yaml_string() {
+    local file="$1" key="$2" value="$3" orig
+
+    orig="$(sed -nE "s/^${key}:[[:space:]]*\"([^\"]*)\".*/\1/p" "$file")"
+    set_yaml_string "$file" "$key" "$value"
+    config_backup+=("set_yaml_string|${file}|${key}|${orig}")
+}
+
+# Lists may span several lines; get/set_yaml_list encode the line breaks as a
+# literal \n, so a list fits in one line of config_backup and is restored as is.
+
+# get_yaml_list FILE KEY: print a top-level `KEY: [...]`
+get_yaml_list() {
+    awk -v key="$2" '
+        !found && $0 ~ "^" key ":[[:space:]]*\\[" {
+            found = 1
+            sub("^" key ":[[:space:]]*", "")
+            text = ""
+        }
+        found {
+            end = index($0, "]")
+            text = text (text == "" ? "" : "\\n") (end ? substr($0, 1, end) : $0)
+            if (end) { print text; exit }
+        }
+    ' "$1"
+}
+
+# set_yaml_list FILE KEY VALUE: replace a top-level `KEY: [...]` keeping the comment
+set_yaml_list() {
+    local file="$1" key="$2" value="$3" text
+
+    text="$(awk -v key="$key" -v value="$value" '
+        !done && !inlist && $0 ~ "^" key ":[[:space:]]*\\[" {
+            inlist = 1
+            match($0, "^" key ":[[:space:]]*")
+            prefix = substr($0, 1, RLENGTH)
+        }
+        inlist {
+            end = index($0, "]")
+            if (end) {
+                print prefix value substr($0, end + 1)
+                inlist = 0
+                done = 1
+            }
+            next
+        }
+        { print }
+    ' "$file")"
+    printf '%s\n' "$text" > "$file"
+
+    if [ "$(get_yaml_list "$file" "$key")" != "$value" ]; then
+        echo "Failed to set ${key} in ${file}" >&2
+        exit 1
+    fi
+}
+
+# override_yaml_list FILE KEY VALUE: set_yaml_list remembering the original value
+override_yaml_list() {
+    local file="$1" key="$2" value="$3" orig
+
+    orig="$(get_yaml_list "$file" "$key")"
+    set_yaml_list "$file" "$key" "$value"
+    config_backup+=("set_yaml_list|${file}|${key}|${orig}")
+}
+
+# restore_configs: put the overridden keys back in reverse order
+restore_configs() {
+    local i setter file key value
+
+    for ((i = ${#config_backup[@]} - 1; i >= 0; i--)); do
+        IFS='|' read -r setter file key value <<< "${config_backup[i]}"
+        # subshell: a failed key must not abort the restore of the others
+        ("$setter" "$file" "$key" "$value") || true
+    done
+    config_backup=()
+}
+
+# setup_configs ALGORITHM VEL_CMD_FRAME [SCENE]: scene (flat by default) plus the controller settings
 setup_configs() {
-    local algorithm="$1" vel_cmd_frame="$2"
+    local algorithm="$1" vel_cmd_frame="$2" scene="${3:-flat}"
 
     case "$algorithm" in
         wbic|vision|dcm) ;;
@@ -65,11 +146,11 @@ setup_configs() {
             ;;
     esac
 
-    set_yaml_string "$sim_config" scene flat
-    set_yaml_string "$locomotion_config" algorithm "$algorithm"
-    set_yaml_string "$locomotion_config" vel_cmd_frame "$vel_cmd_frame"
+    override_yaml_string "$sim_config" scene "$scene"
+    override_yaml_string "$locomotion_config" algorithm "$algorithm"
+    override_yaml_string "$locomotion_config" vel_cmd_frame "$vel_cmd_frame"
 
-    config_params=(algorithm="$algorithm" vel_cmd_frame="$vel_cmd_frame" scene=flat)
+    config_params=(algorithm="$algorithm" vel_cmd_frame="$vel_cmd_frame" scene="$scene")
 }
 
 run_pid=""
@@ -84,16 +165,24 @@ cleanup() {
         kill -TERM "$run_pid" 2>/dev/null || true
         wait "$run_pid" 2>/dev/null || true
     fi
+    restore_configs
     exit "$status"
 }
+
+# Installed on source, so the configs are restored on any exit, including
+# a failure between setup_configs and run_experiment.
+trap 'exit 130' SIGINT
+trap 'exit 143' SIGTERM
+trap cleanup EXIT
 
 # run_experiment EXP RUN_NAME MAX_DURATION ROS_PARAM...
 #   EXP           executable of mors_experiments_sim, also the log folder prefix
 #   RUN_NAME      log subfolder: experiments/<EXP>_logs/<RUN_NAME>
 #   MAX_DURATION  upper bound of the scenario duration [s]
 #   ROS_PARAM     name:=value
+# SCENARIO (optional) overrides the executable, e.g. SCENARIO=exp1 run_experiment exp3 ...
 run_experiment() {
-    local exp="$1" run_name="$2" max_duration="$3"
+    local exp="$1" run_name="$2" max_duration="$3" scenario="${SCENARIO:-$1}"
     shift 3
 
     local log_dir="${EXP_DIR}/${exp}_logs/${run_name}"
@@ -122,10 +211,6 @@ run_experiment() {
         run_args+=(--log-time "$log_time")
     fi
 
-    trap 'exit 130' SIGINT
-    trap 'exit 143' SIGTERM
-    trap cleanup EXIT
-
     echo "[${exp}]: logs -> ${log_dir}"
     "${ROOT_DIR}/run.sh" "${run_args[@]}" &
     run_pid=$!
@@ -136,7 +221,7 @@ run_experiment() {
         exit 1
     fi
 
-    ros2 run mors_experiments_sim "$exp" --ros-args "${ros_args[@]}"
+    ros2 run mors_experiments_sim "$scenario" --ros-args "${ros_args[@]}"
 
     echo "[${exp}]: finished"
 }

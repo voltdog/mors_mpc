@@ -61,6 +61,7 @@ ReferenceGenerator::ReferenceGenerator(double dt, double c_freq, double zero_vel
 
     saved_x_pos = 0;
     saved_y_pos = 0;
+    pose_initialized = false;
     prev_x_vel = 0;
     prev_y_vel = 0;
 }
@@ -87,6 +88,14 @@ Eigen::VectorXd ReferenceGenerator::step(const std::vector<int>& phase_signal,
     ref_body_vel_filtered(Z) = lpf_z_vel.update(robot_cmd.lin_vel(Z));
     ref_body_yaw_vel_filtered = lpf_yaw_vel.update(robot_cmd.ang_vel(Z)); 
     
+    // Hold the pose the robot starts from, not the world origin
+    if (!pose_initialized) {
+        saved_x_pos = robot_state.pos(X);
+        saved_y_pos = robot_state.pos(Y);
+        ref_yaw_pos = robot_state.orientation(Z);
+        pose_initialized = true;
+    }
+
     // Update reference position
     if (abs(ref_body_vel_filtered(X)) < zero_vel_thresh && abs(prev_x_vel) >= zero_vel_thresh)
         saved_x_pos = robot_state.pos(X);

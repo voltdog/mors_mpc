@@ -42,4 +42,9 @@ python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_platform.py \
   --height 0.1 \
   --length 1.0 \
   --width 2.0 \
-  --center-x 1.0
+  --center-x 1.5
+
+python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_ramp.py \
+  --slope-angle 35 \
+  --height 0.5 \
+  --flat-length 2

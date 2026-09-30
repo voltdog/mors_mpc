@@ -2,7 +2,7 @@ frequency: 1000
 mjcf_root: "MJCF/mors.xml"
 render_quality: "low" # "high" or "low"
 
-scene: "flat" # "stairs" "patch" "boxes" "ramp" "flat" "boards" "stumps"
+scene: "ramp" # "stairs" "platform" "patch" "boxes" "ramp" "flat" "boards" "stumps"
 
 init_body_pos: [0.0, 0.0, 0.4] # [x, y, z]
 init_body_ori: [0.0, 0.0, 0.0] # [roll, pitch, yaw] in radians
@@ -13,10 +13,7 @@ init_body_ori: [0.0, 0.0, 0.0] # [roll, pitch, yaw] in radians
 #                     0.0, 1.57, -3.14]
 
 # X
-init_motor_angles: [0.0, -1.57, 3.14,
-                    -0.0, 1.57, -3.14,
-                    -0.0, 1.57, -3.14,
-                    0.0,  -1.57, 3.14]
+init_motor_angles: [0.0, -1.57, 3.14, -0.0, 1.57, -3.14, -0.0, -1.57, 3.14, 0.0, 1.57, -3.14]
 
 # O
 # init_motor_angles: [0.0,   1.57, -3.14,

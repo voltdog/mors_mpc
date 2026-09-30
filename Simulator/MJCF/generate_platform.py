@@ -7,6 +7,7 @@ import argparse
 from pathlib import Path
 
 
+PLATFORM_START_X = 1.0
 DEFAULT_OUTPUT = Path(__file__).with_name("platform.xml")
 
 
@@ -24,7 +25,10 @@ def fmt(value: float) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Generate an MJCF scene with a single rectangular platform."
+        description=(
+            "Generate an MJCF scene with a single rectangular platform. "
+            f"By default the platform starts at x = {fmt(PLATFORM_START_X)} m."
+        )
     )
     parser.add_argument(
         "--height",
@@ -44,13 +48,30 @@ def build_parser() -> argparse.ArgumentParser:
         type=positive_float,
         help="Platform width along Y in meters.",
     )
-    parser.add_argument(
-        "--center-x",
-        required=True,
+    position = parser.add_mutually_exclusive_group()
+    position.add_argument(
+        "--start-dist",
         type=float,
-        help="Distance along X from the origin to the platform center in meters.",
+        help=(
+            "X coordinate of the platform's near edge in meters "
+            f"(default: {fmt(PLATFORM_START_X)})."
+        ),
+    )
+    position.add_argument(
+        "--center-pos",
+        "--center-x",
+        dest="center_pos",
+        type=float,
+        help="X coordinate of the platform center in meters.",
     )
     return parser
+
+
+def resolve_center_x(args: argparse.Namespace) -> float:
+    if args.center_pos is not None:
+        return args.center_pos
+    start_x = args.start_dist if args.start_dist is not None else PLATFORM_START_X
+    return start_x + args.length / 2.0
 
 
 def make_platform_geom(height: float, length: float, width: float, center_x: float) -> str:
@@ -156,7 +177,8 @@ def render_generation_comment(height: float, length: float, width: float, center
             f"  height {fmt(height)}",
             f"  length {fmt(length)}",
             f"  width {fmt(width)}",
-            f"  center-x {fmt(center_x)}",
+            f"  start-dist {fmt(center_x - length / 2.0)}",
+            f"  center-pos {fmt(center_x)}",
             "-->",
         ]
     )
@@ -168,7 +190,7 @@ def main() -> None:
         height=args.height,
         length=args.length,
         width=args.width,
-        center_x=args.center_x,
+        center_x=resolve_center_x(args),
     )
     xml = f"{render_generation_comment(**params)}\n{render_scene(**params)}"
 

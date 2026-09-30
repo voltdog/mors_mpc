@@ -70,6 +70,7 @@ private:
     double ref_x_pos;
     double ref_y_pos;
     double saved_x_pos, saved_y_pos;
+    bool pose_initialized;      // held pose taken from robot_state on the first step
     double prev_x_vel, prev_y_vel;
     int body_adapt_mode;
 

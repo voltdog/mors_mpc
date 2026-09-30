@@ -184,8 +184,12 @@ void GetUp::step(bool& action_finished)
 
     cout << "ref height: " << robot_height << endl;
     cout << robot_state.pos.transpose() << endl;
-    robot_height_cmd_traj = traj::create_qubic_trajectory(robot_state.pos(Z), robot_height, 1.5, dt);
-    robot_height_vel_cmd_traj = traj::create_qubic_vel_trajectory(robot_state.pos(Z), robot_height, 1.5, dt);
+    // robot_cmd.pos(Z) is the body height above the supports (ReferenceGenerator adds their mean z)
+    const double feet_z = (leg_state.r1_pos(Z) + leg_state.l1_pos(Z) +
+                           leg_state.r2_pos(Z) + leg_state.l2_pos(Z)) / 4.0;
+    const double start_height = robot_state.pos(Z) - feet_z;
+    robot_height_cmd_traj = traj::create_qubic_trajectory(start_height, robot_height, 1.5, dt);
+    robot_height_vel_cmd_traj = traj::create_qubic_vel_trajectory(start_height, robot_height, 1.5, dt);
 
     joints_kpkd_null();
     set_blocks_en(true, true);

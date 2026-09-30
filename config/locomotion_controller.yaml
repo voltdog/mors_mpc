@@ -1,5 +1,5 @@
 algorithm: "vision" # wbic vision dcm
-vel_cmd_frame: "global" # local global - СК, в которой задана команда линейной скорости
+vel_cmd_frame: "local" # local global - СК, в которой задана команда линейной скорости
 
 stance_controller_mpc:
   horizon: 16
