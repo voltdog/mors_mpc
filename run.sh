@@ -166,10 +166,11 @@ assert hasattr(robot_state_msg(), "timestamp")
 
     sim_mode=false
     rviz_enabled=false
+    radiolink_enabled=true
     logging_enabled=false
     log_dir=""
     log_time=120
-    usage="Usage: $0 [--sim] [--rviz] [--log] [--log-dir DIR] [--log-time SEC]"
+    usage="Usage: $0 [--sim] [--rviz] [--no-radiolink] [--log] [--log-dir DIR] [--log-time SEC]"
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -178,6 +179,9 @@ assert hasattr(robot_state_msg(), "timestamp")
                 ;;
             --rviz)
                 rviz_enabled=true
+                ;;
+            --no-radiolink)
+                radiolink_enabled=false
                 ;;
             --log)
                 logging_enabled=true
@@ -278,9 +282,12 @@ assert hasattr(robot_state_msg(), "timestamp")
 
         sleep 2s
 
-        start_component \
-            "radiolink control" \
-            ros2 run mors_radiolink_control mors_radiolink_control
+        # experiments_hw scenarios publish the same commands, so they disable the teleop
+        if [ "$radiolink_enabled" = true ]; then
+            start_component \
+                "radiolink control" \
+                ros2 run mors_radiolink_control mors_radiolink_control
+        fi
     fi
 
     if [ "$rviz_enabled" = true ]; then
