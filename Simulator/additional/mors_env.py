@@ -15,6 +15,7 @@ from transforms3d.quaternions import quat2mat
 
 from additional.mjcf import load_mjmodel
 from additional.motor_accurate import MotorModel
+from additional.robosense_airy import RobosenseAiryLidar, disable_lidar_body
 
 
 NUM_SUBSTEPS = 2
@@ -35,6 +36,10 @@ DEPTH_CAMERA_NAME = "depth_camera"
 D435I_DEPTH_FOVY_DEG = 58.0
 D435I_DEPTH_RANGE_M = (0.105, 3.0)
 
+# ожидание блокировки физики при снимке состояния для лидара: копирование qpos занимает
+# микросекунды, а неблокирующий захват терял бы кадры, пока идёт mj_step
+LIDAR_LOCK_TIMEOUT_S = 0.005
+
 class MorsMujocoEnv():
 
     def __init__(self,
@@ -47,6 +52,7 @@ class MorsMujocoEnv():
                  ext_disturbance_enabled=False,
                  depth_image_enabled=False,
                  depth_image_size=(424, 240),
+                 lidar_config=None,
                  init_motor_angles=[ 0.0, -1.57,  3.14,
                                     -0.0,  1.57, -3.14,
                                     -0.0, -1.57,  3.14,
@@ -80,6 +86,13 @@ class MorsMujocoEnv():
         self.model = load_mjmodel(xml_path, scene=scene)
         self.data = mujoco.MjData(self.model)
         self.model.opt.timestep = self._time_step
+        self._lidar = None
+        self._lidar_data = None
+        if lidar_config is not None:
+            self._lidar = RobosenseAiryLidar(self.model, lidar_config)
+            self._lidar_data = mujoco.MjData(self.model)
+        else:
+            disable_lidar_body(self.model, self.data)
         self.viewer = mujoco.viewer.launch_passive(self.model, 
                                                    self.data,
                                                    show_left_ui=False,
@@ -542,3 +555,29 @@ class MorsMujocoEnv():
         result = np.zeros_like(depth_image_m, dtype=np.float32)
         result[valid_range_mask] = depth_image_m[valid_range_mask]
         return result
+
+    # ==========================================================
+    # LIDAR
+    # ==========================================================
+
+    def get_lidar_frame_period(self):
+        return self._lidar.frame_period
+
+    def get_lidar_frame(self):
+        """Кадр облака Airy по снимку состояния: (xyz, intensity, ring) в СК лидара или None."""
+        if self._lidar is None:
+            return None
+
+        if not self._sim_data_lock.acquire(timeout=LIDAR_LOCK_TIMEOUT_S):
+            return None
+        try:
+            # для mj_kinematics достаточно позиций
+            self._lidar_data.qpos[:] = self.data.qpos
+            if self.model.nmocap > 0:
+                self._lidar_data.mocap_pos[:] = self.data.mocap_pos
+                self._lidar_data.mocap_quat[:] = self.data.mocap_quat
+        finally:
+            self._sim_data_lock.release()
+
+        mujoco.mj_kinematics(self.model, self._lidar_data)
+        return self._lidar.scan(self._lidar_data)

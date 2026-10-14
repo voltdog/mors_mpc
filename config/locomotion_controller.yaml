@@ -1,4 +1,4 @@
-algorithm: "vision" # wbic vision dcm
+algorithm: "dcm" # wbic vision dcm
 vel_cmd_frame: "local" # local global - СК, в которой задана команда линейной скорости
 
 stance_controller_mpc:

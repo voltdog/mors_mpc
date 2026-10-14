@@ -36,3 +36,23 @@ realsense_camera_d435i:
     # Контуру высот она не нужна (кадр идёт внутри процесса), но без неё
     # мост robot_state_viewer не выдаёт /camera/depth_image для rviz.
     publish_depth_image: true
+
+robosense_airy:
+  frame_id: rslidar
+  # Положение относительно base (= base_link). Начало СК - центр нижней монтажной
+  # поверхности (приближение, сверить с документацией Airy), +Z в купол.
+  # Временные значения до задания реального кронштейна.
+  mount:
+    xyz: [0.18, 0.0, 0.16]
+    rpy_deg: [0.0, 45.0, 0.0]
+  # Airy-96: полусфера 360° x 90°, 10 Гц. Равномерная сетка углов места - приближение.
+  scan:
+    channels: 96
+    horizontal_points: 900   # 0.4° по азимуту
+    elevation_range_deg: [0.0, 89.5]
+    frame_rate: 10.0         # Гц, 86400 лучей в кадре
+  range_min: 0.1
+  range_max: 60.0
+  range_noise_std: 0.0   # СКО шума дальности, м
+  intensity: 100.0
+  see_self: False         # True - лидар видит корпус и ноги робота, как на железе

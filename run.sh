@@ -166,11 +166,12 @@ assert hasattr(robot_state_msg(), "timestamp")
 
     sim_mode=false
     rviz_enabled=false
+    nav_mode=false
     radiolink_enabled=true
     logging_enabled=false
     log_dir=""
     log_time=120
-    usage="Usage: $0 [--sim] [--rviz] [--no-radiolink] [--log] [--log-dir DIR] [--log-time SEC]"
+    usage="Usage: $0 [--sim] [--rviz] [--nav] [--no-radiolink] [--log] [--log-dir DIR] [--log-time SEC]"
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -179,6 +180,9 @@ assert hasattr(robot_state_msg(), "timestamp")
                 ;;
             --rviz)
                 rviz_enabled=true
+                ;;
+            --nav)
+                nav_mode=true
                 ;;
             --no-radiolink)
                 radiolink_enabled=false
@@ -228,6 +232,27 @@ assert hasattr(robot_state_msg(), "timestamp")
         fi
 
         ensure_robot_state_python_binding
+
+        # dddmr needs the lidar cloud: the simulator must run with the lidar enabled
+        if [ "$nav_mode" = true ]; then
+            simulation_config="${config_dir}simulation.yaml"
+            lidar_enabled="$(
+                awk '
+                    /^[[:space:]]*lidar[[:space:]]*:/ {
+                        value = $0
+                        sub(/^[^:]*:[[:space:]]*/, "", value)
+                        sub(/[[:space:]]*#.*/, "", value)
+                        gsub(/[[:space:]]/, "", value)
+                        print value
+                        exit
+                    }
+                ' "$simulation_config"
+            )"
+            if [ "$lidar_enabled" != True ] && [ "$lidar_enabled" != true ]; then
+                echo "--nav requires 'lidar: True' in ${simulation_config}" >&2
+                exit 1
+            fi
+        fi
     else
         state_estimator="${SCRIPT_DIR}/StateEstimator/build/state_estimator"
         if [ ! -x "$state_estimator" ]; then
@@ -290,16 +315,22 @@ assert hasattr(robot_state_msg(), "timestamp")
         fi
     fi
 
-    if [ "$rviz_enabled" = true ]; then
+    if [ "$rviz_enabled" = true ] || [ "$nav_mode" = true ]; then
         if [ "$algorithm" = dcm ]; then
             rviz_config="$SCRIPT_DIR/ros_ws/src/robot_state_viewer/rviz/rviz_config_dcm.rviz"
         else
             rviz_config="$SCRIPT_DIR/ros_ws/src/robot_state_viewer/rviz/rviz_config.rviz"
         fi
+        # navigation: ground-truth odom -> base_link, static TF for the lidar and base_footprint
+        nav_viewer_args=()
+        if [ "$nav_mode" = true ]; then
+            nav_viewer_args=(world_frame_id:=odom nav:=true stamp_from_lcm:=true)
+        fi
         start_component \
             "robot state viewer" \
             ros2 launch robot_state_viewer robot_state_viewer.launch.py \
-            "rviz_config:=${rviz_config}"
+            "rviz_config:=${rviz_config}" \
+            "${nav_viewer_args[@]}"
         sleep 1s
     fi
 

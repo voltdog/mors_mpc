@@ -1,0 +1,70 @@
+diff --git a/src/dddmr_lego_loam/lego_loam_bor/src/mapOptimization.cpp b/src/dddmr_lego_loam/lego_loam_bor/src/mapOptimization.cpp
+index 276417d..564d477 100644
+--- a/src/dddmr_lego_loam/lego_loam_bor/src/mapOptimization.cpp
++++ b/src/dddmr_lego_loam/lego_loam_bor/src/mapOptimization.cpp
+@@ -39,15 +39,21 @@
+ 
+ using namespace gtsam;
+ 
++//@ Key poses rotate a cloud as transformPointCloud does: yaw, then roll, then pitch,
++//@ i.e. R = Ry(pitch) * Rx(roll) * Rz(yaw) in camera_init. tf2 setRPY builds Rz * Ry * Rx,
++//@ which differs once more than one angle is non-zero (any heading with a tilted sensor).
++static tf2::Quaternion keyPoseRotation(const PointTypePose &pose){
++  return tf2::Quaternion(tf2::Vector3(0, 1, 0), pose.pitch) *
++         tf2::Quaternion(tf2::Vector3(1, 0, 0), pose.roll) *
++         tf2::Quaternion(tf2::Vector3(0, 0, 1), pose.yaw);
++}
++
+ MapOptimization::MapOptimization(std::string name,
+                                  Channel<AssociationOut> &input_channel)
+     : Node(name),
+       _input_channel(input_channel)
+ {
+   
+-  corner_voxel_size_ = 0.2;
+-  surface_voxel_size_  = 0.4;
+-  outlier_voxel_size_ = 0.4;
+   surface_icp_voxel_size_ = 1.0;
+ 
+   ISAM2Params parameters;
+@@ -133,6 +139,18 @@ MapOptimization::MapOptimization(std::string name,
+   this->get_parameter("mapping.broadcast_external_odom_tf", broadcast_external_odom_tf_);
+   RCLCPP_INFO(this->get_logger(), "mapping.broadcast_external_odom_tf: %d", broadcast_external_odom_tf_);
+ 
++  //@ Voxel grid of the scan-to-map registration (current scan and surrounding map). Coarse voxels
++  //@ mix surfaces meeting at an edge, the centroid then moves with the sensor and biases the motion
++  //@ estimate towards zero in small indoor spaces.
++  declare_parameter("mapping.corner_voxel_size", rclcpp::ParameterValue(0.2));
++  this->get_parameter("mapping.corner_voxel_size", corner_voxel_size_);
++  RCLCPP_INFO(this->get_logger(), "mapping.corner_voxel_size: %.2f", corner_voxel_size_);
++
++  declare_parameter("mapping.surface_voxel_size", rclcpp::ParameterValue(0.4));
++  this->get_parameter("mapping.surface_voxel_size", surface_voxel_size_);
++  RCLCPP_INFO(this->get_logger(), "mapping.surface_voxel_size: %.2f", surface_voxel_size_);
++  outlier_voxel_size_ = surface_voxel_size_;
++
+   declare_parameter("mapping.generate_testing_pg", rclcpp::ParameterValue(false));
+   this->get_parameter("mapping.generate_testing_pg", generate_testing_pg_);
+   RCLCPP_INFO(this->get_logger(), "mapping.generate_testing_pg: %d", generate_testing_pg_);  
+@@ -273,9 +291,7 @@ void MapOptimization::pcdSaver(const std::shared_ptr<std_srvs::srv::Empty::Reque
+   std::vector<geometry_msgs::msg::TransformStamped> cloudKeyPoses6DBaseLink_geo;
+   for(auto it = cloudKeyPoses6D->points.begin(); it!=cloudKeyPoses6D->points.end(); it++){
+     tf2::Transform tf2_trans_ci2c;
+-    tf2::Quaternion q;
+-    q.setRPY( (*it).roll, (*it).pitch, (*it).yaw);
+-    tf2_trans_ci2c.setRotation(q);
++    tf2_trans_ci2c.setRotation(keyPoseRotation(*it));
+     tf2_trans_ci2c.setOrigin(tf2::Vector3((*it).x, (*it).y, (*it).z));
+ 
+     tf2::Transform tf2_trans_m2c, tf2_trans_m2s, tf2_trans_m2b;
+@@ -771,9 +787,7 @@ void MapOptimization::publishKeyPosesAndFrames() {
+   geometry_msgs::msg::PoseArray pose_array;
+   for(auto it = cloudKeyPoses6D->points.begin(); it!=cloudKeyPoses6D->points.end(); it++){
+     tf2::Transform tf2_trans_ci2c;
+-    tf2::Quaternion q;
+-    q.setRPY( (*it).roll, (*it).pitch, (*it).yaw);
+-    tf2_trans_ci2c.setRotation(q);
++    tf2_trans_ci2c.setRotation(keyPoseRotation(*it));
+     tf2_trans_ci2c.setOrigin(tf2::Vector3((*it).x, (*it).y, (*it).z));
+ 
+     tf2::Stamped<tf2::Transform> tf2_trans_m2c;

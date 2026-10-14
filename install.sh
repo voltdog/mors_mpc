@@ -226,7 +226,9 @@ setup_python_venv() {
   fi
 
   "$VENV_DIR/bin/python" -m pip install --upgrade pip "setuptools<80" wheel
-  "$VENV_DIR/bin/python" -m pip install --upgrade numpy scipy pyyaml transforms3d mujoco
+  "$VENV_DIR/bin/python" -m pip install --upgrade numpy scipy pyyaml transforms3d mujoco matplotlib
+  # симуляция лидара Robosense Airy; --no-deps: зависимости примеров (pynput) не нужны
+  "$VENV_DIR/bin/python" -m pip install --no-deps mujoco-lidar==0.3.5
 
   if ! "$VENV_DIR/bin/python" -c "import lcm" >/dev/null 2>&1; then
     warn "Python module 'lcm' is not visible in the venv. Trying pip install..."

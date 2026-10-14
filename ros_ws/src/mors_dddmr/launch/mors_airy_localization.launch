@@ -1,0 +1,49 @@
+<launch>
+  <!-- Localization and navigation on a lego_loam map with Robosense Airy. Static TF base_link->{rslidar,
+       base_footprint}, /odom and TF odom->base_link come from the host (run.sh with the nav flag).
+       Initial pose: rviz tool 3DInitialPose or navigation/tools/init_pose.py (topic initial_3d_pose) -->
+
+  <arg name="rviz" default="true"/>
+  <arg name="planner" default="true"/>
+  <arg name="map_dir" default="/root/dddmr_bags/mors_building"/>
+  <arg name="config" default="$(find-pkg-share mors_dddmr)/config/mors_airy_localization.yaml"/>
+
+  <node pkg="lego_loam_bor" exec="mcl_feature" output="screen" respawn="false">
+    <param from="$(var config)"/>
+    <param name="use_sim_time" value="false"/>
+    <remap from="/lslidar_point_cloud" to="/rslidar_points"/>
+  </node>
+
+  <node pkg="dddmr_pg_map_server" exec="dddmr_pg_map_server_node" output="screen" respawn="false">
+    <param from="$(var config)"/>
+    <param name="use_sim_time" value="false"/>
+    <param name="pose_graph_dir" value="$(var map_dir)"/>
+  </node>
+
+  <node pkg="mcl_3dl" exec="mcl_3dl" output="screen" respawn="false">
+    <param from="$(var config)"/>
+    <param name="use_sim_time" value="false"/>
+  </node>
+
+  <group if="$(var planner)">
+    <!--name argument is not required, because it will overwrite all node name in the exec-->
+    <node pkg="global_planner" exec="global_planner_node" output="screen" respawn="false">
+      <param from="$(var config)"/>
+      <param name="use_sim_time" value="false"/>
+    </node>
+
+    <node pkg="p2p_move_base" exec="p2p_move_base_node" output="screen" respawn="false">
+      <param from="$(var config)"/>
+      <param name="use_sim_time" value="false"/>
+    </node>
+
+    <node pkg="p2p_move_base" exec="clicked2goal.py" output="screen" respawn="false">
+      <param name="use_sim_time" value="false"/>
+    </node>
+  </group>
+
+  <node if="$(var rviz)" pkg="rviz2" exec="rviz2" output="screen" respawn="false"
+        args="-d $(find-pkg-share mors_dddmr)/rviz/mors_airy_localization.rviz">
+    <param name="use_sim_time" value="false"/>
+  </node>
+</launch>

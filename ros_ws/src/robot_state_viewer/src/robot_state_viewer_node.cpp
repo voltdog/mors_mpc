@@ -2,6 +2,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <cstdint>
 #include <cstdio>
@@ -14,6 +15,8 @@
 #include <thread>
 #include <utility>
 #include <vector>
+
+#include <poll.h>
 
 #include <lcm/lcm-cpp.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -34,6 +37,7 @@
 #include "mors_msgs/depth_image_msg.hpp"
 #include "mors_msgs/footsteps_msg.hpp"
 #include "mors_msgs/heightmap_msg.hpp"
+#include "mors_msgs/lidar_msg.hpp"
 #include "mors_msgs/pointcloud_msg.hpp"
 #include "mors_msgs/robot_state_msg.hpp"
 #include "mors_msgs/servo_state_msg.hpp"
@@ -66,6 +70,23 @@ std::string GetConfigChannel(
   return channel.empty() ? fallback : channel;
 }
 
+// Point layout of rslidar_sdk XYZIRT: fields are added back to back by addPointField,
+// so the struct is packed (x, y, z, intensity float32, ring uint16, timestamp float64).
+#pragma pack(push, 1)
+struct RsLidarPoint
+{
+  float x;
+  float y;
+  float z;
+  float intensity;
+  uint16_t ring;
+  double timestamp;
+};
+#pragma pack(pop)
+static_assert(offsetof(RsLidarPoint, ring) == 16, "rslidar ring offset");
+static_assert(offsetof(RsLidarPoint, timestamp) == 18, "rslidar timestamp offset");
+static_assert(sizeof(RsLidarPoint) == 26, "rslidar point_step");
+
 }  // namespace
 
 namespace robot_state_viewer
@@ -84,6 +105,8 @@ public:
   {
     world_frame_id_ = this->declare_parameter<std::string>("world_frame_id", "map");
     base_link_frame_id_ = this->declare_parameter<std::string>("base_link_frame_id", "base_link");
+    // stamp TF, /odom and /joint_states with ROBOT_STATE.timestamp instead of the receive time
+    stamp_from_lcm_ = this->declare_parameter<bool>("stamp_from_lcm", false);
 
     depth_lcm_channel_ = this->declare_parameter<std::string>("lcm_channel", "DEPTH_IMAGE");
     depth_ros_topic_ = this->declare_parameter<std::string>("ros_topic", "/camera/depth_image");
@@ -100,6 +123,9 @@ public:
     dcm_com_trajectory_lcm_channel_ =
       this->declare_parameter<std::string>(
       "dcm_com_trajectory_lcm_channel", "DCM_COM_TRAJECTORY");
+    lidar_lcm_channel_ = this->declare_parameter<std::string>("lidar_lcm_channel", "LIDAR");
+    lidar_ros_topic_ = this->declare_parameter<std::string>("lidar_ros_topic", "/rslidar_points");
+    lidar_frame_id_ = this->declare_parameter<std::string>("lidar_frame_id", "rslidar");
 
     frame_id_ = this->declare_parameter<std::string>("frame_id", "camera_depth_optical_frame");
     pointcloud_frame_id_ =
@@ -147,6 +173,8 @@ public:
       footstep_sequence_markers_topic_, rclcpp::QoS(10).reliable());
     dcm_com_trajectory_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
       dcm_com_trajectory_markers_topic_, rclcpp::QoS(10).reliable());
+    lidar_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      lidar_ros_topic_, rclcpp::QoS(10).reliable());
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(this);
 
     if (!locomotion_lcm_.good()) {
@@ -166,6 +194,7 @@ public:
       footstep_sequence_lcm_channel_, &RobotStateViewerNode::footstepsHandler, this);
     locomotion_lcm_.subscribe(
       dcm_com_trajectory_lcm_channel_, &RobotStateViewerNode::dcmComTrajectoryHandler, this);
+    locomotion_lcm_.subscribe(lidar_lcm_channel_, &RobotStateViewerNode::lidarHandler, this);
     servo_lcm_.subscribe(servo_state_lcm_channel_, &RobotStateViewerNode::servoStateHandler, this);
     lcm_thread_ = std::thread(&RobotStateViewerNode::lcmLoop, this);
 
@@ -213,6 +242,14 @@ public:
       heightmap_cell_size_,
       heightmap_height_min_,
       heightmap_height_resolution_);
+
+    RCLCPP_INFO(
+      this->get_logger(),
+      "lidar LCM='%s' -> ROS='%s', frame='%s', stamp_from_lcm=%s",
+      lidar_lcm_channel_.c_str(),
+      lidar_ros_topic_.c_str(),
+      lidar_frame_id_.c_str(),
+      stamp_from_lcm_ ? "true" : "false");
   }
 
   ~RobotStateViewerNode() override
@@ -389,18 +426,27 @@ private:
       GetConfigChannel(root, "footstep_sequence", footstep_sequence_lcm_channel_);
     dcm_com_trajectory_lcm_channel_ =
       GetConfigChannel(root, "dcm_com_trajectory", dcm_com_trajectory_lcm_channel_);
+    lidar_lcm_channel_ = GetConfigChannel(root, "lidar", lidar_lcm_channel_);
   }
 
   void lcmLoop()
   {
+    // Wait on both LCM sockets and serve whichever is ready, so a busy URL is never
+    // throttled by the message rate of the other one.
+    std::array<pollfd, 2> fds{{
+      {locomotion_lcm_.getFileno(), POLLIN, 0},
+      {servo_lcm_.getFileno(), POLLIN, 0}}};
     while (rclcpp::ok() && running_.load()) {
-      if (locomotion_lcm_.handleTimeout(10) < 0) {
-        RCLCPP_ERROR(this->get_logger(), "Locomotion LCM handleTimeout failed");
+      if (::poll(fds.data(), fds.size(), 10) <= 0) {
+        continue;
+      }
+      if ((fds[0].revents & POLLIN) && locomotion_lcm_.handle() != 0) {
+        RCLCPP_ERROR(this->get_logger(), "Locomotion LCM handle failed");
         running_.store(false);
         return;
       }
-      if (servo_lcm_.handleTimeout(10) < 0) {
-        RCLCPP_ERROR(this->get_logger(), "Servo LCM handleTimeout failed");
+      if ((fds[1].revents & POLLIN) && servo_lcm_.handle() != 0) {
+        RCLCPP_ERROR(this->get_logger(), "Servo LCM handle failed");
         running_.store(false);
         return;
       }
@@ -582,6 +628,80 @@ private:
     }
 
     pointcloud_pub_->publish(std::move(cloud_msg));
+  }
+
+  void lidarHandler(
+    const lcm::ReceiveBuffer * /*rbuf*/,
+    const std::string & /*channel*/,
+    const mors_msgs::lidar_msg * msg)
+  {
+    if (msg == nullptr) {
+      return;
+    }
+
+    if (msg->points_count < 0) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 2000,
+        "Invalid LIDAR points_count=%d", msg->points_count);
+      return;
+    }
+
+    const size_t points_count = static_cast<size_t>(msg->points_count);
+    if (msg->x.size() < points_count || msg->y.size() < points_count ||
+      msg->z.size() < points_count || msg->intensity.size() < points_count ||
+      msg->ring.size() < points_count)
+    {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 2000,
+        "LIDAR arrays smaller than points_count=%zu", points_count);
+      return;
+    }
+
+    sensor_msgs::msg::PointCloud2 cloud_msg;
+    cloud_msg.header.frame_id = lidar_frame_id_;
+    cloud_msg.header.stamp =
+      msg->timestamp > 0 ? rclcpp::Time(msg->timestamp, RCL_SYSTEM_TIME) : this->now();
+
+    // the simulated frame is a single state snapshot: every point gets the snapshot time
+    // (the real driver spreads point times over the 0.1 s revolution)
+    const double timestamp = rclcpp::Time(cloud_msg.header.stamp).seconds();
+    std::vector<RsLidarPoint> points(points_count);
+    for (size_t i = 0; i < points_count; ++i) {
+      auto & point = points[i];
+      point.x = msg->x[i];
+      point.y = msg->y[i];
+      point.z = msg->z[i];
+      point.intensity = msg->intensity[i];
+      point.ring = static_cast<uint16_t>(msg->ring[i]);
+      point.timestamp = timestamp;
+    }
+    cloud_msg.height = 1;
+    cloud_msg.width = static_cast<uint32_t>(points_count);
+    cloud_msg.is_bigendian = false;
+    cloud_msg.is_dense = true;
+    cloud_msg.point_step = static_cast<uint32_t>(sizeof(RsLidarPoint));
+    cloud_msg.row_step = cloud_msg.point_step * cloud_msg.width;
+
+    const auto add_field = [&cloud_msg](const char * name, size_t offset, uint8_t datatype) {
+        sensor_msgs::msg::PointField field;
+        field.name = name;
+        field.offset = static_cast<uint32_t>(offset);
+        field.datatype = datatype;
+        field.count = 1;
+        cloud_msg.fields.push_back(std::move(field));
+      };
+    using sensor_msgs::msg::PointField;
+    add_field("x", offsetof(RsLidarPoint, x), PointField::FLOAT32);
+    add_field("y", offsetof(RsLidarPoint, y), PointField::FLOAT32);
+    add_field("z", offsetof(RsLidarPoint, z), PointField::FLOAT32);
+    add_field("intensity", offsetof(RsLidarPoint, intensity), PointField::FLOAT32);
+    add_field("ring", offsetof(RsLidarPoint, ring), PointField::UINT16);
+    add_field("timestamp", offsetof(RsLidarPoint, timestamp), PointField::FLOAT64);
+
+    cloud_msg.data.resize(points_count * sizeof(RsLidarPoint));
+    std::memcpy(cloud_msg.data.data(), points.data(), cloud_msg.data.size());
+
+    lidar_pub_->publish(std::move(cloud_msg));
   }
 
   void heightmapHandler(
@@ -940,7 +1060,8 @@ private:
       return;
     }
 
-    const rclcpp::Time stamp = this->now();
+    const rclcpp::Time stamp = stamp_from_lcm_ && msg->timestamp > 0 ?
+      rclcpp::Time(msg->timestamp, RCL_SYSTEM_TIME) : this->now();
 
     geometry_msgs::msg::TransformStamped tf_msg;
     tf_msg.header.stamp = stamp;
@@ -1022,12 +1143,16 @@ private:
   std::string servo_state_lcm_channel_;
   std::string footstep_sequence_lcm_channel_;
   std::string dcm_com_trajectory_lcm_channel_;
+  std::string lidar_lcm_channel_;
+  std::string lidar_ros_topic_;
+  std::string lidar_frame_id_;
   std::string footstep_sequence_markers_topic_;
   std::string dcm_com_trajectory_markers_topic_;
   std::string frame_id_;
   std::string pointcloud_frame_id_;
   std::string world_frame_id_;
   std::string base_link_frame_id_;
+  bool stamp_from_lcm_{false};
   std::string joint_states_topic_;
   std::string odom_topic_;
   int heightmap_window_cells_x_{0};
@@ -1054,6 +1179,7 @@ private:
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr footstep_sequence_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr dcm_com_trajectory_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr lidar_pub_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   std::string locomotion_lcm_url_;

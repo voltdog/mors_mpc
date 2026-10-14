@@ -1,0 +1,69 @@
+diff --git a/src/dddmr_lego_loam/lego_loam_bor/src/utils/lego_loam_map_visualization.cpp b/src/dddmr_lego_loam/lego_loam_bor/src/utils/lego_loam_map_visualization.cpp
+index f797138..5adefb8 100644
+--- a/src/dddmr_lego_loam/lego_loam_bor/src/utils/lego_loam_map_visualization.cpp
++++ b/src/dddmr_lego_loam/lego_loam_bor/src/utils/lego_loam_map_visualization.cpp
+@@ -118,50 +118,27 @@ void LegoLoamVisualization::processKeyFrameCloudResult(dddmr_sys_core::srv::GetK
+   pcl::PointCloud<PointType> pcl_ground_edge_cloud;
+ 
+   pcl::fromROSMsg(result->key_frame_corner, pcl_corner);
+-  if(pcl_corner.points.size()<1){
+-    RCLCPP_DEBUG(this->get_logger(), "Empty pcl_corner");
+-    return;
+-  }
+-  else{
+-    auto ds_temp = small_gicp::voxelgrid_sampling_omp(pcl_corner, map_voxel_size_, 6);
+-    pcl_corner.clear();
+-    pcl_corner = *ds_temp;
+-  }
+-
+   pcl::fromROSMsg(result->key_frame_surface, pcl_surface);
+-  if(pcl_surface.points.size()<1){
+-    RCLCPP_DEBUG(this->get_logger(), "Empty pcl_surface");
+-    return;
+-  }
+-  else{
+-    auto ds_temp = small_gicp::voxelgrid_sampling_omp(pcl_surface, map_voxel_size_, 6);
+-    pcl_surface.clear();
+-    pcl_surface = *ds_temp;
+-  }
+-
+   pcl::fromROSMsg(result->key_frame_outlier, pcl_outlier);
+-  if(pcl_outlier.points.size()<1){
+-    RCLCPP_DEBUG(this->get_logger(), "Empty pcl_outlier");
+-    return;
+-  }
+-  else{
+-    auto ds_temp = small_gicp::voxelgrid_sampling_omp(pcl_outlier, map_voxel_size_, 6);
+-    pcl_outlier.clear();
+-    pcl_outlier = *ds_temp;
+-  }
+-
+   pcl::fromROSMsg(result->key_frame_ground, pcl_ground_cloud);
+-  if(pcl_ground_cloud.points.size()<1){
+-    RCLCPP_DEBUG(this->get_logger(), "Empty pcl_ground_cloud");
+-    //return;
+-  }
+-
+   pcl::fromROSMsg(result->key_frame_ground_edge, pcl_ground_edge_cloud);
+-  if(pcl_ground_edge_cloud.points.size()<1){
+-    RCLCPP_DEBUG(this->get_logger(), "Empty pcl_ground_edge_cloud");
++
++  //@ getKeyFrameCloud answers with all clouds empty while the key frame is not available, it is requested again.
++  //@ A key frame with only some clouds empty (e.g. no outliers) is valid: dropping it would make
++  //@ syncMapAndGroundThread request the same key frame forever and the map would stop growing.
++  if(pcl_corner.empty() && pcl_surface.empty() && pcl_outlier.empty() &&
++     pcl_ground_cloud.empty() && pcl_ground_edge_cloud.empty()){
++    RCLCPP_DEBUG(this->get_logger(), "Key frame %lu is not available", corner_key_frame_clouds_.size());
+     return;
+   }
+ 
++  if(!pcl_corner.empty())
++    pcl_corner = *small_gicp::voxelgrid_sampling_omp(pcl_corner, map_voxel_size_, 6);
++  if(!pcl_surface.empty())
++    pcl_surface = *small_gicp::voxelgrid_sampling_omp(pcl_surface, map_voxel_size_, 6);
++  if(!pcl_outlier.empty())
++    pcl_outlier = *small_gicp::voxelgrid_sampling_omp(pcl_outlier, map_voxel_size_, 6);
++
+   RCLCPP_INFO_THROTTLE(this->get_logger(), *clock_, 1000, "Sync key frame number: %lu with total size: %lu", corner_key_frame_clouds_.size(), cloudKeyPoses6D->size());
+   
+   corner_key_frame_clouds_.push_back(pcl_corner.makeShared());

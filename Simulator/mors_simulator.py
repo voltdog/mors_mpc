@@ -1,4 +1,5 @@
 import os
+import struct
 import sys
 import time
 import warnings
@@ -28,6 +29,7 @@ from mors_msgs.robot_state_msg import robot_state_msg
 from mors_msgs.contact_sensor_msg import contact_sensor_msg
 from mors_msgs.odometry_msg import odometry_msg
 from mors_msgs.depth_image_msg import depth_image_msg
+from mors_msgs.lidar_msg import lidar_msg
 
 from additional.mors_env import MorsMujocoEnv
 
@@ -35,6 +37,15 @@ import yaml
 import numpy as np
 import math
 from scipy.spatial.transform import Rotation
+
+
+def encode_lidar_msg(timestamp, xyz, intensity, ring):
+    """Байты lidar_msg.encode() через numpy: сгенерированный кодер на кадре Airy (86400 точек)
+    держит GIL ~12 мс и сбивает цикл физики 1 кГц."""
+    header = lidar_msg._get_packed_fingerprint() + struct.pack(">qi", timestamp, len(xyz))
+    arrays = [xyz[:, 0], xyz[:, 1], xyz[:, 2], intensity]
+    return b"".join([header, *(a.astype(">f4").tobytes() for a in arrays), ring.astype(">i2").tobytes()])
+
 
 class Hardware_Level_Sim():
     DEPTH_IMAGE_DEFAULT_FPS = 10
@@ -75,6 +86,8 @@ class Hardware_Level_Sim():
         self.lc_contact = self._create_lcm(self.lcm_locomotion_url)
         if self.depth_image_enabled:
             self.lc_depth_image = self._create_lcm(self.lcm_locomotion_url)
+        if self.lidar_config is not None:
+            self.lc_lidar = self._create_lcm(self.lcm_locomotion_url)
         
         self.lcm_imu_msg.orientation_covariance = [2.603e-07, 0.0, 0.0, 0.0, 2.603e-07, 0.0, 0.0, 0.0, 0.0]
         self.lcm_imu_msg.angular_velocity_covariance = [2.5e-05, 0.0, 0.0, 0.0, 2.5e-05, 0.0, 0.0, 0.0, 2.5e-05]
@@ -86,6 +99,10 @@ class Hardware_Level_Sim():
             self.depth_image_th = Thread(target=self.depth_image_loop, args=())
             self.depth_image_th.daemon = True
             self.depth_image_th.start()
+        if self.lidar_config is not None:
+            self.lidar_th = Thread(target=self.lidar_loop, args=())
+            self.lidar_th.daemon = True
+            self.lidar_th.start()
 
         # init variables
         self.body_quaternion = [0.0, 0.0, 0.0, 1.0]
@@ -166,6 +183,17 @@ class Hardware_Level_Sim():
             self.depth_image_size = [depth_image_size[0], depth_image_size[1]]
             self.depth_image_period = 1.0 / float(self.depth_image_fps)
 
+        lidar_enabled = sim_config.get("lidar", False)
+        if not isinstance(lidar_enabled, bool):
+            raise ValueError(
+                f"Invalid `lidar`: expected boolean True/False, got {lidar_enabled!r}"
+            )
+
+        self.lidar_config = None
+        if lidar_enabled:
+            with open(f"{BASE_DIR}/../config/sensors.yaml", "r") as f:
+                self.lidar_config = yaml.safe_load(f)["robosense_airy"]
+
         with open(f"{BASE_DIR}/../config/channels.yaml", "r") as f:
             lcm_config = yaml.safe_load(f)
 
@@ -176,6 +204,7 @@ class Hardware_Level_Sim():
         self.lcm_contact_sensor_channel = lcm_config["contact_state"]
         self.lcm_robot_state_channel = lcm_config["robot_state"]
         self.depth_image_channel = lcm_config["depth_image"]
+        self.lidar_channel = lcm_config["lidar"]
 
         self.lcm_locomotion_url = os.environ.get("LCM_LOCOMOTION_URL")
         self.lcm_servo_url = os.environ.get("LCM_SERVO_URL")
@@ -237,7 +266,8 @@ class Hardware_Level_Sim():
                  init_body_pos=self.init_body_pos,
                  init_body_ori=self.init_body_ori,
                  depth_image_enabled=self.depth_image_enabled,
-                 depth_image_size=self.depth_image_size)
+                 depth_image_size=self.depth_image_size,
+                 lidar_config=self.lidar_config)
 
         if self.external_disturbance_enabled:
             self.env.set_ext_forces_params(self.external_disturbance_value, 
@@ -389,6 +419,9 @@ class Hardware_Level_Sim():
 
         self.lc_depth_image.publish(self.depth_image_channel, self.lcm_depth_image_msg.encode())
 
+    def __pub_lidar(self, timestamp, xyz, intensity, ring):
+        self.lc_lidar.publish(self.lidar_channel, encode_lidar_msg(timestamp, xyz, intensity, ring))
+
     def depth_image_loop(self):
         next_deadline = time.perf_counter()
         while not self.shutdown_event.is_set():
@@ -407,6 +440,28 @@ class Hardware_Level_Sim():
             else:
                 skipped = int((-sleep_time) / self.depth_image_period) + 1
                 next_deadline += skipped * self.depth_image_period
+
+    def lidar_loop(self):
+        lidar_period = self.env.get_lidar_frame_period()
+        next_deadline = time.perf_counter()
+        while not self.shutdown_event.is_set():
+            next_deadline += lidar_period
+            try:
+                # снимок состояния берётся сразу после этой метки (ожидание блокировки < 5 мс)
+                timestamp = time.time_ns()
+                frame = self.env.get_lidar_frame()
+                if frame is not None:
+                    self.__pub_lidar(timestamp, *frame)
+            except Exception as exc:
+                print(f"[LIDAR] Failed to process frame: {exc}")
+
+            sleep_time = next_deadline - time.perf_counter()
+            if sleep_time > 0.0:
+                if self.shutdown_event.wait(sleep_time):
+                    break
+            else:
+                skipped = int((-sleep_time) / lidar_period) + 1
+                next_deadline += skipped * lidar_period
 
     def get_cmd(self):
         # init LCM
@@ -460,6 +515,8 @@ class Hardware_Level_Sim():
 
         if hasattr(self, "depth_image_th") and self.depth_image_th.is_alive():
             self.depth_image_th.join(timeout=1.0)
+        if hasattr(self, "lidar_th") and self.lidar_th.is_alive():
+            self.lidar_th.join(timeout=1.0)
         if self.cmd_th.is_alive():
             self.cmd_th.join(timeout=1.0)
 

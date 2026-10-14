@@ -1,0 +1,13 @@
+package mors_msgs;
+
+struct lidar_msg
+{
+    int64_t timestamp;  // simulator state snapshot of the frame, Unix epoch in ns
+
+    int32_t points_count;
+    float x[points_count];          // lidar frame
+    float y[points_count];          // lidar frame
+    float z[points_count];          // lidar frame
+    float intensity[points_count];
+    int16_t ring[points_count];     // laser channel
+}

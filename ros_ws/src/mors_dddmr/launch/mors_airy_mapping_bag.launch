@@ -1,0 +1,29 @@
+<launch>
+  <!-- Offline mapping from a rosbag recorded during mapping (/rslidar_points, /odom).
+       Static TF must be published: robot_state_viewer.launch.py nav:=true on the host.
+       Playback starts paused: ros2 topic pub -1 /lego_loam_bag_pause std_msgs/msg/Bool "{data: false}"
+       The map is saved to $DDDMR_MAPPING_DIR + YYYY_MM_DD_HH_MM_SS when the bag ends. -->
+
+  <arg name="bag"/>
+  <arg name="bag_format" default="sqlite3"/>
+  <arg name="mapping_dir" default="/root/dddmr_bags/mors_building_bag_"/>
+  <arg name="rviz" default="false"/>
+  <arg name="config" default="$(find-pkg-share mors_dddmr)/config/mors_airy_mapping.yaml"/>
+
+  <set_env name="DDDMR_MAPPING_DIR" value="$(var mapping_dir)"/>
+
+  <node pkg="lego_loam_bor" exec="lego_loam_bag" output="screen" respawn="false">
+    <param from="$(var config)"/>
+    <param name="use_sim_time" value="false"/>
+    <param name="bag_file_dir" value="$(var bag)"/>
+    <param name="bag_format" value="$(var bag_format)"/>
+    <param name="point_cloud_topic" value="/rslidar_points"/>
+    <param name="odometry_topic" value="/odom"/>
+    <param name="skip_frame" value="1"/>
+  </node>
+
+  <node if="$(var rviz)" pkg="rviz2" exec="rviz2" output="screen" respawn="false"
+        args="-d $(find-pkg-share mors_dddmr)/rviz/mors_airy_mapping.rviz">
+    <param name="use_sim_time" value="false"/>
+  </node>
+</launch>

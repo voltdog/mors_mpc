@@ -1,0 +1,53 @@
+<launch>
+  <!-- Mapping with Robosense Airy. Static TF base_link->{rslidar, base_footprint},
+       /odom and TF odom->base_link come from the host (run.sh with the nav flag).
+       Navigating while mapping: the planner takes the growing map lego_loam_map / lego_loam_ground
+       and segmented_cloud_pure of lego_loam; goals only on the ground already in the map -->
+
+  <arg name="rviz" default="true"/>
+  <arg name="planner" default="true"/>
+  <arg name="config" default="$(find-pkg-share mors_dddmr)/config/mors_airy_mapping.yaml"/>
+  <!-- Planner tuned at stage 8 (navigation/plan.md), shared with localization -->
+  <arg name="planner_config" default="$(find-pkg-share mors_dddmr)/config/mors_airy_localization.yaml"/>
+
+  <!-- /save_mapped_point_cloud writes to $DDDMR_MAPPING_DIR + YYYY_MM_DD_HH_MM_SS -->
+  <set_env name="DDDMR_MAPPING_DIR" value="/root/dddmr_bags/mors_building_"/>
+
+  <!--name argument is not required, because it will overwrite all node name in the exec-->
+  <node pkg="lego_loam_bor" exec="lego_loam" output="screen" respawn="false">
+    <param from="$(var config)"/>
+    <param name="use_sim_time" value="false"/>
+    <remap from="/lslidar_point_cloud" to="/rslidar_points"/>
+  </node>
+
+  <!-- The map.* overrides apply to every node of the process, i.e. to the static layer of
+       perception_3d_global (global_planner) and perception_3d_local (p2p_move_base).
+       mapping_mode: best effort subscription to the map republished by lego_loam every second,
+       the graph is rebuilt whenever the map grows; edge detection is disabled -->
+  <group if="$(var planner)">
+    <node pkg="global_planner" exec="global_planner_node" output="screen" respawn="false">
+      <param from="$(var planner_config)"/>
+      <param name="use_sim_time" value="false"/>
+      <param name="map.map_topic" value="lego_loam_map"/>
+      <param name="map.ground_topic" value="lego_loam_ground"/>
+      <param name="map.support.mapping_mode" value="true"/>
+    </node>
+
+    <node pkg="p2p_move_base" exec="p2p_move_base_node" output="screen" respawn="false">
+      <param from="$(var planner_config)"/>
+      <param name="use_sim_time" value="false"/>
+      <param name="map.map_topic" value="lego_loam_map"/>
+      <param name="map.ground_topic" value="lego_loam_ground"/>
+      <param name="map.support.mapping_mode" value="true"/>
+    </node>
+
+    <node pkg="p2p_move_base" exec="clicked2goal.py" output="screen" respawn="false">
+      <param name="use_sim_time" value="false"/>
+    </node>
+  </group>
+
+  <node if="$(var rviz)" pkg="rviz2" exec="rviz2" output="screen" respawn="false"
+        args="-d $(find-pkg-share mors_dddmr)/rviz/mors_airy_mapping.rviz">
+    <param name="use_sim_time" value="false"/>
+  </node>
+</launch>

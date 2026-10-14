@@ -48,3 +48,27 @@ python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_ramp.py \
   --slope-angle 35 \
   --height 0.5 \
   --flat-length 2
+
+python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_building.py \
+  --wall-height 2.0 \
+  --mezzanine-height 0.6 \
+  --ramp-angle 12 \
+  --stair-step-height 0.05 \
+  --stair-step-depth 0.25 \
+  --door-width 1.0 \
+  --box-first-height 0.02 \
+  --box-last-height 0.08 \
+  --board-count 4 \
+  --board-thickness 0.04 \
+  --seed 7 \
+  --ceiling
+
+# building_obstacle.xml: the same scene plus a box missing from the navigation map
+# (obstacle avoidance test); the other arguments must match building.xml
+python3 /home/yoggi/mors_mpc/Simulator/MJCF/generate_building.py \
+  --box-first-height 0.01 \
+  --box-last-height 0.01 \
+  --board-count 1 \
+  --board-thickness 0.01 \
+  --obstacle \
+  --output /home/yoggi/mors_mpc/Simulator/MJCF/building_obstacle.xml

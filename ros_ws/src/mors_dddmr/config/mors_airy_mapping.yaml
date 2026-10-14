@@ -1,0 +1,102 @@
+# Mapping with Robosense Airy on MORS (lego_loam; the planner is configured in mors_airy_localization.yaml).
+# Starting point: dddmr_beginner_guide/config/airy_tilt45_mapping.yaml.
+#
+# Airy-96 frame (Simulator/additional/robosense_airy.py): 96 channels over 0..89.5 deg
+# elevation x 900 points in azimuth (0.4 deg) -> the range image is 96 x 900, no stitching.
+# imageProjection rejects a cloud with fewer than 0.1*V*H*stitcher_num points (8640).
+
+lego_loam_ip:
+  ros__parameters:
+    use_sim_time: false
+    laser:
+        odom_type: "wheel_odometry"         # ground-truth /odom from the simulator as prior
+        # Key poses (poses.pcd, pcd/*) and odom->sensor are computed with base_ground_frame
+        # while /odom is odom->base_link: with base_footprint the map->odom TF is off by
+        # the footprint offset and the odometry prior is wrong when the body tilts.
+        base_ground_frame: "base_link"
+        num_vertical_scans: 96
+        num_horizontal_scans: 900
+        vertical_angle_bottom: 0.0          # degrees
+        vertical_angle_top: 89.5            # degrees
+        scan_period: 0.1                    # seconds
+
+    imageProjection:
+        segment_valid_point_num: 5
+        segment_valid_line_num: 2
+        # Neighbours join a segment if the angle between their ray and the surface exceeds this.
+        # Corridor walls 0.55 m away are seen at grazing angles: with 60 deg they break into small
+        # segments that are dropped, and lego_loam jumps by 9-15 deg in yaw at doorways.
+        segment_theta: 20.0
+        minimum_detection_range: 0.3             # nearest floor point is 0.53 m from the lidar
+        maximum_detection_range: 60.0            # Airy range
+        # Patched ground is interpolated along a vector taken from the pitch-removed cloud but
+        # started from the raw (tilted) point, so the patch tilts by the 45 deg mount pitch:
+        # short patches keep the ground error small.
+        distance_for_patch_between_rings: 0.2
+        stitcher_num: 1
+        trt_model_path: ""
+        projected_image_stack_size: 1
+        patch_first_ring_to_baselink: false
+        ground_slope_tolerance: 0.3              # ramp 12 deg = 0.21 rad
+        # A ring pair is rejected only if it is steeper than ground_slope_tolerance AND its dz
+        # exceeds ground_dz_tolerance. Adjacent Airy rings (0.94 deg) on a wall 1-3 m away differ
+        # by only 2-5 cm, so the default 0.1 m lets walls into the ground cloud.
+        ground_dz_tolerance: 0.01
+
+        # Elevation/azimuth in the lidar frame. Lidar is pitched 45 deg down, a ray looks
+        # down only if tan(elevation) < cos(azimuth): with the top at 35 deg the azimuth must
+        # stay within +-40 deg, otherwise the ceiling and the mezzanine underside become ground.
+        ground_fov_bottom: 0.0
+        ground_fov_top: 0.61086                  # 35 deg, floor up to ~2 m ahead
+        ground_positive_start: 0.0
+        ground_positive_stop: 0.69813            # 40 deg
+        ground_negative_start: 0.0
+        ground_negative_stop: -0.69813
+
+lego_loam_fa:
+  ros__parameters:
+    use_sim_time: false
+    featureAssociation:
+        edge_threshold: 0.1
+        surf_threshold: 0.1
+        nearest_feature_search_distance: 3.0
+
+    mapping:
+        to_map_optimization: true
+
+lego_loam_mo:
+  ros__parameters:
+    use_sim_time: false
+    mapping:
+        # odom->base_link is published by robot_state_viewer on the host
+        broadcast_external_odom_tf: false
+
+        distance_between_key_frame: 0.2
+        angle_between_key_frame: 0.2
+
+        enable_loop_closure: true
+
+        surrounding_keyframe_search_num: 20
+        # Of the candidates within the radius the oldest one wins, and it is dropped if farther than 1 m
+        # (mapOptimization.cpp, detectLoopClosure): indoors 12 m picks frames from the next room
+        history_keyframe_search_radius: 2.0
+        history_keyframe_search_num: 5
+        history_keyframe_fitness_score: 0.2
+
+        ground_voxel_size: 0.3
+        ground_edge_threshold_num: 50
+
+        # Voxel grid of the scan-to-map registration (navigation/patches/lego_loam_bor.patch;
+        # hardcoded 0.2 / 0.4 m without it). With 0.4 m the centroids of voxels where a wall meets
+        # the floor move with the sensor and lego_loam underestimates motion by ~2 % in the building.
+        corner_voxel_size: 0.1
+        surface_voxel_size: 0.1
+
+lego_loam_map_visualization:
+  ros__parameters:
+    use_sim_time: false
+    ground_voxel_size: 0.3
+    ground_edge_threshold_num: 50
+
+# The planner (navigating while mapping) takes config/mors_airy_localization.yaml with the map topics
+# and mapping_mode overridden in launch/mors_airy_mapping.launch.

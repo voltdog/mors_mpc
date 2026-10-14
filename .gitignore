@@ -4,6 +4,8 @@ aaa/
 build/
 # build-safe/
 build*
+!Simulator/MJCF/building.xml
+!Simulator/MJCF/building_obstacle.xml
 install/
 log/
 __pycache__/
@@ -14,6 +16,7 @@ lcm_msgs/mors_msgs/
 tests/
 tools/
 *_logs/
+# navigation/
 
 # ros_ws/
 # mors_sim/

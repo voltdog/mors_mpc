@@ -12,6 +12,10 @@
   <default>
     <geom friction="1.0 0.02 0.01" margin="0.00" solimp="0.015 1.0 0.022"/>
     <joint damping="0.1" armature="0.001" frictionloss="0.1"/>
+    <!-- геомы робота в группе 1: сцены остаются в группе 0, лидар может их различать -->
+    <default class="mors">
+      <geom group="1"/>
+    </default>
   </default>
   
   <!-- Assets: meshes referenced from the package (kept as in URDF) -->
@@ -35,7 +39,7 @@
     <camera name="closeup" pos="0 -.1 .07" xyaxes="1 0 0 0 1 2"/>
 
     <!-- Base / body -->
-    <body name="base" pos="0 0 0.4">
+    <body name="base" pos="0 0 0.4" childclass="mors">
       <freejoint/>
       <site name="IMU"/>
       <inertial 
@@ -220,6 +224,16 @@
           conaffinity="0"
         />
         <camera name="depth_camera" pos="0.0175 -0.0208 0.0" euler="-90 0 180" fovy="58"/>
+      </body>
+
+      <!-- Robosense Airy: начало тела - центр нижней монтажной поверхности, корпус Ø60x63 мм.
+           pos/quat выставляет симулятор из config/sensors.yaml (robosense_airy.mount).
+           Корпус в группе 2: лучи выходят изнутри него и эту группу не видят. -->
+      <body name="robosense_airy">
+        <inertial pos="0 0 0.0315" mass="0.24" diaginertia="0.000134 0.000134 0.000108"/>
+        <site name="robosense_airy"/>
+        <geom name="robosense_airy_body" type="cylinder" size="0.03 0.0315" pos="0 0 0.0315"
+              group="2" rgba="0.15 0.15 0.15 1" contype="0" conaffinity="0"/>
       </body>
 
       <!-- <body name="scan" pos="0.15 0.0 0.115">

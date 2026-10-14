@@ -1,0 +1,419 @@
+# Localization with Robosense Airy on MORS (mcl_feature + pg_map_server + mcl_3dl + planner).
+# Starting point: dddmr_beginner_guide/config/airy_tilt45_navigation.yaml
+# and dddmr_p2p_move_base/config/go2_localization.yaml.
+#
+# mcl_3dl matches features of the current frame against the key frames of the map, so mcl_ip/mcl_fa
+# must extract them exactly as lego_loam_ip/lego_loam_fa did when the map was built
+# (config/mors_airy_mapping.yaml): keep the two sections in sync.
+
+mcl_ip:
+  ros__parameters:
+    use_sim_time: false
+    laser:
+        odom_type: "wheel_odometry"         # ground-truth /odom from the simulator
+        base_ground_frame: "base_link"      # as in the map, see mors_airy_mapping.yaml
+        num_vertical_scans: 96
+        num_horizontal_scans: 900
+        vertical_angle_bottom: 0.0          # degrees
+        vertical_angle_top: 89.5            # degrees
+        scan_period: 0.1                    # seconds
+
+    imageProjection:
+        segment_valid_point_num: 5
+        segment_valid_line_num: 2
+        segment_theta: 20.0
+        minimum_detection_range: 0.3
+        maximum_detection_range: 60.0
+        distance_for_patch_between_rings: 0.2
+        stitcher_num: 1
+        trt_model_path: ""
+        projected_image_stack_size: 1
+        patch_first_ring_to_baselink: false
+        ground_slope_tolerance: 0.3
+        ground_dz_tolerance: 0.01
+        ground_fov_bottom: 0.0
+        ground_fov_top: 0.61086                  # 35 deg
+        ground_positive_start: 0.0
+        ground_positive_stop: 0.69813            # 40 deg
+        ground_negative_start: 0.0
+        ground_negative_stop: -0.69813
+
+mcl_fa:
+  ros__parameters:
+    use_sim_time: false
+    featureAssociation:
+        edge_threshold: 0.1
+        surf_threshold: 0.1
+        nearest_feature_search_distance: 3.0
+
+    mapping:
+        to_map_optimization: false          # mcl_feature has no mapOptimization
+
+dddmr_pg_map_server_manager:
+  ros__parameters:
+    maps: ["map1"]
+
+map1:
+  ros__parameters:
+    pose_graph_dir: "/root/dddmr_bags/mors_building"   # overridden by the map_dir launch argument
+    complete_map_voxel_size: 0.2
+
+sub_maps:
+  ros__parameters:
+    pg_map_server_name: "map1"
+    # The building is 16.5 x 8 m: the whole map is always in the current sub map
+    sub_map_search_radius: 50.0
+    sub_map_warmup_trigger_distance: 20.0
+
+# The particles are base_link poses: map->odom is computed from /odom, which is odom->base_link.
+# The initial pose (topic initial_3d_pose, frame map) gets z of the nearest ground point of the map,
+# i.e. ~0.2 m below base_link; the filter recovers z from the flat features.
+mcl_3dl:
+  ros__parameters:
+    init_x: 0.0
+    init_y: 0.0
+    init_z: 0.0
+    init_roll: 0.0
+    init_pitch: 0.0
+    init_yaw: 0.0
+    init_var_x: 2.0
+    init_var_y: 2.0
+    init_var_z: 0.5
+    init_var_roll: 0.1
+    init_var_pitch: 0.1
+    init_var_yaw: 0.5
+    map_frame: "map"
+    robot_frame: "base_link"
+    odom_frame: "odom"
+    map_downsample_x: 0.1
+    map_downsample_y: 0.1
+    map_downsample_z: 0.1
+    num_particles: 100
+
+    # Std of the jitter added to every particle at each resample (every update_min_d / update_min_a).
+    # dddmr uses 0.2 m / 0.2 rad for wheel odometry; /odom here is ground truth, and with 0.2 rad
+    # in roll/pitch the estimate wandered by 4-15 deg in tilt and 10-20 cm in position.
+    resample_var_x: 0.05
+    resample_var_y: 0.05
+    resample_var_z: 0.02
+    resample_var_yaw: 0.02
+    resample_var_pitch: 0.01
+    resample_var_roll: 0.01
+    expansion_var_x: 0.5
+    expansion_var_y: 0.5
+    expansion_var_z: 0.5
+    expansion_var_roll: 0.2
+    expansion_var_pitch: 0.2
+    expansion_var_yaw: 0.2
+    match_ratio_thresh: 0.0
+
+    euc_cluster_distance: 0.8
+    euc_cluster_min_size: 3
+    euc_cluster_max_size: 2400
+
+    knn_num_of_ground_normals: 20
+
+    update_min_d: 0.1
+    update_min_a: 0.1
+
+    # Relative odometry errors of the motion model (per step: translation scale, yaw per metre, ...)
+    odom_err_lin_lin: 0.05
+    odom_err_lin_ang: 0.05
+    odom_err_ang_lin: 0.05
+    odom_err_ang_ang: 0.05
+
+    odom_err_integ_lin_tc: 5.0
+    odom_err_integ_ang_tc: 10.0
+
+    lpf_step: 2.0
+    acc_lpf_step: 128.0
+
+    jump_dist: 1.0
+    jump_ang: 1.57
+
+    bias_var_dist: 2.0
+    bias_var_ang: 1.57
+    tf_tolerance: 0.1
+    publish_tf: true
+
+    likelihood:
+      num_points_global: 8
+      match_dist_min: 0.3
+      match_dist_flat: 0.05
+      threshold_for_trusted_ground: 6
+      radius_of_ground_search: 1.0
+
+# ---------------------------------------------------------------------------
+# Planner (stage 8, navigation/plan.md). Also used by mors_airy_mapping.launch (navigating while mapping)
+# with the map topics and mapping_mode overridden there.
+# Doorways are 1.0 m, corridor 1.1 m, the clearance under the mezzanine is 0.54 m.
+# perception_3d works in base_footprint (0.206 m below base_link, i.e. on the floor): the global lidar
+# layer projects obstacles onto the plane of robot_base_frame, and from the base_link plane they never
+# came closer than inscribed_radius to the floor nodes, so new obstacles were never lethal.
+# Cuboid (base_footprint): collision geoms of MORS standing span x -0.29..0.21, y +-0.18,
+# z -0.02..0.25, the lidar top is at z ~0.41. Margin ~4 cm ahead/behind and 10 cm sideways: the
+# tilted Airy does not see a door jamb next to the legs, so trajectories cutting a corner must be
+# rejected while it is still in view (+-0.22 left 0-20 mm to the jambs). The rotate-in-place generators
+# keep +-0.22: with +-0.28 the robot facing the ramp side panel at the ramp foot could not turn away.
+# Cuboids are checked only against the lidar observation, i.e. points in the marking band below.
+# The global planner has no robot size besides inscribed_radius; global inflation (rate 6, radius 0.6)
+# keeps paths off observed walls.
+# ---------------------------------------------------------------------------
+p2p_move_base:
+  ros__parameters:
+    controller_frequency: 10.0
+    planner_patience: 10.0
+    oscillation_distance: 5.0
+    oscillation_angle: 1.0
+    oscillation_patience: 15.0
+    controller_patience: 10.0
+    no_plan_retry_num: 10
+    waiting_patience: 10.0
+global_plan_manager:
+  ros__parameters:
+    global_planner_action_name: "get_plan"
+    global_plan_query_frequency: 2.0      # replan to go around obstacles that are not in the map
+
+local_planner:
+  ros__parameters:
+    odom_topic: odom
+    forward_prune: 1.5
+    backward_prune: 1.0
+    heading_tracking_distance: 0.5
+    heading_align_angle: 0.5
+    prune_plane_timeout: 3.0
+    xy_goal_tolerance: 0.3              # 3D distance from base_link to the goal pose
+    yaw_goal_tolerance: 6.28
+    controller_frequency: 10.0
+    
+    cuboid:
+      flb: [0.30, 0.28, 0.05] #front left buttom
+      frb: [0.30, -0.28, 0.05]
+      flt: [0.30, 0.28, 0.46] #front left top
+      frt: [0.30, -0.28, 0.46]
+      blb: [-0.33, 0.28, 0.05] #back left buttom
+      brb: [-0.33, -0.28, 0.05]
+      blt: [-0.33, 0.28, 0.46]
+      brt: [-0.33, -0.28, 0.46]
+
+recovery_behaviors:
+  ros__parameters:
+    plugins: ["rotate_inplace"]
+    rotate_inplace:
+      plugin: "recovery_behaviors::RotateInPlaceBehavior"
+      frequency: 10.0
+      tolerance: 0.3
+      trajectory_generator_name: "differential_drive_rotate_inplace"
+
+trajectory_generators:
+  ros__parameters:
+    plugins: ["differential_drive_simple", "differential_drive_rotate_inplace", "differential_drive_rotate_shortest_angle"]
+    differential_drive_rotate_shortest_angle:
+      plugin: "trajectory_generators::DDRotateInplaceTheory"
+      controller_frequency: 10.0
+      rotation_speed: 0.4
+      cuboid:
+        flb: [0.30, 0.22, 0.05] #front left buttom
+        frb: [0.30, -0.22, 0.05]
+        flt: [0.30, 0.22, 0.46] #front left top
+        frt: [0.30, -0.22, 0.46]
+        blb: [-0.33, 0.22, 0.05] #back left buttom
+        brb: [-0.33, -0.22, 0.05]
+        blt: [-0.33, 0.22, 0.46]
+        brt: [-0.33, -0.22, 0.46]
+
+    differential_drive_rotate_inplace:
+      plugin: "trajectory_generators::DDRotateInplaceTheory"
+      controller_frequency: 10.0
+      rotation_speed: 0.4
+      cuboid:
+        flb: [0.30, 0.22, 0.05] #front left buttom
+        frb: [0.30, -0.22, 0.05]
+        flt: [0.30, 0.22, 0.46] #front left top
+        frt: [0.30, -0.22, 0.46]
+        blb: [-0.33, 0.22, 0.05] #back left buttom
+        brb: [-0.33, -0.22, 0.05]
+        blt: [-0.33, 0.22, 0.46]
+        brt: [-0.33, -0.22, 0.46]
+    
+    differential_drive_simple:
+      plugin: "trajectory_generators::DDSimpleTrajectoryGeneratorTheory"
+      max_vel_x: 0.4
+      min_vel_x: 0.1 #0.1 This value should not be negative, because we want to customize backward behavior
+      max_vel_theta: 0.45                # 0.6 overshot the 90 deg turn onto the ramp by ~30 deg
+      min_vel_theta: 0.15
+      acc_lim_x: 1.0 # 0.5
+      # The dynamic window is centred on the measured yaw rate (/odom angular.z, raw gyro). With 1.0 it was
+      # +-0.1 rad/s: after the in-place turn of d_align_heading (0.4 rad/s) the robot kept turning at
+      # vx 0.1, where the critics hardly depend on wz, overshot the heading by > heading_align_angle and
+      # was turned back by d_align_heading - spinning in place. 10 * 0.1 s covers the whole +-max_vel_theta.
+      acc_lim_theta: 10.0
+      deceleration_ratio: 2.0
+      # motor limits: used only with use_motor_constraint (off), kept from Go2
+      max_motor_shaft_rpm: 3000.0
+      wheel_diameter: 0.16
+      gear_ratio: 1.0
+      robot_radius: 0.3
+      
+      controller_frequency: 10.0
+      sim_time: 2.0
+      linear_x_sample: 5.0
+      angular_z_sample: 19.0              # 0.05 rad/s steps over the full window
+      sim_granularity: 0.05
+      angular_sim_granularity: 0.025
+
+      cuboid:
+        flb: [0.30, 0.28, 0.05] #front left buttom
+        frb: [0.30, -0.28, 0.05]
+        flt: [0.30, 0.28, 0.46] #front left top
+        frt: [0.30, -0.28, 0.46]
+        blb: [-0.33, 0.28, 0.05] #back left buttom
+        brb: [-0.33, -0.28, 0.05]
+        blt: [-0.33, 0.28, 0.46]
+        brt: [-0.33, -0.28, 0.46]
+
+mpc_critics:
+  ros__parameters:
+    plugins: ["collision", "stick_path", "pure_pursuit", "toward_global_plan", "collision_rotate", "collision_rotate_shortest", "prefer_rotate_shortest"]
+    collision:
+      plugin: "mpc_critics::CollisionModel"
+      trajectory_generator: differential_drive_simple
+      weight: 1.0
+    stick_path:
+      plugin: "mpc_critics::StickPathModel"
+      trajectory_generator: differential_drive_simple
+      weight: 1.0
+    pure_pursuit:
+      plugin: "mpc_critics::PurePursuitModel"
+      trajectory_generator: differential_drive_simple
+      translation_weight: 1.0
+      orientation_weight: 0.01
+    toward_global_plan:
+      plugin: "mpc_critics::TowardGlobalPlanModel"
+      trajectory_generator: differential_drive_simple
+      weight: 1.0
+    collision_rotate:
+      plugin: "mpc_critics::CollisionModel"
+      trajectory_generator: differential_drive_rotate_inplace
+      weight: 1.0
+    collision_rotate_shortest:
+      plugin: "mpc_critics::CollisionModel"
+      trajectory_generator: differential_drive_rotate_shortest_angle
+      weight: 1.0    
+    prefer_rotate_shortest:
+      plugin: "mpc_critics::ShortestAngleModel"
+      trajectory_generator: differential_drive_rotate_shortest_angle
+      weight: 1.0
+
+# Global static layer: radiusSearchConnection (enable_edge_detection) sets dGraph 0.25 for a ground node
+# with > 10 map points 0.1..1.0 m above it within +-0.5 m: next to walls and everywhere under the
+# mezzanine (its bottom is 0.54 m above the floor). A* skips nodes with dGraph < inscribed_radius, so
+# inscribed_radius < 0.25 keeps them passable with a penalty. Then walls are not lethal either, and A*
+# stepped through them (neighbours within 0.5 m on both sides of a 0.1 m wall): generate_static_graph
+# makes nodes closer than inscribed_radius to the map lethal. The map has points on the ramp surface and
+# the stair risers (lego_loam takes as ground only +-40 deg ahead): with inscribed_radius >= 0.18 the ramp
+# and the hall->corridor doorway are closed, hence 0.15 (less than the half width of MORS, 0.18 m).
+# a_star_expanding_radius 0.35 < wall 0.1 + 2 * 0.15, so A* does not jump over walls.
+#
+# Lidar layers take segmented_cloud_pure of mcl_feature (ground removed in +-40 deg ahead, frame rslidar),
+# as all dddmr configs. The marking band is z in base_footprint: 0.2..0.5 marks obstacles higher than
+# ~0.2 m and skips the mezzanine bottom (0.54) when passing under it. A lower band marked the ramp seen
+# from the side (outside the ground sector) and the robot turning onto it got stuck.
+# There is no self filtering: in the simulator the robot is invisible to the lidar (see_self: False),
+# so scan_effective_* is +-180.
+# path_blocked_strategy is off: it took the ramp seen from the side for an obstacle on the path.
+# expected_sensor_time: frames come every 0.087..0.116 s; with less the layer flaps to "not current".
+perception_3d_local:
+  ros__parameters:
+    global_frame: "map"
+    robot_base_frame: "base_footprint"
+    max_obstacle_distance: 9999.0
+    inscribed_radius: 0.22
+    inflation_descending_rate: 2.0
+    inflation_radius: 0.5
+    sensors_collected_frequency: 10.0
+    plugins: ["map", "lidar"]
+    map:
+      plugin: "perception_3d::StaticLayer"
+      is_local_planner: true
+      mapping_mode: false
+      map_topic: "map1/mapcloud"
+      ground_topic: "map1/mapground"
+    path_blocked_strategy:
+      plugin: "perception_3d::PathBlockedStrategy"
+      check_radius: 0.22
+    lidar:
+      plugin: "perception_3d::MultiLayerSpinningLidar"
+      is_local_planner: true
+      topic: "segmented_cloud_pure"
+      pub_gbl_marking_for_visualization: false
+      vertical_FOV_top: 90.0
+      vertical_FOV_bottom: 0.0
+      scan_effective_positive_start: 0.0
+      scan_effective_positive_end: 180.0
+      scan_effective_negative_start: -0.0
+      scan_effective_negative_end: -180.0
+      xy_resolution: 0.05
+      height_resolution: 0.05
+      marking_minimum_height: 0.2
+      marking_height: 0.5
+      perception_window_size: 3.0 #the window for marking/clearing in meter, we dont casting to maximum range of the sensor even it is gbl map
+      segmentation_ignore_ratio: 0.5 #f a segmentation match static pc with this ratio, we ignore it. ex: a wall
+      expected_sensor_time: 0.3
+      stitcher_num: 1
+
+perception_3d_global:
+  ros__parameters:
+    global_frame: "map"
+    robot_base_frame: "base_footprint"
+    max_obstacle_distance: 9999.0
+    inscribed_radius: 0.15
+    inflation_descending_rate: 6.0
+    inflation_radius: 0.6
+    sensors_collected_frequency: 10.0
+    plugins: ["map", "lidar"]
+    dgraph_publish_frequency: 1.0
+    map:
+      plugin: "perception_3d::StaticLayer"
+      is_local_planner: false
+      use_adaptive_connection: false #If true: the neighbors of node is sparse, it will automatically increase search radius.
+      adaptive_connection_number: 20
+      radius_of_ground_connection: 1.0 #If use_adaptive_connection=false, the radius search of the node is applied.
+      hollow_hole_tolerance: 10 #If there are small holes in the ground, and you want to ignore them, increase this value 
+      intensity_search_radius: 1.0 #this value is suggested to be 1.0 meters, because if it is too large, the narrow passage will be miscalculated
+      intensity_search_punish_weight: 0.1 #the weight for a node. Set this value higher means we dont like path planning cross a orphan node.
+      static_imposing_radius: 2.0 #use map to add weight on each ground node
+      map_topic: "map1/mapcloud"
+      ground_topic: "map1/mapground"
+      support:
+        mapping_mode: false
+          #if mapping mode is true, edge detection is automatically disabled
+        enable_edge_detection: true
+        generate_static_graph: true   # dGraph = distance to the nearest map point if < inscribed_radius
+
+    lidar:
+      plugin: "perception_3d::MultiLayerSpinningLidar"
+      is_local_planner: false
+      topic: "segmented_cloud_pure"
+      pub_gbl_marking_for_visualization: false #set to true to visualize marking, but update frequency will be compromised
+      vertical_FOV_top: 90.0
+      vertical_FOV_bottom: 0.0
+      scan_effective_positive_start: 0.0
+      scan_effective_positive_end: 180.0
+      scan_effective_negative_start: -0.0
+      scan_effective_negative_end: -180.0
+      euclidean_cluster_extraction_tolerance: 0.1
+      euclidean_cluster_extraction_min_cluster_size: 1
+      xy_resolution: 0.05
+      height_resolution: 0.05
+      marking_minimum_height: 0.2
+      marking_height: 0.5
+      perception_window_size: 5.0 #the window for marking/clearing in meter, we dont casting to maximum range of the sensor even it is gbl map
+      segmentation_ignore_ratio: 1.1 #f a segmentation match static pc with this ratio, we ignore it. ex: a wall
+      expected_sensor_time: 0.3
+      stitcher_num: 1
+
+global_planner:
+  ros__parameters:
+    turning_weight: 0.1 #Punish the zig-zag path
+    a_star_expanding_radius: 0.35
