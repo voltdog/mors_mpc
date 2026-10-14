@@ -41,4 +41,4 @@ joint_offset: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 depth_image: True
 
 # лидар Robosense Airy, параметры в sensors.yaml (robosense_airy)
-lidar: True
+lidar: False
