@@ -3,7 +3,7 @@
 # Experiment 1: straight-line walking along X with the given gait parameters.
 
 # ------------------------- experiment parameters -------------------------
-ALGORITHM="dcm"      # wbic | vision | dcm -> config/locomotion_controller.yaml
+ALGORITHM="vision"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="local"   # local | global -> config/locomotion_controller.yaml
 
 # Initial state -> config/simulation.yaml
@@ -11,10 +11,10 @@ KIN_SCHEME="><"         # >> | << | >< | <> -> init_motor_angles
 
 # ROS parameters of exp1 (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
-T_SW=0.5 # max: vision 0.4 | wbic 0.3 | dcm 0.56
-T_ST=0.7  # max: vision 0.7 | wbic 0.7 | dcm 0.7
+T_SW=0.32 # ><: vision 0.32 | dcm 0.43 || <<: vision 0.28 | dcm 0.3 || >>: vision 0.28 | dcm 0.3
+T_ST=0.5  # max: vision 0.7 | wbic 0.7 | dcm 0.7
 STRIDE_HEIGHT=0.04
-REF_VELOCITY_X=0.19
+REF_VELOCITY_X=0.3
 WALK_TIME=10.0
 RAMP_TIME=2.0
 

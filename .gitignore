@@ -17,6 +17,7 @@ tests/
 tools/
 *_logs/
 # navigation/
+FSMLocomotion/
 
 # ros_ws/
 # mors_sim/

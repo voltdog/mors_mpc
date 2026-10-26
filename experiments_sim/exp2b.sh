@@ -14,11 +14,11 @@ KIN_SCHEME="<<"         # >> | << | >< | <> -> init_motor_angles
 # ROS parameters of exp2b (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
 GAIT_OFFSETS="[0.0, 0.5, 0.5, 0.0]"
-T_SW=0.26
-T_ST=0.35
-STRIDE_HEIGHT=0.06
+T_SW=0.28 # ><: vision 0.28 | dcm 0.43 || <<: vision 0.28 | dcm 0.32 || >>: vision 0.28 | dcm 0.32
+T_ST=0.5
+STRIDE_HEIGHT=0.04
 REF_VELOCITY_X=0.3      # m/s
-REF_VELOCITY_Y=0.3      # m/s
+REF_VELOCITY_Y=0.15      # m/s
 
 STARTUP_DELAY=5         # pause between run.sh start and exp2b start [s]
 # -------------------------------------------------------------------------

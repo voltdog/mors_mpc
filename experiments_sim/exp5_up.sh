@@ -20,11 +20,11 @@ KIN_SCHEME="<<"                  # >> | << | >< | <> -> init_motor_angles
 
 # ROS parameters of exp1 (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
-T_SW=0.26
-T_ST=0.35
-STRIDE_HEIGHT=0.06
+T_SW=0.23 # max: vision 0.23 | dcm 0.32
+T_ST=0.5
+STRIDE_HEIGHT=0.04
 REF_VELOCITY_X=0.3
-WALK_TIME=10.0
+WALK_TIME=10.0 # vision 10.0 | dcm 15.0
 RAMP_TIME=1.0
 
 STARTUP_DELAY=5         # pause between run.sh start and exp1 start [s]

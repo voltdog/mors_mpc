@@ -8,7 +8,7 @@ ALGORITHM="dcm"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="local"   # local | global -> config/locomotion_controller.yaml
 
 # Platform -> Simulator/MJCF/generate_platform.py [m]
-PLATFORM_HEIGHT=0.15
+PLATFORM_HEIGHT=0.14 # max: vision 0.14 | dcm 0.14
 PLATFORM_LENGTH=2.0
 PLATFORM_WIDTH=2.0
 PLATFORM_START_DIST=1.0
@@ -19,11 +19,11 @@ KIN_SCHEME="<<"                  # >> | << | >< | <> -> init_motor_angles
 
 # ROS parameters of exp1 (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
-T_SW=0.28
-T_ST=0.35
+T_SW=0.32 # max: vision 0.23 | dcm 0.32
+T_ST=0.5
 STRIDE_HEIGHT=0.06
 REF_VELOCITY_X=0.3
-WALK_TIME=10.0
+WALK_TIME=14.0 # vision 8.0 | dcm 14.0
 RAMP_TIME=1.0
 
 STARTUP_DELAY=5         # pause between run.sh start and exp1 start [s]
