@@ -246,6 +246,8 @@ void TestFrameAccumulatorResynchronizes() {
                "parser did not recover after a CRC error");
     CheckEqual(crc_accumulator.buffered_size(), std::size_t{0},
                "parser retained bytes after resynchronization");
+    CheckEqual(crc_accumulator.rejected_candidates(), std::size_t{2},
+               "damaged frame and embedded header must both be rejected");
 
     auto bad_terminator = valid;
     bad_terminator[contact_sensor::kTerminatorOffset + 1] = '!';
@@ -256,6 +258,8 @@ void TestFrameAccumulatorResynchronizes() {
     const auto terminator_result = terminator_accumulator.Append(stream);
     CheckEqual(terminator_result, std::vector<RawData>{{10, 20, 30, 40}},
                "parser did not recover after a terminator error");
+    CheckEqual(terminator_accumulator.rejected_candidates(), std::size_t{1},
+               "frame with a bad terminator was not counted as rejected");
 
     auto shortened = MakeFrame(RawData{70, 80, 90, 100});
     stream.assign(shortened.begin(), shortened.end());

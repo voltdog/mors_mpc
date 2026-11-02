@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Experiment 5 (down, hardware): straight-line walking along X down a stepped
-# pyramid, the robot starts on its top platform (scenario of exp1).
+# Experiment 5 (down, hardware): stairs
 
 # ------------------------- experiment parameters -------------------------
 ALGORITHM="vision"      # wbic | vision | dcm -> config/locomotion_controller.yaml
@@ -16,11 +15,11 @@ STAIRS_CENTER_POS=0.0            # m, X of the pyramid center
 
 # ROS parameters of exp1 (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
-T_SW=0.26
-T_ST=0.35
-STRIDE_HEIGHT=0.06
-REF_VELOCITY_X=0.3
-WALK_TIME=7.0
+T_SW=0.23 # max: vision >< 0.23 | dcm 0.26
+T_ST=0.4  # max: vision >< 0.4 | dcm 0.4
+STRIDE_HEIGHT=0.05
+REF_VELOCITY_X=0.23 # vision ><: 0.13, <<: 0.23, >>: 0.07 | dcm ><: 0.13, <<: 0.23, >>: 0.07
+WALK_TIME=12.0 # vision ><: 12.0 <<: 12.0, >>: 17.0 | dcm ><: 0.18 <<: 12.0, >>: 17.0
 RAMP_TIME=1.0
 
 STARTUP_DELAY=5         # pause between run.sh start and exp1 start [s]

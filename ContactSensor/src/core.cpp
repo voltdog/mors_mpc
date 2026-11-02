@@ -327,6 +327,7 @@ std::vector<RawData> FrameAccumulator::Append(
             search_offset = frame_offset + kFrameSize;
         } else {
             // The candidate may contain the beginning of the next valid frame.
+            ++rejected_candidates_;
             search_offset = frame_offset + 1;
         }
     }
@@ -341,6 +342,10 @@ void FrameAccumulator::Reset() noexcept {
 
 std::size_t FrameAccumulator::buffered_size() const noexcept {
     return buffer_.size();
+}
+
+std::size_t FrameAccumulator::rejected_candidates() const noexcept {
+    return rejected_candidates_;
 }
 
 FallbackScheduler::FallbackScheduler(TimePoint start) noexcept

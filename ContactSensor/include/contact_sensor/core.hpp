@@ -86,8 +86,13 @@ public:
 
     [[nodiscard]] std::size_t buffered_size() const noexcept;
 
+    // Header candidates rejected by DecodeFrame (bad CRC or terminator).
+    // Cumulative diagnostic counter; Reset() does not clear it.
+    [[nodiscard]] std::size_t rejected_candidates() const noexcept;
+
 private:
     std::vector<std::uint8_t> buffer_;
+    std::size_t rejected_candidates_{};
 };
 
 class FallbackScheduler {

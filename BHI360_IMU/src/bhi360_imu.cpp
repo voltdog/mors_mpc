@@ -29,6 +29,7 @@ void quaternionToEuler(float w, float x, float y, float z, float& roll, float& p
 #define STARTUP_SKIP_PACKETS 10
 
 #define PITCH_OFFSET -0.035
+#define ROLL_OFFSET -0.0074
 
 namespace
 {
@@ -143,19 +144,37 @@ Quaternion makePitchCorrection(float pitch_offset) {
     };
 }
 
+Quaternion makeRollCorrection(float roll_offset) {
+    const float half_angle = roll_offset * 0.5f;
+    return {
+        cos(half_angle),
+        sin(half_angle),
+        0.0f,
+        0.0f
+    };
+}
+
 // Перекос платы ИМУ учитывается доворотом кватерниона: q_body = q_sensor * q_mount,
-// то есть R_world<-body = R_world<-sensor * Ry(PITCH_OFFSET). Значит векторные
+// q_mount = Ry(PITCH_OFFSET) * Rx(ROLL_OFFSET), то есть
+// R_world<-body = R_world<-sensor * Ry(PITCH_OFFSET) * Rx(ROLL_OFFSET). Значит векторные
 // показания, приходящие в сенсорном базисе, надо доворачивать обратным поворотом
-// R_body<-sensor = Ry(-PITCH_OFFSET). Без этого ориентация и вектора живут в
-// системах, расходящихся на PITCH_OFFSET, и потребитель, поворачивающий
+// R_body<-sensor = Rx(-ROLL_OFFSET) * Ry(-PITCH_OFFSET). Без этого ориентация и вектора
+// живут в системах, расходящихся на угол перекоса, и потребитель, поворачивающий
 // акселерометр в мир через world_R_body, получает постоянное смещение
-// -g*sin(PITCH_OFFSET) по X (0.34 м/с^2 при 0.035 рад).
-void sensorToBody(float& x, float& z) {
-    static const float cos_mount = cos(-PITCH_OFFSET);
-    static const float sin_mount = sin(-PITCH_OFFSET);
-    const float x_body =  cos_mount * x + sin_mount * z;
-    const float z_body = -sin_mount * x + cos_mount * z;
+// -g*sin(PITCH_OFFSET) по X (0.34 м/с^2 при 0.035 рад) и g*sin(ROLL_OFFSET) по Y.
+void sensorToBody(float& x, float& y, float& z) {
+    static const float cos_pitch = cos(-PITCH_OFFSET);
+    static const float sin_pitch = sin(-PITCH_OFFSET);
+    static const float cos_roll = cos(-ROLL_OFFSET);
+    static const float sin_roll = sin(-ROLL_OFFSET);
+    // Ry(-PITCH_OFFSET)
+    const float x_body =  cos_pitch * x + sin_pitch * z;
+    const float z_pitch = -sin_pitch * x + cos_pitch * z;
+    // Rx(-ROLL_OFFSET)
+    const float y_body = cos_roll * y - sin_roll * z_pitch;
+    const float z_body = sin_roll * y + cos_roll * z_pitch;
     x = x_body;
+    y = y_body;
     z = z_body;
 }
 
@@ -224,7 +243,8 @@ int main(int argc, char **argv)
 	float roll = 0.0;
 	float pitch = 0.0;
 	float yaw = 0.0;
-    const Quaternion q_mount_correction = makePitchCorrection(PITCH_OFFSET);
+    const Quaternion q_mount_correction = multiply(makePitchCorrection(PITCH_OFFSET),
+                                                   makeRollCorrection(ROLL_OFFSET));
 	
 	lcm::LCM lcm(locomotion_lcm_url);
 	if(!lcm.good())
@@ -263,7 +283,7 @@ int main(int argc, char **argv)
 				imu_msg.linear_acceleration[X] = acc_x * 9.81f * 1.0f / 4096.0f;
 				imu_msg.linear_acceleration[Y] = acc_y * 9.81f * 1.0f / 4096.0f;
 				imu_msg.linear_acceleration[Z] = acc_z * 9.81f * 1.0f / 4096.0f;
-				sensorToBody(imu_msg.linear_acceleration[X], imu_msg.linear_acceleration[Z]);
+				sensorToBody(imu_msg.linear_acceleration[X], imu_msg.linear_acceleration[Y], imu_msg.linear_acceleration[Z]);
 
 				int16_t gyr_x = *(int16_t*)&buffer[8];
 				int16_t gyr_y = *(int16_t*)&buffer[10];
@@ -272,7 +292,7 @@ int main(int argc, char **argv)
 				imu_msg.angular_velocity[X] = gyr_x * 6.28f * 2000.0f / 32768.0f / 360.0f;
 				imu_msg.angular_velocity[Y] = gyr_y * 6.28f * 2000.0f / 32768.0f / 360.0f;
 				imu_msg.angular_velocity[Z] = gyr_z * 6.28f * 2000.0f / 32768.0f / 360.0f;
-				sensorToBody(imu_msg.angular_velocity[X], imu_msg.angular_velocity[Z]);
+				sensorToBody(imu_msg.angular_velocity[X], imu_msg.angular_velocity[Y], imu_msg.angular_velocity[Z]);
 
 				int16_t quat_x = *(int16_t*)&buffer[14];
 				int16_t quat_y = *(int16_t*)&buffer[16];

@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Experiment 4 (down, hardware): straight-line walking along X down a trapezoidal
-# ramp, the robot starts on its flat top (scenario of exp1).
+# Experiment 4 (down, hardware): ramp
 
 # ------------------------- experiment parameters -------------------------
 ALGORITHM="vision"      # wbic | vision | dcm -> config/locomotion_controller.yaml

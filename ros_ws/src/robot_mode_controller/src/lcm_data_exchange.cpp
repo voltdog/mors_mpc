@@ -1,5 +1,6 @@
 #include "robot_mode_controller/lcm_data_exchange.hpp"
 #include <cstdlib>
+#include <limits>
 #include <stdexcept>
 #include <unistd.h>
 
@@ -29,6 +30,7 @@ string GetRequiredEnv( const std::string & var )
 LCMExchanger::LCMExchanger()
     : servo_state_subscriber(GetRequiredEnv("LCM_SERVO_URL")),
       robot_state_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
+      contact_state_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
       servo_cmd_publisher(GetRequiredEnv("LCM_SERVO_URL")),
       enable_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
       wbc_cmd_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
@@ -59,6 +61,7 @@ LCMExchanger::LCMExchanger()
     robot_state_channel = channel_config["robot_state"].as<string>();
     phase_signal_channel = channel_config["gait_phase"].as<string>();
     gait_params_channel = channel_config["gait_params"].as<string>();
+    contact_state_channel = channel_config["contact_state"].as<string>();
 
     // gear_ratio = GEAR_RATIO;
 
@@ -92,6 +95,7 @@ void LCMExchanger::start_exchanger()
 {
     thRobotState = make_unique<thread> (&LCMExchanger::robotStateThread, this);
     thServoState = make_unique<thread> (&LCMExchanger::servoStateThread, this);
+    thContactState = make_unique<thread> (&LCMExchanger::contactStateThread, this);
 }
 
 void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer* rbuf,
@@ -159,6 +163,28 @@ void LCMExchanger::robotStateThread()
         robot_state_subscriber.handle();
         // cout << "grf thread" << endl;
         // sleep(0.001);
+    }
+}
+
+void LCMExchanger::contactStateHandler(const lcm::ReceiveBuffer* rbuf,
+                                      const std::string& chan,
+                                      const mors_msgs::contact_sensor_msg* msg)
+{
+    (void)rbuf;
+    (void)chan;
+    (void)msg;
+
+    // only the arrival time matters: fallback zeros come at 10 Hz and are caught by the timeout
+    contact_stamp.store(chrono::steady_clock::now().time_since_epoch().count());
+    contact_received.store(true);
+}
+
+void LCMExchanger::contactStateThread()
+{
+    contact_state_subscriber.subscribe(contact_state_channel, &LCMExchanger::contactStateHandler, this);
+    while(true)
+    {
+        contact_state_subscriber.handle();
     }
 }
 
@@ -298,6 +324,15 @@ RobotData LCMExchanger::getBodyState()
 LegData LCMExchanger::getLegState()
 {
     return leg_state;
+}
+
+double LCMExchanger::getContactDataAge() const
+{
+    if (!contact_received.load())
+        return std::numeric_limits<double>::infinity();
+
+    const chrono::steady_clock::time_point stamp{chrono::steady_clock::duration{contact_stamp.load()}};
+    return chrono::duration<double, milli>(chrono::steady_clock::now() - stamp).count();
 }
 
 void LCMExchanger::getServoStateData(VectorXd &position, VectorXd &velocity, VectorXd &torque)

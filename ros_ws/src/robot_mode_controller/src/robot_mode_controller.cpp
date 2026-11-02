@@ -15,6 +15,8 @@ namespace robot_mode_controller
             max_angles[i] = emerg_config["max_angles"][i].as<double>(); 
             min_angles[i] = emerg_config["min_angles"][i].as<double>(); 
         }
+        contact_timeout_ms = emerg_config["contact_timeout_ms"].as<double>();
+        contact_recovery_ms = emerg_config["contact_recovery_ms"].as<double>();
 
         // string stance_config_address = config_address + "/stance_controller_mpc.yaml";
         // YAML::Node stance_config = YAML::LoadFile(stance_config_address);
@@ -54,6 +56,7 @@ namespace robot_mode_controller
 
         angles_exceeded = false;
         emerg_btn_pushed = false;
+        contact_fault = false;
 
         cur_theta.setZero(12);
         cur_omega.setZero(12);
@@ -190,6 +193,30 @@ namespace robot_mode_controller
 
         if (emerg_btn_pushed == false)
         {
+            // contact sensor watchdog: lay down if standing, block stand up if laying
+            const double contact_age_ms = lcmExch.getContactDataAge();
+            const bool contact_lost = contact_timeout_ms > 0.0 && contact_age_ms > contact_timeout_ms;
+            if (contact_lost)
+            {
+                const std::string age = std::isinf(contact_age_ms) ? "never received"
+                    : "no data for " + std::to_string(std::lround(contact_age_ms)) + " ms";
+                RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                    "Contact sensor: %s (timeout %.0f ms). %s",
+                    age.c_str(), contact_timeout_ms,
+                    on_legs ? "Laying down!" : "Stand up is blocked!");
+                contact_fault = true;
+                contact_lost_stamp = steady_clock::now();
+            }
+            // hysteresis: 10 Hz fallback messages make the data look fresh for a moment
+            else if (contact_fault &&
+                     steady_clock::now() - contact_lost_stamp >= duration<double, milli>(contact_recovery_ms))
+            {
+                contact_fault = false;
+                RCLCPP_INFO(this->get_logger(), "Contact sensor: data restored, stand up is allowed");
+            }
+            if (contact_fault && on_legs)
+                action_num = 2;
+
             // choose working mode
             if (action_num != 0)
             {
@@ -324,6 +351,12 @@ namespace robot_mode_controller
         switch (action_num)
         {
             case 1: // stand up
+                if (contact_fault)
+                {
+                    RCLCPP_ERROR(this->get_logger(), "Contact sensor: no data, stand up refused");
+                    action_num = 0;
+                    break;
+                }
                 cout << "getting up to Z pos: " << user_cmd.pos(Z) << endl;
                 get_up_action.set_parameters(Ts, user_cmd.pos(Z), action1_kp, action1_kd);
                 get_up_action.reset();

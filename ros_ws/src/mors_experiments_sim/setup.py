@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'exp1 = mors_experiments_sim.exp1_max_t_sw:main',
             'exp2a = mors_experiments_sim.exp2a_curvilinear:main',
+            'exp2a_timed = mors_experiments_sim.exp2a_curvilinear_timed:main',
             'exp2b = mors_experiments_sim.exp2b_curvilinear:main',
             'exp2c = mors_experiments_sim.exp2c_curvilinear:main',
             'exp2d = mors_experiments_sim.exp2d_linear:main',

@@ -35,6 +35,7 @@ using namespace std::chrono_literals;
 
 constexpr unsigned int kBaudRate = 250000;
 constexpr auto kReconnectPeriod = 1s;
+constexpr auto kStatsPeriod = 10s;
 constexpr std::size_t kReadBufferSize = 4096;
 
 volatile std::sig_atomic_t stop_requested = 0;
@@ -220,6 +221,93 @@ int PollTimeout(
         timeout.count(), std::numeric_limits<int>::max()));
 }
 
+long long ToMilliseconds(Clock::duration duration)
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+        .count();
+}
+
+// Reports the link state that is invisible at the OS level: an open port
+// that delivers no bytes, or bytes that never form a valid frame.
+class LinkDiagnostics
+{
+public:
+    LinkDiagnostics(
+        const contact_sensor::FrameAccumulator& accumulator,
+        Clock::time_point now)
+        : accumulator_(accumulator), last_frame_(now), stats_start_(now)
+    {
+    }
+
+    void OnBytes(std::size_t count) noexcept
+    {
+        bytes_since_frame_ += count;
+        stats_bytes_ += count;
+    }
+
+    void OnFrame(Clock::time_point now)
+    {
+        if (silent_)
+        {
+            std::cerr << "[ContactSensor]: frames resumed after "
+                      << ToMilliseconds(now - last_frame_) << " ms\n";
+            silent_ = false;
+        }
+        last_frame_ = now;
+        bytes_since_frame_ = 0;
+        rejected_at_last_frame_ = accumulator_.rejected_candidates();
+        ++stats_frames_;
+    }
+
+    void OnFallback(Clock::time_point now)
+    {
+        if (silent_)
+        {
+            return;
+        }
+        silent_ = true;
+        std::cerr << "[ContactSensor]: no valid frames for "
+                  << ToMilliseconds(now - last_frame_) << " ms ("
+                  << bytes_since_frame_ << " bytes received, "
+                  << accumulator_.rejected_candidates() -
+                         rejected_at_last_frame_
+                  << " frames rejected); publishing zero contacts\n";
+    }
+
+    void ReportStats(Clock::time_point now)
+    {
+        const auto elapsed = now - stats_start_;
+        if (elapsed < kStatsPeriod)
+        {
+            return;
+        }
+
+        const double seconds = std::chrono::duration<double>(elapsed).count();
+        const std::size_t rejected = accumulator_.rejected_candidates();
+        std::cout << "[ContactSensor]: link: "
+                  << static_cast<double>(stats_frames_) / seconds
+                  << " frames/s, "
+                  << static_cast<double>(stats_bytes_) / seconds << " B/s, "
+                  << rejected - stats_rejected_ << " frames rejected\n";
+
+        stats_start_ = now;
+        stats_frames_ = 0;
+        stats_bytes_ = 0;
+        stats_rejected_ = rejected;
+    }
+
+private:
+    const contact_sensor::FrameAccumulator& accumulator_;
+    bool silent_ = false;
+    Clock::time_point last_frame_;
+    std::size_t bytes_since_frame_ = 0;
+    std::size_t rejected_at_last_frame_ = 0;
+    Clock::time_point stats_start_;
+    std::size_t stats_frames_ = 0;
+    std::size_t stats_bytes_ = 0;
+    std::size_t stats_rejected_ = 0;
+};
+
 void LogSerialError(const std::exception& error)
 {
     std::cerr << "[ContactSensor]: " << error.what()
@@ -277,6 +365,7 @@ int Run()
     contact_sensor::ZeroOffsetCalibrator calibrator(
         config.calibration_samples);
     contact_sensor::FallbackScheduler fallback_scheduler(Clock::now());
+    LinkDiagnostics diagnostics(frame_accumulator, Clock::now());
     Clock::time_point next_reconnect = Clock::now();
     const mors_msgs::contact_sensor_msg fallback_message = MakeFallbackMessage();
 
@@ -337,6 +426,8 @@ int Run()
 
                     if (bytes_read > 0)
                     {
+                        diagnostics.OnBytes(
+                            static_cast<std::size_t>(bytes_read));
                         const auto frames = frame_accumulator.Append(std::span(
                             read_buffer.data(),
                             static_cast<std::size_t>(bytes_read)));
@@ -346,7 +437,9 @@ int Run()
                             const contact_sensor::ScaledRawData raw_data =
                                 contact_sensor::ScaleRawData(
                                     serial_data, config.raw_data_divisor);
-                            fallback_scheduler.OnFrame(Clock::now());
+                            const auto frame_time = Clock::now();
+                            fallback_scheduler.OnFrame(frame_time);
+                            diagnostics.OnFrame(frame_time);
                             const bool was_calibrated =
                                 calibrator.IsCalibrated();
                             const std::optional<contact_sensor::ScaledRawData>
@@ -435,9 +528,12 @@ int Run()
 
         if (fallback_scheduler.IsDue(now))
         {
+            diagnostics.OnFallback(now);
             Publish(publisher, contact_channel, fallback_message);
             fallback_scheduler.MarkPublished(now);
         }
+
+        diagnostics.ReportStats(now);
     }
 
     std::cout << "[ContactSensor]: stopped\n";

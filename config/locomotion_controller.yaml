@@ -1,4 +1,4 @@
-algorithm: "vision" # wbic vision dcm
+algorithm: "dcm" # wbic vision dcm
 vel_cmd_frame: "local" # local global - СК, в которой задана команда линейной скорости
 
 stance_controller_mpc:
@@ -9,8 +9,8 @@ stance_controller_mpc:
 
   Q: [24.15005058616386, 24.15005058616386, 48.71352227697854, # orientation
       43.872288964585856, 43.872288964585856, 458.28937122509376, # position
-      0.05, 0.05, 0.136, # angular velocity
-      3.0, 3.0, 0.17327940542163445, 0.0] # linear velocity
+      0.05, 0.05, 0.2, # angular velocity #0.136
+      3.0, 6.0, 0.17327940542163445, 0.0] # linear velocity #12.0
 
   R: [0.8606370134153708, 0.8606370134153708, 0.7096321884500194,  # orientation
       0.8606370134153708, 0.8606370134153708, 0.7096321884500194,  # position
@@ -21,7 +21,7 @@ stance_controller_mpc:
   R_gain: 0.002
 
 wbic:
-  Qf_entry: 0.565
+  Qf_entry: 0.565 #5.0 #
   Qa_entry: 4.182
 
   body_ori_task_kp: 120.0
@@ -33,7 +33,7 @@ wbic:
   tip_pos_task_kp: 230.0
   tip_pos_task_kd: 28.0
 
-  joint_kp_stance: 2.0
+  joint_kp_stance: 2.0 #3.0 for dcm #2.0 for vision
   joint_kd_stance: 0.4
 
   joint_kp_swing: 6.0

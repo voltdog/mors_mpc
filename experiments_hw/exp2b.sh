@@ -5,17 +5,17 @@
 # (SEGMENT_DIRECTIONS, SEGMENT_TIME and RAMP_TIME are constants of exp2b_curvilinear.py).
 
 # ------------------------- experiment parameters -------------------------
-ALGORITHM="vision"      # wbic | vision | dcm -> config/locomotion_controller.yaml
+ALGORITHM="dcm"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="local"   # local | global -> config/locomotion_controller.yaml
 
 # ROS parameters of exp2b (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
 GAIT_OFFSETS="[0.0, 0.5, 0.5, 0.0]"
-T_SW=0.26
-T_ST=0.35
-STRIDE_HEIGHT=0.06
-REF_VELOCITY_X=0.3      # m/s
-REF_VELOCITY_Y=0.3      # m/s
+T_SW=0.26 # max (sim): vision 0.23 | dcm 0.26
+T_ST=0.4 # max (sim): vision 0.35 | dcm 0.4
+STRIDE_HEIGHT=0.04
+REF_VELOCITY_X=0.23      # m/s
+REF_VELOCITY_Y=0.2      # m/s
 
 STARTUP_DELAY=5         # pause between run.sh start and exp2b start [s]
 # -------------------------------------------------------------------------

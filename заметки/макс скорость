@@ -1,0 +1,9 @@
+При этих параметрах скорость примерно равна 1.2 м/с при заданной 1.3 м/с
+
+BODY_Z=0.2 
+T_SW=0.15 # max (sim): vision 0.23 | dcm 0.26
+T_ST=0.19  # max (sim): vision 0.4 | dcm 0.4
+STRIDE_HEIGHT=0.04
+REF_VELOCITY_X=1.3
+WALK_TIME=5.0
+RAMP_TIME=2.0

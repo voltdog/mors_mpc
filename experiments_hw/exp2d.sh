@@ -4,19 +4,19 @@
 # and check how well the robot tracks it.
 
 # ------------------------- experiment parameters -------------------------
-ALGORITHM="vision"      # wbic | vision | dcm -> config/locomotion_controller.yaml
+ALGORITHM="dcm"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="global"   # local | global -> config/locomotion_controller.yaml
 
 # ROS parameters of exp2d (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
 GAIT_OFFSETS="[0.0, 0.5, 0.5, 0.0]"
-T_SW=0.26
-T_ST=0.35
-STRIDE_HEIGHT=0.06
-REF_VELOCITY_X=0.3      # m/s
+T_SW=0.26 # max (sim): vision 0.23 | dcm 0.26
+T_ST=0.4 # max (sim): vision 0.35 | dcm 0.4
+STRIDE_HEIGHT=0.04
+REF_VELOCITY_X=0.25      # m/s
 REF_VELOCITY_Y=0.0      # m/s
-REF_VELOCITY_Z=0.5      # rad/s, yaw rate
-WALK_TIME=20.0
+REF_VELOCITY_Z=0.4      # rad/s, yaw rate
+WALK_TIME=10.0
 RAMP_TIME=1.0
 
 STARTUP_DELAY=5         # pause between run.sh start and exp2d start [s]

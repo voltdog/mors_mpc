@@ -2,6 +2,7 @@
 #define _lcm_data_exchange_rm_hpp_
 
 #include <iostream>
+#include <atomic>
 #include <unistd.h>
 #include <chrono>
 #include <thread>
@@ -16,6 +17,7 @@
 #include "mors_msgs/phase_signal_msg.hpp"
 #include "mors_msgs/wbc_cmd_msg.hpp"
 #include "mors_msgs/gait_params_msg.hpp"
+#include "mors_msgs/contact_sensor_msg.hpp"
 
 // #include "system_functions.hpp"
 #include "structs.hpp"
@@ -41,13 +43,19 @@ class LCMExchanger
         void robotStateHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const mors_msgs::robot_state_msg* msg);
+        void contactStateHandler(const lcm::ReceiveBuffer* rbuf,
+                            const std::string& chan,
+                            const mors_msgs::contact_sensor_msg* msg);
 
         void servoStateThread();
         void robotStateThread();
+        void contactStateThread();
 
         void getServoStateData(VectorXd &position, VectorXd &velocity, VectorXd &torque);
         RobotData getBodyState();
         LegData getLegState();
+        // time since the last CONTACT_SENSOR message [ms], infinity if none was received
+        double getContactDataAge() const;
 
         void sendServoCmd(VectorXd &position, VectorXd &velocity, VectorXd &torque, VectorXd &kp, VectorXd &kd);
         void sendEnableData(bool &locomotion_en, bool &locomotion_reset,
@@ -63,9 +71,11 @@ class LCMExchanger
         string servo_state_channel, servo_cmd_channel, robot_state_channel;
         string enable_channel, robot_cmd_channel, gait_params_channel;
         string wbc_cmd_channel, phase_signal_channel;
+        string contact_state_channel;
 
         lcm::LCM servo_state_subscriber;
         lcm::LCM robot_state_subscriber;
+        lcm::LCM contact_state_subscriber;
 
         lcm::LCM servo_cmd_publisher;
         lcm::LCM enable_publisher;
@@ -85,6 +95,10 @@ class LCMExchanger
 
         unique_ptr<thread> thRobotState;
         unique_ptr<thread> thServoState;
+        unique_ptr<thread> thContactState;
+
+        std::atomic<bool> contact_received{false};
+        std::atomic<chrono::steady_clock::rep> contact_stamp{0};
         
         bool leg_controller_en, leg_controller_reset;
 

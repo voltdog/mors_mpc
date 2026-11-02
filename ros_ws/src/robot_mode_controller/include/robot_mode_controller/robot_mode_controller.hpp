@@ -6,7 +6,9 @@
 #undef __ARM_NEON__
 #endif
 
+#include <cmath>
 #include <memory>
+#include <string>
 #include <chrono>
 #include <functional>
 
@@ -72,6 +74,12 @@ namespace robot_mode_controller
 
             bool angles_exceeded;
             bool emerg_btn_pushed;
+
+            // contact sensor watchdog
+            double contact_timeout_ms;
+            double contact_recovery_ms;
+            bool contact_fault;
+            steady_clock::time_point contact_lost_stamp;
 
             VectorXd cur_theta;
             VectorXd cur_omega;

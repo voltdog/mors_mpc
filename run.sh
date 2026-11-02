@@ -310,6 +310,9 @@ assert hasattr(robot_state_msg(), "timestamp")
         # experiments_hw scenarios publish the same commands, so they disable the teleop
         if [ "$radiolink_enabled" = true ]; then
             start_component \
+                "joy node" \
+                ros2 run joy joy_node --ros-args -p deadzone:=0.0 -p autorepeat_rate:=0.0
+            start_component \
                 "radiolink control" \
                 ros2 run mors_radiolink_control mors_radiolink_control
         fi

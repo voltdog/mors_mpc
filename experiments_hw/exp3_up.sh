@@ -1,25 +1,24 @@
 #!/bin/bash
 
-# Experiment 3 (up, hardware): straight-line walking along X onto a rectangular
-# platform (scenario of exp1).
+# Experiment 3 (up, hardware): platform
 
 # ------------------------- experiment parameters -------------------------
-ALGORITHM="vision"      # wbic | vision | dcm -> config/locomotion_controller.yaml
+ALGORITHM="dcm"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="local"   # local | global -> config/locomotion_controller.yaml
 
 # Real platform [m]: description only, goes to params.txt and the log folder name
-PLATFORM_HEIGHT=0.15
+PLATFORM_HEIGHT=0.105
 PLATFORM_LENGTH=2.0
-PLATFORM_WIDTH=2.0
+PLATFORM_WIDTH=1.0
 PLATFORM_START_DIST=1.0
 
 # ROS parameters of exp1 (must be float literals, e.g. 1.0, not 1)
-BODY_Z=0.2
-T_SW=0.28
-T_ST=0.35
-STRIDE_HEIGHT=0.06
-REF_VELOCITY_X=0.3
-WALK_TIME=15.0
+BODY_Z=0.21
+T_SW=0.26 # max: vision 0.23 | dcm 0.26
+T_ST=0.4 # max: vision 0.35 | dcm 0.4
+STRIDE_HEIGHT=0.04
+REF_VELOCITY_X=0.25 # vision 0.2 | dcm 0.25
+WALK_TIME=10.0 # vision 10.0 | dcm 10.0
 RAMP_TIME=1.0
 
 STARTUP_DELAY=5         # pause between run.sh start and exp1 start [s]
