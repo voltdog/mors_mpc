@@ -8,10 +8,10 @@ contact_source: "sensor" # sensor | grf_observer
 # собирается заново. Частота ниже min_frequency_ratio * nominal снимает флаг.
 sensor_readiness:
   frequency_window_sec: 0.5
-  min_frequency_ratio: 0.5
-  data_timeout_sec: 0.5
+  min_frequency_ratio: 0.7
+  data_timeout_sec: 0.3
   depth_frequency_hz: 30.0
-  imu_frequency_hz: 500.0
+  imu_frequency_hz: 400.0
   servo_frequency_hz: 1000.0
   contact_frequency_hz: 600.0
   t265_frequency_hz: 200.0

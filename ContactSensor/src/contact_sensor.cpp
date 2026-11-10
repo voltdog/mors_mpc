@@ -171,14 +171,14 @@ private:
 mors_msgs::contact_sensor_msg MakeMessage(
     const contact_sensor::ScaledRawData& raw_data,
     const contact_sensor::ContactStates& contact_states,
-    bool available)
+    const contact_sensor::ChannelReadiness& readiness)
 {
     mors_msgs::contact_sensor_msg message{};
     for (std::size_t index = 0; index < contact_sensor::kLegCount; ++index)
     {
         message.raw_data[index] = raw_data[index];
         message.contact_states[index] = contact_states[index] ? 1 : 0;
-        message.readiness[index] = available ? 1 : 0;
+        message.readiness[index] = readiness[index] ? 1 : 0;
     }
     return message;
 }
@@ -187,7 +187,9 @@ mors_msgs::contact_sensor_msg MakeFallbackMessage()
 {
     contact_sensor::ScaledRawData invalid;
     invalid.fill(contact_sensor::kInvalidMeasurement);
-    return MakeMessage(invalid, contact_sensor::ContactStates{}, false);
+    return MakeMessage(
+        invalid, contact_sensor::ContactStates{},
+        contact_sensor::ChannelReadiness{});
 }
 
 void Publish(
@@ -252,8 +254,8 @@ public:
     {
         if (silent_)
         {
-            std::cerr << "[ContactSensor]: frames resumed after "
-                      << ToMilliseconds(now - last_frame_) << " ms\n";
+            // std::cerr << "[ContactSensor]: frames resumed after "
+            //           << ToMilliseconds(now - last_frame_) << " ms\n";
             silent_ = false;
         }
         last_frame_ = now;
@@ -269,12 +271,12 @@ public:
             return;
         }
         silent_ = true;
-        std::cerr << "[ContactSensor]: no valid frames for "
-                  << ToMilliseconds(now - last_frame_) << " ms ("
-                  << bytes_since_frame_ << " bytes received, "
-                  << accumulator_.rejected_candidates() -
-                         rejected_at_last_frame_
-                  << " frames rejected); publishing invalid channels\n";
+        // std::cerr << "[ContactSensor]: no valid frames for "
+        //           << ToMilliseconds(now - last_frame_) << " ms ("
+        //           << bytes_since_frame_ << " bytes received, "
+        //           << accumulator_.rejected_candidates() -
+        //                  rejected_at_last_frame_
+        //           << " frames rejected); publishing invalid channels\n";
     }
 
     void ReportStats(Clock::time_point now)
@@ -287,11 +289,11 @@ public:
 
         const double seconds = std::chrono::duration<double>(elapsed).count();
         const std::size_t rejected = accumulator_.rejected_candidates();
-        std::cout << "[ContactSensor]: link: "
-                  << static_cast<double>(stats_frames_) / seconds
-                  << " frames/s, "
-                  << static_cast<double>(stats_bytes_) / seconds << " B/s, "
-                  << rejected - stats_rejected_ << " frames rejected\n";
+        // std::cout << "[ContactSensor]: link: "
+        //           << static_cast<double>(stats_frames_) / seconds
+        //           << " frames/s, "
+        //           << static_cast<double>(stats_bytes_) / seconds << " B/s, "
+        //           << rejected - stats_rejected_ << " frames rejected\n";
 
         stats_start_ = now;
         stats_frames_ = 0;
@@ -301,7 +303,7 @@ public:
 
 private:
     const contact_sensor::FrameAccumulator& accumulator_;
-    bool silent_ = false;
+    bool silent_ = true;
     Clock::time_point last_frame_;
     std::size_t bytes_since_frame_ = 0;
     std::size_t rejected_at_last_frame_ = 0;
@@ -315,16 +317,17 @@ private:
 class ChannelDiagnostics
 {
 public:
-    void OnFrame(bool available,
+    void OnFrame(const contact_sensor::ChannelReadiness& available,
                  const contact_sensor::ZeroOffsetCalibrator& calibrator)
     {
         constexpr std::array<const char*, 4> names{"R1", "L1", "R2", "L2"};
         for (std::size_t leg = 0; leg < contact_sensor::kLegCount; ++leg)
         {
-            if (!known_[leg] || available_[leg] != available)
+            if (!known_[leg] || available_[leg] != available[leg])
             {
                 std::cout << "[ContactSensor]: " << names[leg]
-                          << (available ? " data available" : " data unavailable")
+                          << (available[leg] ? " data available"
+                                             : " data unavailable")
                           << '\n';
             }
             if (!calibrated_[leg] && calibrator.IsCalibrated(leg))
@@ -334,7 +337,7 @@ public:
                           << calibrator.offset()[leg] << '\n';
             }
             known_[leg] = true;
-            available_[leg] = available;
+            available_[leg] = available[leg];
             calibrated_[leg] = calibrator.IsCalibrated(leg);
         }
     }
@@ -472,7 +475,7 @@ int Run()
                             read_buffer.data(),
                             static_cast<std::size_t>(bytes_read)));
 
-                        for (const contact_sensor::RawData& serial_data : frames)
+                        for (const contact_sensor::DecodedFrame& frame : frames)
                         {
                             const auto frame_time = Clock::now();
                             if (fallback_scheduler.IsDue(frame_time))
@@ -482,8 +485,10 @@ int Run()
                             fallback_scheduler.OnFrame(frame_time);
                             diagnostics.OnFrame(frame_time);
                             const auto corrected_data = calibrator.Process(
-                                serial_data, config.raw_data_divisor);
-                            channel_diagnostics.OnFrame(true, calibrator);
+                                frame.raw_data, frame.readiness,
+                                config.raw_data_divisor);
+                            channel_diagnostics.OnFrame(
+                                frame.readiness, calibrator);
                             const auto absolute_data =
                                 contact_sensor::AbsoluteRawData(corrected_data);
                             const contact_sensor::ContactStates contacts =
@@ -492,7 +497,9 @@ int Run()
                             Publish(
                                 publisher,
                                 contact_channel,
-                                MakeMessage(absolute_data, contacts, true));
+                                MakeMessage(
+                                    absolute_data, contacts,
+                                    corrected_data.valid));
                         }
                         continue;
                     }
@@ -549,7 +556,8 @@ int Run()
         {
             diagnostics.OnFallback(now);
             calibrator.ResetIncomplete();
-            channel_diagnostics.OnFrame(false, calibrator);
+            channel_diagnostics.OnFrame(
+                contact_sensor::ChannelReadiness{}, calibrator);
             Publish(publisher, contact_channel, fallback_message);
             fallback_scheduler.MarkPublished(now);
         }

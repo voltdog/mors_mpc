@@ -183,7 +183,7 @@ std::uint16_t ComputeCrc16CcittFalse(
     return crc;
 }
 
-std::optional<RawData> DecodeFrame(
+std::optional<DecodedFrame> DecodeFrame(
     std::span<const std::uint8_t, kFrameSize> frame) noexcept {
     if (!std::equal(kFrameHeader.begin(), kFrameHeader.end(), frame.begin()) ||
         !std::equal(kFrameTerminator.begin(), kFrameTerminator.end(),
@@ -201,9 +201,25 @@ std::optional<RawData> DecodeFrame(
         return std::nullopt;
     }
 
-    return DecodePayload(
+    const RawData raw_data = DecodePayload(
         std::span<const std::uint8_t, kPayloadSize>{
             frame.data() + kPayloadOffset, kPayloadSize});
+    const std::uint8_t readiness_mask = frame[kReadinessOffset];
+    if ((readiness_mask & 0xF0U) != 0U) {
+        return std::nullopt;
+    }
+
+    DecodedFrame decoded;
+    decoded.raw_data = raw_data;
+    for (std::size_t leg = 0; leg < kLegCount; ++leg) {
+        decoded.readiness[leg] =
+            (readiness_mask & static_cast<std::uint8_t>(1U << leg)) != 0U;
+        if (!decoded.readiness[leg] &&
+            decoded.raw_data[leg] != kInvalidRawMeasurement) {
+            return std::nullopt;
+        }
+    }
+    return decoded;
 }
 
 ContactStates DetectContacts(const ScaledRawData& raw_data,
@@ -250,9 +266,17 @@ ScaledRawData AbsoluteRawData(const CalibratedData& raw_data) noexcept {
 }
 
 CalibratedData ZeroOffsetCalibrator::Process(
-    const RawData& raw_data, float divisor) noexcept {
+    const RawData& raw_data, const ChannelReadiness& readiness,
+    float divisor) noexcept {
     CalibratedData result;
     for (std::size_t leg = 0; leg < kLegCount; ++leg) {
+        if (!readiness[leg]) {
+            if (!IsCalibrated(leg)) {
+                samples_collected_[leg] = 0;
+                sums_[leg] = 0;
+            }
+            continue;
+        }
         const float scaled = static_cast<float>(raw_data[leg]) / divisor;
         if (!IsCalibrated(leg)) {
             sums_[leg] += scaled;
@@ -296,11 +320,11 @@ const Offsets& ZeroOffsetCalibrator::offset() const noexcept {
     return offset_;
 }
 
-std::vector<RawData> FrameAccumulator::Append(
+std::vector<DecodedFrame> FrameAccumulator::Append(
     std::span<const std::uint8_t> bytes) {
     buffer_.insert(buffer_.end(), bytes.begin(), bytes.end());
 
-    std::vector<RawData> frames;
+    std::vector<DecodedFrame> frames;
     frames.reserve(buffer_.size() / kFrameSize);
 
     std::size_t search_offset = 0;
@@ -337,7 +361,7 @@ std::vector<RawData> FrameAccumulator::Append(
 
         const auto frame = std::span<const std::uint8_t, kFrameSize>{
             buffer_.data() + frame_offset, kFrameSize};
-        if (const std::optional<RawData> decoded = DecodeFrame(frame)) {
+        if (const std::optional<DecodedFrame> decoded = DecodeFrame(frame)) {
             frames.push_back(*decoded);
             search_offset = frame_offset + kFrameSize;
         } else {

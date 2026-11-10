@@ -21,10 +21,20 @@
 namespace {
 
 using contact_sensor::ContactStates;
+using contact_sensor::ChannelReadiness;
+using contact_sensor::DecodedFrame;
 using contact_sensor::Offsets;
 using contact_sensor::RawData;
 using contact_sensor::ScaledRawData;
 using contact_sensor::Thresholds;
+
+constexpr ChannelReadiness kAllReady{true, true, true, true};
+
+DecodedFrame Decoded(
+    RawData raw_data,
+    ChannelReadiness readiness = kAllReady) {
+    return DecodedFrame{raw_data, readiness};
+}
 
 class TestFailure : public std::runtime_error {
 public:
@@ -94,7 +104,8 @@ void ExpectRuntimeError(Function&& function, std::string_view expected_text) {
 }
 
 std::array<std::uint8_t, contact_sensor::kFrameSize> MakeFrame(
-    const RawData& raw_data) {
+    const RawData& raw_data,
+    const ChannelReadiness& readiness = kAllReady) {
     std::array<std::uint8_t, contact_sensor::kFrameSize> frame{};
     std::copy(contact_sensor::kFrameHeader.begin(),
               contact_sensor::kFrameHeader.end(), frame.begin());
@@ -106,6 +117,10 @@ std::array<std::uint8_t, contact_sensor::kFrameSize> MakeFrame(
             contact_sensor::kPayloadOffset + leg * sizeof(std::int16_t);
         frame[offset] = static_cast<std::uint8_t>(encoded & 0x00FFU);
         frame[offset + 1] = static_cast<std::uint8_t>(encoded >> 8U);
+        if (readiness[leg]) {
+            frame[contact_sensor::kReadinessOffset] |=
+                static_cast<std::uint8_t>(1U << leg);
+        }
     }
 
     const std::uint16_t crc = contact_sensor::ComputeCrc16CcittFalse(
@@ -123,6 +138,17 @@ std::array<std::uint8_t, contact_sensor::kFrameSize> MakeFrame(
     return frame;
 }
 
+void RefreshCrc(
+    std::array<std::uint8_t, contact_sensor::kFrameSize>& frame) {
+    const std::uint16_t crc = contact_sensor::ComputeCrc16CcittFalse(
+        std::span<const std::uint8_t>{frame}.first(
+            contact_sensor::kCrcOffset));
+    frame[contact_sensor::kCrcOffset] =
+        static_cast<std::uint8_t>(crc >> 8U);
+    frame[contact_sensor::kCrcOffset + 1] =
+        static_cast<std::uint8_t>(crc & 0x00FFU);
+}
+
 void TestCrcGoldenVectors() {
     constexpr std::array<std::uint8_t, 9> standard_input{
         '1', '2', '3', '4', '5', '6', '7', '8', '9'};
@@ -132,9 +158,10 @@ void TestCrcGoldenVectors() {
 
     constexpr std::array<std::uint8_t, contact_sensor::kFrameSize>
         expected_frame{
-            '#', '0', '1',
+            '#', '0', '2',
             0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00,
-            0x2F, 0xBE,
+            0x0F,
+            0x2B, 0xAD,
             '\r', '\n',
         };
     CheckEqual(MakeFrame(RawData{1, 2, 3, 4}), expected_frame,
@@ -142,11 +169,11 @@ void TestCrcGoldenVectors() {
 }
 
 void TestDecodeSignedLittleEndian() {
-    const auto frame = MakeFrame(RawData{-32768, 32767, -1, 0x1234});
-    const std::optional<RawData> decoded =
+    const auto frame = MakeFrame(RawData{-32768, 32767, -2, 0x1234});
+    const std::optional<DecodedFrame> decoded =
         contact_sensor::DecodeFrame(frame);
     Check(decoded.has_value(), "valid frame was rejected");
-    CheckEqual(*decoded, RawData{-32768, 32767, -1, 0x1234},
+    CheckEqual(*decoded, Decoded(RawData{-32768, 32767, -2, 0x1234}),
                "little-endian signed decoding failed");
 }
 
@@ -154,9 +181,9 @@ void TestDecodeRejectsMalformedFrames() {
     const auto valid = MakeFrame(RawData{1, 2, 3, 4});
 
     auto bad_header = valid;
-    bad_header[0] = '!';
+    bad_header[2] = '1';
     Check(!contact_sensor::DecodeFrame(bad_header).has_value(),
-          "frame with a bad header was accepted");
+          "legacy #01 frame was accepted");
 
     auto bad_payload = valid;
     bad_payload[contact_sensor::kPayloadOffset] ^= 0x01U;
@@ -167,11 +194,41 @@ void TestDecodeRejectsMalformedFrames() {
     bad_terminator[contact_sensor::kTerminatorOffset] = '\n';
     Check(!contact_sensor::DecodeFrame(bad_terminator).has_value(),
           "frame with a bad terminator was accepted");
+
+    auto changed_readiness = valid;
+    changed_readiness[contact_sensor::kReadinessOffset] ^= 0x01U;
+    Check(!contact_sensor::DecodeFrame(changed_readiness).has_value(),
+          "readiness mask was not covered by CRC");
+
+    for (std::uint8_t bit = 4; bit < 8; ++bit) {
+        auto reserved_readiness = valid;
+        reserved_readiness[contact_sensor::kReadinessOffset] |=
+            static_cast<std::uint8_t>(1U << bit);
+        RefreshCrc(reserved_readiness);
+        Check(!contact_sensor::DecodeFrame(reserved_readiness).has_value(),
+              "reserved readiness bit was accepted");
+    }
+
+    auto inconsistent = MakeFrame(
+        RawData{1, 2, 3, 4}, ChannelReadiness{false, true, true, true});
+    Check(!contact_sensor::DecodeFrame(inconsistent).has_value(),
+          "non-marker value for an unavailable channel was accepted");
+
+    const auto partial = MakeFrame(
+        RawData{-1, 2, -1, 4},
+        ChannelReadiness{false, true, false, true});
+    CheckEqual(contact_sensor::DecodeFrame(partial),
+               std::optional<DecodedFrame>{Decoded(
+                   RawData{-1, 2, -1, 4},
+                   ChannelReadiness{false, true, false, true})},
+               "valid partial readiness frame was rejected");
 }
 
 void TestFrameAccumulatorFragmentsAndBackToBackFrames() {
     const auto first = MakeFrame(RawData{1, 2, 3, 4});
-    const auto second = MakeFrame(RawData{-1, -2, -3, -4});
+    const auto second = MakeFrame(
+        RawData{-1, -2, -1, -4},
+        ChannelReadiness{false, true, false, true});
     const auto third = MakeFrame(RawData{5, 6, 7, 8});
     std::vector<std::uint8_t> bytes;
     bytes.insert(bytes.end(), first.begin(), first.end());
@@ -189,9 +246,11 @@ void TestFrameAccumulatorFragmentsAndBackToBackFrames() {
             4, 2 * contact_sensor::kFrameSize - 2));
     CheckEqual(first_two.size(), std::size_t{2},
                "fragment plus back-to-back frame count is wrong");
-    CheckEqual(first_two[0], RawData{1, 2, 3, 4},
+    CheckEqual(first_two[0], Decoded(RawData{1, 2, 3, 4}),
                "fragmented frame decoded incorrectly");
-    CheckEqual(first_two[1], RawData{-1, -2, -3, -4},
+    CheckEqual(first_two[1], Decoded(
+                   RawData{-1, -2, -1, -4},
+                   ChannelReadiness{false, true, false, true}),
                "second consecutive frame decoded incorrectly");
     CheckEqual(accumulator.buffered_size(), std::size_t{2},
                "trailing partial frame was not retained");
@@ -200,7 +259,7 @@ void TestFrameAccumulatorFragmentsAndBackToBackFrames() {
         std::span{bytes}.last(contact_sensor::kFrameSize - 2));
     CheckEqual(final_frame.size(), std::size_t{1},
                "completion of trailing frame produced wrong count");
-    CheckEqual(final_frame[0], RawData{5, 6, 7, 8},
+    CheckEqual(final_frame[0], Decoded(RawData{5, 6, 7, 8}),
                "trailing frame decoded incorrectly");
     CheckEqual(accumulator.buffered_size(), std::size_t{0},
                "buffer must be empty after complete frames");
@@ -229,12 +288,13 @@ void TestFrameAccumulatorResynchronizes() {
 
     const auto split_result = split_header_accumulator.Append(
         std::span{valid}.subspan(2));
-    CheckEqual(split_result, std::vector<RawData>{{10, 20, 30, 40}},
+    CheckEqual(split_result,
+               std::vector<DecodedFrame>{Decoded(RawData{10, 20, 30, 40})},
                "frame following split header was not recovered");
 
-    // The damaged payload deliberately contains an embedded "#01". The
+    // The damaged payload deliberately contains an embedded "#02". The
     // parser must reject each false candidate and still find the next frame.
-    auto damaged = MakeFrame(RawData{0x3023, 0x0031, 50, 60});
+    auto damaged = MakeFrame(RawData{0x3023, 0x0032, 50, 60});
     damaged[contact_sensor::kPayloadOffset + 4] ^= 0x01U;
     std::vector<std::uint8_t> stream{'?', '?'};
     stream.insert(stream.end(), damaged.begin(), damaged.end());
@@ -242,7 +302,8 @@ void TestFrameAccumulatorResynchronizes() {
 
     contact_sensor::FrameAccumulator crc_accumulator;
     const auto crc_result = crc_accumulator.Append(stream);
-    CheckEqual(crc_result, std::vector<RawData>{{10, 20, 30, 40}},
+    CheckEqual(crc_result,
+               std::vector<DecodedFrame>{Decoded(RawData{10, 20, 30, 40})},
                "parser did not recover after a CRC error");
     CheckEqual(crc_accumulator.buffered_size(), std::size_t{0},
                "parser retained bytes after resynchronization");
@@ -256,7 +317,8 @@ void TestFrameAccumulatorResynchronizes() {
 
     contact_sensor::FrameAccumulator terminator_accumulator;
     const auto terminator_result = terminator_accumulator.Append(stream);
-    CheckEqual(terminator_result, std::vector<RawData>{{10, 20, 30, 40}},
+    CheckEqual(terminator_result,
+               std::vector<DecodedFrame>{Decoded(RawData{10, 20, 30, 40})},
                "parser did not recover after a terminator error");
     CheckEqual(terminator_accumulator.rejected_candidates(), std::size_t{1},
                "frame with a bad terminator was not counted as rejected");
@@ -269,18 +331,20 @@ void TestFrameAccumulatorResynchronizes() {
 
     contact_sensor::FrameAccumulator lost_byte_accumulator;
     const auto lost_byte_result = lost_byte_accumulator.Append(stream);
-    CheckEqual(lost_byte_result, std::vector<RawData>{{10, 20, 30, 40}},
+    CheckEqual(lost_byte_result,
+               std::vector<DecodedFrame>{Decoded(RawData{10, 20, 30, 40})},
                "parser did not recover after a lost byte");
 
     contact_sensor::FrameAccumulator bytewise_accumulator;
-    std::vector<RawData> bytewise_result;
+    std::vector<DecodedFrame> bytewise_result;
     for (const std::uint8_t byte : stream) {
         const std::array<std::uint8_t, 1> chunk{byte};
         const auto decoded = bytewise_accumulator.Append(chunk);
         bytewise_result.insert(
             bytewise_result.end(), decoded.begin(), decoded.end());
     }
-    CheckEqual(bytewise_result, std::vector<RawData>{{10, 20, 30, 40}},
+    CheckEqual(bytewise_result,
+               std::vector<DecodedFrame>{Decoded(RawData{10, 20, 30, 40})},
                "bytewise input did not recover after a lost byte");
 }
 
@@ -461,85 +525,147 @@ contact_sensor:
 
 void TestZeroOffsetCalibrationAndCorrection() {
     contact_sensor::ZeroOffsetCalibrator calibrator{3};
-    CheckEqual(calibrator.Process(RawData{9, -12, 30, 100}, 1).valid,
+    CheckEqual(calibrator.Process(
+                   RawData{9, -12, 30, 100}, kAllReady, 1).valid,
                ContactStates{}, "first calibration sample was returned");
-    (void)calibrator.Process(RawData{12, -9, 33, 103}, 1);
+    (void)calibrator.Process(RawData{12, -9, 33, 103}, kAllReady, 1);
     CheckEqual(calibrator.samples_collected(0), std::size_t{2}, "sample count");
-    CheckEqual(calibrator.Process(RawData{15, -6, 36, 106}, 1).valid,
+    CheckEqual(calibrator.Process(
+                   RawData{15, -6, 36, 106}, kAllReady, 1).valid,
                ContactStates{}, "last calibration sample was returned");
     for (std::size_t i = 0; i < 4; ++i) Check(calibrator.IsCalibrated(i), "ready");
     CheckEqual(calibrator.offset(), Offsets{12, -9, 33, 103}, "offset");
-    const auto corrected = calibrator.Process(RawData{12, -4, 30, 120}, 1);
+    const auto corrected = calibrator.Process(
+        RawData{12, -4, 30, 120}, kAllReady, 1);
     CheckEqual(corrected.valid, ContactStates{true, true, true, true}, "valid");
     CheckEqual(corrected.values, ScaledRawData{0, 5, -3, 17}, "correction");
 }
 
 void TestZeroOffsetCalibrationReset() {
     contact_sensor::ZeroOffsetCalibrator calibrator{2};
-    (void)calibrator.Process(RawData{100, 200, 300, 400}, 1);
+    (void)calibrator.Process(RawData{100, 200, 300, 400}, kAllReady, 1);
     calibrator.Reset();
     Check(!calibrator.IsCalibrated(0), "Reset left calibrator ready");
     CheckEqual(calibrator.samples_collected(0), std::size_t{0}, "Reset count");
     CheckEqual(calibrator.offset(), Offsets{}, "Reset offsets");
-    (void)calibrator.Process(RawData{10, 20, 30, 40}, 1);
-    (void)calibrator.Process(RawData{20, 30, 40, 50}, 1);
+    (void)calibrator.Process(RawData{10, 20, 30, 40}, kAllReady, 1);
+    (void)calibrator.Process(RawData{20, 30, 40, 50}, kAllReady, 1);
     CheckEqual(calibrator.offset(), Offsets{15, 25, 35, 45}, "new offsets");
 }
 
-void TestMinusOneMeasurementsInEveryChannel() {
+void TestAllReadinessMasks() {
     for (unsigned mask = 0; mask < 16; ++mask) {
         contact_sensor::ZeroOffsetCalibrator calibrator{2};
-        RawData raw;
-        for (unsigned i = 0; i < 4; ++i) raw[i] = (mask & (1U << i)) ? 110 : -1;
-        const auto frame = MakeFrame(raw);
-        CheckEqual(*contact_sensor::DecodeFrame(frame), raw, "signed measurement decoding");
-        CheckEqual(contact_sensor::AbsoluteRawData(calibrator.Process(raw, 55)),
-                   ScaledRawData{-1, -1, -1, -1}, "calibration publication");
-        (void)calibrator.Process(raw, 55);
-        for (unsigned i = 0; i < 4; ++i) if (raw[i] != -1) raw[i] = 220;
-        const auto corrected = calibrator.Process(raw, 55);
-        CheckEqual(corrected.valid, ContactStates{true, true, true, true},
-                   "-1 prevented calibration");
-        const auto output = contact_sensor::AbsoluteRawData(corrected);
-        const auto contacts = contact_sensor::DetectContacts(output, Thresholds{1, 1, 1, 1});
+        RawData raw{};
+        ChannelReadiness readiness{};
         for (unsigned i = 0; i < 4; ++i) {
-            const bool loaded = (mask & (1U << i)) != 0;
-            CheckEqual(output[i], loaded ? 2.0F : 0.0F, "measurement correction");
-            CheckEqual(contacts[i], loaded, "per-channel contact");
+            readiness[i] = (mask & (1U << i)) != 0U;
+            raw[i] = readiness[i] ? 110 : -1;
+        }
+        const auto frame = MakeFrame(raw, readiness);
+        CheckEqual(*contact_sensor::DecodeFrame(frame),
+                   Decoded(raw, readiness), "readiness mask decoding");
+        CheckEqual(contact_sensor::AbsoluteRawData(
+                       calibrator.Process(raw, readiness, 55)),
+                   ScaledRawData{-1, -1, -1, -1},
+                   "first calibration publication");
+        CheckEqual(calibrator.Process(raw, readiness, 55).valid,
+                   ContactStates{},
+                   "last calibration sample was published as valid");
+        for (unsigned i = 0; i < 4; ++i) {
+            raw[i] = readiness[i] ? 220 : -1;
+        }
+        const auto corrected = calibrator.Process(raw, readiness, 55);
+        CheckEqual(corrected.valid, readiness,
+                   "calibration readiness does not match channel mask");
+        const auto output = contact_sensor::AbsoluteRawData(corrected);
+        const auto contacts = contact_sensor::DetectContacts(
+            output, Thresholds{1, 1, 1, 1});
+        for (unsigned i = 0; i < 4; ++i) {
+            CheckEqual(output[i], readiness[i] ? 2.0F : -1.0F,
+                       "measurement correction");
+            CheckEqual(contacts[i], readiness[i], "per-channel contact");
         }
     }
-    CheckEqual(contact_sensor::DetectContacts(ScaledRawData{-1, -1, -1, -1},
-                   Thresholds{-10, -10, -10, -10}), ContactStates{},
+    CheckEqual(contact_sensor::DetectContacts(
+                   ScaledRawData{-1, -1, -1, -1},
+                   Thresholds{-10, -10, -10, -10}),
+               ContactStates{},
                "invalid channel must remain false even with negative threshold");
 }
 
 void TestCalibrationInterruptionAndRecovery() {
     contact_sensor::ZeroOffsetCalibrator calibrator{2};
-    (void)calibrator.Process(RawData{100, 200, 300, -1}, 1);
-    calibrator.ResetIncomplete();
-    for (std::size_t i = 0; i < 4; ++i) {
-        CheckEqual(calibrator.samples_collected(i), std::size_t{0},
-                   "silence did not reset incomplete calibration");
-    }
-    (void)calibrator.Process(RawData{10, 20, 30, -1}, 1);
-    (void)calibrator.Process(RawData{10, 20, 30, -1}, 1);
-    CheckEqual(calibrator.offset(), Offsets{10, 20, 30, -1},
-               "interrupted samples affected offsets");
-    calibrator.ResetIncomplete();
-    const auto loaded = contact_sensor::AbsoluteRawData(
-        calibrator.Process(RawData{20, 40, 60, -1}, 1));
-    CheckEqual(loaded, ScaledRawData{10, 20, 30, 0}, "recovery recalibrated under load");
-    contact_sensor::ZeroOffsetCalibrator restarted{2};
-    CheckEqual(contact_sensor::AbsoluteRawData(restarted.Process(RawData{220, 400, 440, -1}, 55)),
-               ScaledRawData{-1, -1, -1, -1}, "process restart reused zero");
+    (void)calibrator.Process(
+        RawData{100, 200, -1, -1},
+        ChannelReadiness{true, true, false, false}, 1);
+    const auto interrupted = calibrator.Process(
+        RawData{10, -1, 300, -1},
+        ChannelReadiness{true, false, true, false}, 1);
+    CheckEqual(interrupted.valid, ContactStates{},
+               "last calibration sample was published as valid");
+    Check(calibrator.IsCalibrated(0), "ready channel did not calibrate");
+    CheckEqual(calibrator.offset()[0], 55.0F,
+               "ready channel offset is wrong");
+    CheckEqual(calibrator.samples_collected(1), std::size_t{0},
+               "failed channel retained incomplete calibration");
+
+    const auto partial = calibrator.Process(
+        RawData{65, 20, -1, -1},
+        ChannelReadiness{true, true, false, false}, 1);
+    CheckEqual(partial.valid,
+               ContactStates{true, false, false, false},
+               "channels did not calibrate independently");
+    CheckEqual(partial.values[0], 10.0F,
+               "calibrated channel offset was not applied");
+    CheckEqual(calibrator.samples_collected(2), std::size_t{0},
+               "failed channel retained an incomplete sample");
+
+    const auto last_sample = calibrator.Process(
+        RawData{75, 40, -1, -1},
+        ChannelReadiness{true, true, false, false}, 1);
+    CheckEqual(last_sample.valid,
+               ContactStates{true, false, false, false},
+               "channel's last calibration sample was published");
+    CheckEqual(calibrator.offset()[1], 30.0F,
+               "reset calibration used samples from before failure");
+
+    CheckEqual(calibrator.Process(
+                   RawData{-1, -1, -1, -1}, ChannelReadiness{}, 1).valid,
+               ContactStates{}, "failed channels remained valid");
+    const auto recovered = calibrator.Process(
+        RawData{85, 50, -1, -1},
+        ChannelReadiness{true, true, false, false}, 1);
+    CheckEqual(recovered.valid,
+               ContactStates{true, true, false, false},
+               "calibrated channels did not recover immediately");
+    CheckEqual(contact_sensor::AbsoluteRawData(recovered),
+               ScaledRawData{30, 20, -1, -1},
+               "recovered channels did not retain their offsets");
+
+    (void)calibrator.Process(
+        RawData{-1, -1, 30, -1},
+        ChannelReadiness{false, false, true, false}, 1);
+    CheckEqual(calibrator.Process(
+                   RawData{-1, -1, 50, -1},
+                   ChannelReadiness{false, false, true, false}, 1).valid,
+               ContactStates{},
+               "last sample of delayed calibration was published");
+    const auto delayed = calibrator.Process(
+        RawData{-1, -1, 70, -1},
+        ChannelReadiness{false, false, true, false}, 1);
+    CheckEqual(contact_sensor::AbsoluteRawData(delayed),
+               ScaledRawData{-1, -1, 30, -1},
+               "delayed channel calibration is wrong");
 }
 
 void TestSignedMinusOneIntermediate() {
     contact_sensor::ZeroOffsetCalibrator calibrator{1};
-    (void)calibrator.Process(RawData{-55, 110, 0, -1}, 55);
-    CheckEqual(calibrator.offset(), Offsets{-1, 2, 0, -1.0F / 55}, "-1 was treated as marker");
+    (void)calibrator.Process(RawData{-55, 110, 0, -55}, kAllReady, 55);
+    CheckEqual(calibrator.offset(), Offsets{-1, 2, 0, -1},
+               "signed value -1 was treated as unavailable");
     const auto output = contact_sensor::AbsoluteRawData(
-        calibrator.Process(RawData{-110, 55, -55, -1}, 55));
+        calibrator.Process(RawData{-110, 55, -55, -55}, kAllReady, 55));
     CheckEqual(output, ScaledRawData{1, 1, 1, 0}, "corrected -1 was treated as marker");
 }
 
@@ -566,7 +692,7 @@ void TestFallbackTimingAndPartialFrameSilence() {
 
     Scheduler partial_scheduler{start};
     contact_sensor::FrameAccumulator accumulator;
-    const std::array<std::uint8_t, 3> partial_bytes{'#', '0', '1'};
+    const std::array<std::uint8_t, 3> partial_bytes{'#', '0', '2'};
     Check(accumulator.Append(partial_bytes).empty(),
           "partial bytes unexpectedly formed a frame");
     Check(partial_scheduler.IsDue(start + 100ms),
@@ -617,7 +743,7 @@ int main() {
         TestCase{"raw_data absolute value", TestAbsoluteRawData},
         TestCase{"zero-offset calibration", TestZeroOffsetCalibrationAndCorrection},
         TestCase{"calibration reset", TestZeroOffsetCalibrationReset},
-        TestCase{"-1 measurements in every channel", TestMinusOneMeasurementsInEveryChannel},
+        TestCase{"all readiness masks", TestAllReadinessMasks},
         TestCase{"calibration interruption and recovery", TestCalibrationInterruptionAndRecovery},
         TestCase{"signed -1 intermediate", TestSignedMinusOneIntermediate},
         TestCase{"valid config", TestLoadValidConfig},

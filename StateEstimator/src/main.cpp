@@ -177,6 +177,7 @@ struct StateEstimatorConfig
 struct T265Config
 {
     std::string serial;
+    bool enabled{true};
 };
 
 struct D435iConfig
@@ -449,6 +450,10 @@ T265Config LoadT265Config(const std::string& path)
     {
         config.serial = root["stream"]["serial"].as<std::string>();
     }
+    if (root["runtime"] && root["runtime"]["enabled"])
+    {
+        config.enabled = root["runtime"]["enabled"].as<bool>();
+    }
     return config;
 }
 
@@ -602,6 +607,12 @@ public:
         shared_inputs_.servo.pos = Eigen::VectorXd::Zero(12);
         shared_inputs_.servo.vel = Eigen::VectorXd::Zero(12);
         shared_inputs_.servo.torq = Eigen::VectorXd::Zero(12);
+        if (!t265_config_.enabled)
+        {
+            shared_inputs_.t265_state = state_estimator_hmb::T265State::Unavailable;
+            shared_inputs_.t265_error = "disabled by configuration";
+            sensor_readiness_.SetT265State(shared_inputs_.t265_state);
+        }
 
         std::cout << "[StateEstimatorHMB] loaded configs from " << config_dir_ << "\n"
                   << "  state dt: " << se_config_.dt << " sec\n"
@@ -615,6 +626,13 @@ public:
                   << (se_config_.kalman_mit_enabled
                           ? ""
                           : " (not published: kalman_mit.enabled is false)")
+                  << "\n"
+                  << "  T265: "
+                  << (t265_config_.enabled
+                          ? (t265_config_.serial.empty()
+                                 ? std::string("enabled")
+                                 : "enabled serial=" + t265_config_.serial)
+                          : std::string("disabled"))
                   << "\n"
                   << "  D435i: " << d435i_config_.width << "x" << d435i_config_.height
                   << "@" << d435i_config_.fps << "\n"
@@ -636,7 +654,10 @@ public:
         threads_.emplace_back(&StateEstimatorHMBApp::ServoLcmThread, this);
         threads_.emplace_back(&StateEstimatorHMBApp::ContactLcmThread, this);
         threads_.emplace_back(&StateEstimatorHMBApp::GaitPhaseLcmThread, this);
-        threads_.emplace_back(&StateEstimatorHMBApp::PoseCameraThread, this);
+        if (t265_config_.enabled)
+        {
+            threads_.emplace_back(&StateEstimatorHMBApp::PoseCameraThread, this);
+        }
         threads_.emplace_back(&StateEstimatorHMBApp::StateEstimatorThread, this);
         threads_.emplace_back(&StateEstimatorHMBApp::DepthCameraThread, this);
         threads_.emplace_back(&StateEstimatorHMBApp::HeightMapThread, this);
@@ -1236,113 +1257,135 @@ private:
 
     void DepthCameraThread()
     {
-        std::unique_ptr<rs2::pipeline> pipe;
-        try
+        constexpr auto kRestartDelay = std::chrono::seconds(1);
+        uint64_t frame_index = 0;
+
+        while (running_.load() && g_running.load())
         {
-            rs2::pipeline_profile profile;
+            std::unique_ptr<rs2::pipeline> pipe;
+            bool retry = false;
+            try
             {
-                std::lock_guard<std::mutex> lock(realsense_pipeline_mutex_);
-                pipe = std::make_unique<rs2::pipeline>();
-                rs2::config cfg;
-                if (!d435i_config_.serial.empty())
+                double depth_scale = 0.001;
                 {
-                    cfg.enable_device(d435i_config_.serial);
-                }
-                cfg.enable_stream(
-                    RS2_STREAM_DEPTH,
-                    d435i_config_.width,
-                    d435i_config_.height,
-                    RS2_FORMAT_Z16,
-                    d435i_config_.fps);
-                profile = pipe->start(cfg);
-            }
-
-            double depth_scale = 0.001;
-            for (const rs2::sensor& sensor : profile.get_device().query_sensors())
-            {
-                const rs2::depth_sensor depth_sensor = sensor.as<rs2::depth_sensor>();
-                if (depth_sensor)
-                {
-                    depth_scale = depth_sensor.get_depth_scale();
-                    break;
-                }
-            }
-
-            rs2::pointcloud pointcloud;
-            uint64_t frame_index = 0;
-            auto next_publish_time = std::chrono::steady_clock::time_point{};
-
-            std::cout << "[StateEstimatorHMB] D435i depth stream started"
-                      << (d435i_config_.serial.empty() ? "" : " serial=" + d435i_config_.serial)
-                      << ", depth_scale=" << depth_scale << std::endl;
-
-            while (running_.load() && g_running.load())
-            {
-                const rs2::frameset frames = pipe->wait_for_frames();
-                const rs2::depth_frame depth_frame = frames.get_depth_frame();
-                if (!depth_frame)
-                {
-                    continue;
-                }
-
-                sensor_readiness_.OnDepthFrame();
-
-                if (d435i_config_.publish_fps > 0.0 &&
-                    d435i_config_.publish_fps < static_cast<double>(d435i_config_.fps))
-                {
-                    const auto now = std::chrono::steady_clock::now();
-                    if (next_publish_time.time_since_epoch().count() == 0)
+                    std::lock_guard<std::mutex> lock(realsense_pipeline_mutex_);
+                    pipe = std::make_unique<rs2::pipeline>();
+                    rs2::config cfg;
+                    if (!d435i_config_.serial.empty())
                     {
-                        next_publish_time = now;
+                        cfg.enable_device(d435i_config_.serial);
                     }
-                    if (now < next_publish_time)
+                    cfg.enable_stream(
+                        RS2_STREAM_DEPTH,
+                        d435i_config_.width,
+                        d435i_config_.height,
+                        RS2_FORMAT_Z16,
+                        d435i_config_.fps);
+                    const rs2::pipeline_profile profile = pipe->start(cfg);
+
+                    for (const rs2::sensor& sensor : profile.get_device().query_sensors())
+                    {
+                        const rs2::depth_sensor depth_sensor = sensor.as<rs2::depth_sensor>();
+                        if (depth_sensor)
+                        {
+                            depth_scale = depth_sensor.get_depth_scale();
+                            break;
+                        }
+                    }
+
+                    std::cout << "[StateEstimatorHMB] D435i depth stream started"
+                              << (d435i_config_.serial.empty()
+                                      ? ""
+                                      : " serial=" + d435i_config_.serial)
+                              << ", depth_scale=" << depth_scale << std::endl;
+                }
+
+                rs2::pointcloud pointcloud;
+                auto next_publish_time = std::chrono::steady_clock::time_point{};
+
+                while (running_.load() && g_running.load())
+                {
+                    const rs2::frameset frames = pipe->wait_for_frames();
+                    const rs2::depth_frame depth_frame = frames.get_depth_frame();
+                    if (!depth_frame)
                     {
                         continue;
                     }
-                    const auto publish_period =
-                        std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                            std::chrono::duration<double>(1.0 / d435i_config_.publish_fps));
-                    do
+
+                    sensor_readiness_.OnDepthFrame();
+
+                    if (d435i_config_.publish_fps > 0.0 &&
+                        d435i_config_.publish_fps < static_cast<double>(d435i_config_.fps))
                     {
-                        next_publish_time += publish_period;
-                    } while (next_publish_time <= now);
-                }
+                        const auto now = std::chrono::steady_clock::now();
+                        if (next_publish_time.time_since_epoch().count() == 0)
+                        {
+                            next_publish_time = now;
+                        }
+                        if (now < next_publish_time)
+                        {
+                            continue;
+                        }
+                        const auto publish_period =
+                            std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                std::chrono::duration<double>(1.0 / d435i_config_.publish_fps));
+                        do
+                        {
+                            next_publish_time += publish_period;
+                        } while (next_publish_time <= now);
+                    }
 
-                const int64_t frame_timestamp_ns = NowNs();
-                if (depth_image_publisher_)
-                {
-                    PublishDepthImage(depth_frame, depth_scale, frame_timestamp_ns);
-                }
+                    const int64_t frame_timestamp_ns = NowNs();
+                    if (depth_image_publisher_)
+                    {
+                        PublishDepthImage(depth_frame, depth_scale, frame_timestamp_ns);
+                    }
 
-                DepthFrameData data = BuildDepthFrameData(depth_frame, pointcloud, depth_scale, ++frame_index);
-                data.timestamp_ns = frame_timestamp_ns;
-                {
-                    std::lock_guard<std::mutex> lock(depth_mutex_);
-                    latest_depth_frame_ = std::move(data);
-                    has_depth_frame_ = true;
+                    DepthFrameData data = BuildDepthFrameData(
+                        depth_frame, pointcloud, depth_scale, ++frame_index);
+                    data.timestamp_ns = frame_timestamp_ns;
+                    {
+                        std::lock_guard<std::mutex> lock(depth_mutex_);
+                        latest_depth_frame_ = std::move(data);
+                        has_depth_frame_ = true;
+                    }
+                    depth_cv_.notify_one();
                 }
-                depth_cv_.notify_one();
             }
-        }
-        catch (const rs2::error& e)
-        {
-            sensor_readiness_.SetDepthHealthy(false);
-            std::cerr << "[StateEstimatorHMB] D435i RealSense error in "
-                      << e.get_failed_function() << "(" << e.get_failed_args()
-                      << "): " << e.what()
-                      << ". Heightmap updates disabled; state estimation continues."
-                      << std::endl;
+            catch (const rs2::error& e)
+            {
+                sensor_readiness_.SetDepthHealthy(false);
+                retry = running_.load() && g_running.load();
+                std::cerr << "[StateEstimatorHMB] D435i RealSense error in "
+                          << e.get_failed_function() << "(" << e.get_failed_args()
+                          << "): " << e.what() << ". "
+                          << (retry
+                                  ? "Restarting D435i in 1 second; state estimation continues."
+                                  : "State estimation continues.")
+                          << std::endl;
+            }
+            catch (const std::exception& e)
+            {
+                sensor_readiness_.SetDepthHealthy(false);
+                std::cerr << "[StateEstimatorHMB] D435i fatal: " << e.what()
+                          << ". Heightmap updates disabled; state estimation continues."
+                          << std::endl;
+            }
+
+            StopRealSensePipeline(pipe);
             depth_cv_.notify_all();
+
+            if (!retry)
+            {
+                break;
+            }
+
+            std::unique_lock<std::mutex> lock(depth_mutex_);
+            depth_cv_.wait_for(lock, kRestartDelay, [this]
+            {
+                return !running_.load() || !g_running.load();
+            });
         }
-        catch (const std::exception& e)
-        {
-            sensor_readiness_.SetDepthHealthy(false);
-            std::cerr << "[StateEstimatorHMB] D435i fatal: " << e.what()
-                      << ". Heightmap updates disabled; state estimation continues."
-                      << std::endl;
-            depth_cv_.notify_all();
-        }
-        StopRealSensePipeline(pipe);
     }
 
     void StopRealSensePipeline(std::unique_ptr<rs2::pipeline>& pipe)
