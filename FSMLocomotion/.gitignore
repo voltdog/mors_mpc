@@ -1,0 +1,6 @@
+# The repository ignores directories named tests globally.
+!tests/
+!tests/fsm_tests.cpp
+!tests/test_lcm.py
+!tools/
+!tools/fsm_client.py

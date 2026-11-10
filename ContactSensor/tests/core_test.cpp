@@ -461,45 +461,86 @@ contact_sensor:
 
 void TestZeroOffsetCalibrationAndCorrection() {
     contact_sensor::ZeroOffsetCalibrator calibrator{3};
-
-    Check(!calibrator.Process(ScaledRawData{9, -12, 30, 100}).has_value(),
-          "first calibration sample was published");
-    Check(!calibrator.Process(ScaledRawData{12, -9, 33, 103}).has_value(),
-          "second calibration sample was published");
-    CheckEqual(calibrator.samples_collected(), std::size_t{2},
-               "calibration sample count is wrong");
-    Check(!calibrator.Process(ScaledRawData{15, -6, 36, 106}).has_value(),
-          "last calibration sample was published");
-
-    Check(calibrator.IsCalibrated(), "calibrator did not become ready");
-    CheckEqual(calibrator.offset(), Offsets{12, -9, 33, 103},
-               "calibration offset is wrong");
-
-    const std::optional<ScaledRawData> corrected =
-        calibrator.Process(ScaledRawData{12, -4, 30, 120});
-    Check(corrected.has_value(), "operational sample was not returned");
-    CheckEqual(*corrected, ScaledRawData{0, 5, -3, 17},
-               "offset correction is wrong");
+    CheckEqual(calibrator.Process(RawData{9, -12, 30, 100}, 1).valid,
+               ContactStates{}, "first calibration sample was returned");
+    (void)calibrator.Process(RawData{12, -9, 33, 103}, 1);
+    CheckEqual(calibrator.samples_collected(0), std::size_t{2}, "sample count");
+    CheckEqual(calibrator.Process(RawData{15, -6, 36, 106}, 1).valid,
+               ContactStates{}, "last calibration sample was returned");
+    for (std::size_t i = 0; i < 4; ++i) Check(calibrator.IsCalibrated(i), "ready");
+    CheckEqual(calibrator.offset(), Offsets{12, -9, 33, 103}, "offset");
+    const auto corrected = calibrator.Process(RawData{12, -4, 30, 120}, 1);
+    CheckEqual(corrected.valid, ContactStates{true, true, true, true}, "valid");
+    CheckEqual(corrected.values, ScaledRawData{0, 5, -3, 17}, "correction");
 }
 
 void TestZeroOffsetCalibrationReset() {
     contact_sensor::ZeroOffsetCalibrator calibrator{2};
-    Check(!calibrator.Process(ScaledRawData{100, 200, 300, 400}).has_value(),
-          "sample from interrupted calibration was published");
+    (void)calibrator.Process(RawData{100, 200, 300, 400}, 1);
     calibrator.Reset();
+    Check(!calibrator.IsCalibrated(0), "Reset left calibrator ready");
+    CheckEqual(calibrator.samples_collected(0), std::size_t{0}, "Reset count");
+    CheckEqual(calibrator.offset(), Offsets{}, "Reset offsets");
+    (void)calibrator.Process(RawData{10, 20, 30, 40}, 1);
+    (void)calibrator.Process(RawData{20, 30, 40, 50}, 1);
+    CheckEqual(calibrator.offset(), Offsets{15, 25, 35, 45}, "new offsets");
+}
 
-    Check(!calibrator.IsCalibrated(), "Reset left calibrator ready");
-    CheckEqual(calibrator.samples_collected(), std::size_t{0},
-               "Reset did not clear sample count");
-    CheckEqual(calibrator.offset(), Offsets{},
-               "Reset did not clear offset");
+void TestMinusOneMeasurementsInEveryChannel() {
+    for (unsigned mask = 0; mask < 16; ++mask) {
+        contact_sensor::ZeroOffsetCalibrator calibrator{2};
+        RawData raw;
+        for (unsigned i = 0; i < 4; ++i) raw[i] = (mask & (1U << i)) ? 110 : -1;
+        const auto frame = MakeFrame(raw);
+        CheckEqual(*contact_sensor::DecodeFrame(frame), raw, "signed measurement decoding");
+        CheckEqual(contact_sensor::AbsoluteRawData(calibrator.Process(raw, 55)),
+                   ScaledRawData{-1, -1, -1, -1}, "calibration publication");
+        (void)calibrator.Process(raw, 55);
+        for (unsigned i = 0; i < 4; ++i) if (raw[i] != -1) raw[i] = 220;
+        const auto corrected = calibrator.Process(raw, 55);
+        CheckEqual(corrected.valid, ContactStates{true, true, true, true},
+                   "-1 prevented calibration");
+        const auto output = contact_sensor::AbsoluteRawData(corrected);
+        const auto contacts = contact_sensor::DetectContacts(output, Thresholds{1, 1, 1, 1});
+        for (unsigned i = 0; i < 4; ++i) {
+            const bool loaded = (mask & (1U << i)) != 0;
+            CheckEqual(output[i], loaded ? 2.0F : 0.0F, "measurement correction");
+            CheckEqual(contacts[i], loaded, "per-channel contact");
+        }
+    }
+    CheckEqual(contact_sensor::DetectContacts(ScaledRawData{-1, -1, -1, -1},
+                   Thresholds{-10, -10, -10, -10}), ContactStates{},
+               "invalid channel must remain false even with negative threshold");
+}
 
-    Check(!calibrator.Process(ScaledRawData{10, 20, 30, 40}).has_value(),
-          "first sample after Reset was published");
-    Check(!calibrator.Process(ScaledRawData{20, 30, 40, 50}).has_value(),
-          "last sample after Reset was published");
-    CheckEqual(calibrator.offset(), Offsets{15, 25, 35, 45},
-               "samples before Reset affected calibration");
+void TestCalibrationInterruptionAndRecovery() {
+    contact_sensor::ZeroOffsetCalibrator calibrator{2};
+    (void)calibrator.Process(RawData{100, 200, 300, -1}, 1);
+    calibrator.ResetIncomplete();
+    for (std::size_t i = 0; i < 4; ++i) {
+        CheckEqual(calibrator.samples_collected(i), std::size_t{0},
+                   "silence did not reset incomplete calibration");
+    }
+    (void)calibrator.Process(RawData{10, 20, 30, -1}, 1);
+    (void)calibrator.Process(RawData{10, 20, 30, -1}, 1);
+    CheckEqual(calibrator.offset(), Offsets{10, 20, 30, -1},
+               "interrupted samples affected offsets");
+    calibrator.ResetIncomplete();
+    const auto loaded = contact_sensor::AbsoluteRawData(
+        calibrator.Process(RawData{20, 40, 60, -1}, 1));
+    CheckEqual(loaded, ScaledRawData{10, 20, 30, 0}, "recovery recalibrated under load");
+    contact_sensor::ZeroOffsetCalibrator restarted{2};
+    CheckEqual(contact_sensor::AbsoluteRawData(restarted.Process(RawData{220, 400, 440, -1}, 55)),
+               ScaledRawData{-1, -1, -1, -1}, "process restart reused zero");
+}
+
+void TestSignedMinusOneIntermediate() {
+    contact_sensor::ZeroOffsetCalibrator calibrator{1};
+    (void)calibrator.Process(RawData{-55, 110, 0, -1}, 55);
+    CheckEqual(calibrator.offset(), Offsets{-1, 2, 0, -1.0F / 55}, "-1 was treated as marker");
+    const auto output = contact_sensor::AbsoluteRawData(
+        calibrator.Process(RawData{-110, 55, -55, -1}, 55));
+    CheckEqual(output, ScaledRawData{1, 1, 1, 0}, "corrected -1 was treated as marker");
 }
 
 void TestFallbackTimingAndPartialFrameSilence() {
@@ -576,6 +617,9 @@ int main() {
         TestCase{"raw_data absolute value", TestAbsoluteRawData},
         TestCase{"zero-offset calibration", TestZeroOffsetCalibrationAndCorrection},
         TestCase{"calibration reset", TestZeroOffsetCalibrationReset},
+        TestCase{"-1 measurements in every channel", TestMinusOneMeasurementsInEveryChannel},
+        TestCase{"calibration interruption and recovery", TestCalibrationInterruptionAndRecovery},
+        TestCase{"signed -1 intermediate", TestSignedMinusOneIntermediate},
         TestCase{"valid config", TestLoadValidConfig},
         TestCase{"invalid configs", TestRejectInvalidConfigs},
         TestCase{"fallback timing", TestFallbackTimingAndPartialFrameSilence},

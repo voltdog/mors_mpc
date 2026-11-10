@@ -210,7 +210,8 @@ ContactStates DetectContacts(const ScaledRawData& raw_data,
                              const Thresholds& thresholds) noexcept {
     ContactStates contacts{};
     for (std::size_t leg = 0; leg < kLegCount; ++leg) {
-        contacts[leg] = raw_data[leg] >= thresholds[leg];
+        contacts[leg] = raw_data[leg] != kInvalidMeasurement &&
+                        raw_data[leg] >= thresholds[leg];
     }
     return contacts;
 }
@@ -239,42 +240,56 @@ ZeroOffsetCalibrator::ZeroOffsetCalibrator(std::size_t sample_count)
     }
 }
 
-std::optional<ScaledRawData> ZeroOffsetCalibrator::Process(
-    const ScaledRawData& raw_data) noexcept {
-    if (!IsCalibrated()) {
-        for (std::size_t leg = 0; leg < kLegCount; ++leg) {
-            sums_[leg] += raw_data[leg];
-        }
-        ++samples_collected_;
+ScaledRawData AbsoluteRawData(const CalibratedData& raw_data) noexcept {
+    ScaledRawData result{};
+    for (std::size_t leg = 0; leg < kLegCount; ++leg) {
+        result[leg] = raw_data.valid[leg] ? std::abs(raw_data.values[leg])
+                                         : kInvalidMeasurement;
+    }
+    return result;
+}
 
-        if (IsCalibrated()) {
-            for (std::size_t leg = 0; leg < kLegCount; ++leg) {
+CalibratedData ZeroOffsetCalibrator::Process(
+    const RawData& raw_data, float divisor) noexcept {
+    CalibratedData result;
+    for (std::size_t leg = 0; leg < kLegCount; ++leg) {
+        const float scaled = static_cast<float>(raw_data[leg]) / divisor;
+        if (!IsCalibrated(leg)) {
+            sums_[leg] += scaled;
+            ++samples_collected_[leg];
+            if (IsCalibrated(leg)) {
                 offset_[leg] = static_cast<float>(
                     sums_[leg] / static_cast<double>(sample_count_));
             }
+            continue;
         }
-        return std::nullopt;
+        result.values[leg] = scaled - offset_[leg];
+        result.valid[leg] = true;
     }
-
-    ScaledRawData corrected{};
-    for (std::size_t leg = 0; leg < kLegCount; ++leg) {
-        corrected[leg] = raw_data[leg] - offset_[leg];
-    }
-    return corrected;
+    return result;
 }
 
 void ZeroOffsetCalibrator::Reset() noexcept {
-    samples_collected_ = 0;
+    samples_collected_.fill(0);
     sums_.fill(0);
     offset_.fill(0);
 }
 
-bool ZeroOffsetCalibrator::IsCalibrated() const noexcept {
-    return samples_collected_ == sample_count_;
+void ZeroOffsetCalibrator::ResetIncomplete() noexcept {
+    for (std::size_t leg = 0; leg < kLegCount; ++leg) {
+        if (!IsCalibrated(leg)) {
+            samples_collected_[leg] = 0;
+            sums_[leg] = 0;
+        }
+    }
 }
 
-std::size_t ZeroOffsetCalibrator::samples_collected() const noexcept {
-    return samples_collected_;
+bool ZeroOffsetCalibrator::IsCalibrated(std::size_t leg) const noexcept {
+    return samples_collected_[leg] == sample_count_;
+}
+
+std::size_t ZeroOffsetCalibrator::samples_collected(std::size_t leg) const noexcept {
+    return samples_collected_[leg];
 }
 
 const Offsets& ZeroOffsetCalibrator::offset() const noexcept {

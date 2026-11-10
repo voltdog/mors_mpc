@@ -3,7 +3,7 @@ package mors_msgs;
 struct Body
 {
     double position[3];
-    double orientation[3];
+    double orientation_euler[3];
     double orientation_quaternion[4]; // x y z w
     double lin_vel[3];
     double ang_vel[3];
@@ -29,9 +29,18 @@ struct Legs
     boolean contact_states[4];
 }
 
+struct Joints
+{
+    float position[12];
+    float velocity[12];
+    float torque[12];
+}
+
 struct robot_state_msg
 {
-    int64_t timestamp;      // Unix time in ns
-    Body body; // wrt global
-    Legs legs; // wrt body
+    int64_t timestamp;    // Unix time in ns
+    Body body;            // wrt global
+    Legs legs;            // wrt body
+    Joints joints;        // servo states
+    boolean readiness[19]; // readiness of sensors in the order: depth camera [0], imu [1], motors [2-13], contact sensor R1 [14], contact sensor L1 [15], contact sensor R2 [16], contact sensor L2 [17], t265 [18]
 }

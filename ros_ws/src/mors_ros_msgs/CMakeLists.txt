@@ -15,7 +15,12 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/GaitParams.msg"
+  "msg/ModeCommand.msg"
+  "msg/ModeState.msg"
+  "msg/ModeResult.msg"
   "srv/RobotCmd.srv"
+  "srv/Command.srv"
+  "action/RunAction.action"
  )
 
 ament_export_dependencies(rosidl_default_runtime)

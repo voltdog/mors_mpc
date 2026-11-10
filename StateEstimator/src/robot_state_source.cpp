@@ -41,4 +41,19 @@ RobotStateSource Other(RobotStateSource source) noexcept
                                               : RobotStateSource::Kalman;
 }
 
+RobotStateSources SelectRobotStateSources(
+    RobotStateSource requested, bool kalman_enabled, T265State t265_state) noexcept
+{
+    const bool fallback = requested == RobotStateSource::T265 &&
+                          t265_state == T265State::Unavailable;
+    const auto primary = fallback ? RobotStateSource::Kalman : requested;
+    return {
+        primary,
+        Other(primary),
+        kalman_enabled || fallback,
+        t265_state == T265State::Streaming,
+        requested == RobotStateSource::T265 && t265_state == T265State::Disconnected,
+    };
+}
+
 }  // namespace state_estimator_hmb

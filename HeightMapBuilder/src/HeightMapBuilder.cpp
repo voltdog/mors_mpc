@@ -2049,14 +2049,14 @@ void HeightMapBuilderNode::OnRobotState(
     for (size_t i = 0; i < 3; ++i)
     {
         latest_robot_state_.position[i] = msg->body.position[i];
-        latest_robot_state_.orientation_rpy[i] = msg->body.orientation[i];
+        latest_robot_state_.orientation_rpy[i] = msg->body.orientation_euler[i];
     }
     for (size_t i = 0; i < 4; ++i)
     {
         latest_robot_state_.orientation_quaternion[i] = msg->body.orientation_quaternion[i];
     }
 
-    const double yaw_from_euler = msg->body.orientation[2];
+    const double yaw_from_euler = msg->body.orientation_euler[2];
     if (std::isfinite(yaw_from_euler))
     {
         latest_robot_state_.yaw = yaw_from_euler;

@@ -263,7 +263,7 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer*,
         leg_state.contacts[i] = msg->legs.contact_states[i];
 
         robot_state.pos(i) = msg->body.position[i];
-        robot_state.orientation(i) = msg->body.orientation[i];
+        robot_state.orientation(i) = msg->body.orientation_euler[i];
         robot_state.orientation_quaternion(i) = msg->body.orientation_quaternion[i];
         robot_state.lin_vel(i) = msg->body.lin_vel[i];
         robot_state.ang_vel(i) = msg->body.ang_vel[i];

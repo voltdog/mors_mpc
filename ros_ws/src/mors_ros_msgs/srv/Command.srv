@@ -1,0 +1,4 @@
+ModeCommand command
+---
+# First FSM acknowledgement, not necessarily completion.
+ModeResult result

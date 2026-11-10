@@ -23,6 +23,28 @@ std::string_view ToString(RobotStateSource source) noexcept;
 // другой источник» задано ровно здесь и больше нигде не дублируется.
 RobotStateSource Other(RobotStateSource source) noexcept;
 
+// Ошибка до первого pose-кадра допускает резервный Kalman. После первого
+// кадра потеря основной T265 фатальна, даже если state loop не успел его прочитать.
+enum class T265State
+{
+    WaitingForPose,
+    Streaming,
+    Unavailable,
+    Disconnected,
+};
+
+struct RobotStateSources
+{
+    RobotStateSource primary;
+    RobotStateSource check;
+    bool kalman_enabled;
+    bool t265_valid;
+    bool fatal;
+};
+
+RobotStateSources SelectRobotStateSources(
+    RobotStateSource requested, bool kalman_enabled, T265State t265_state) noexcept;
+
 }  // namespace state_estimator_hmb
 
 #endif  // STATE_ESTIMATOR_HMB_ROBOT_STATE_SOURCE_HPP

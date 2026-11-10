@@ -12,6 +12,7 @@
 namespace contact_sensor {
 
 inline constexpr std::size_t kLegCount = 4;
+inline constexpr float kInvalidMeasurement = -1.0F;
 
 // Wire format (15 bytes):
 // "#01" + R1,L1,R2,L2 (int16 LE) + CRC-16/CCITT-FALSE (BE) + "\r\n".
@@ -34,6 +35,12 @@ using Offsets = std::array<float, kLegCount>;
 using Thresholds = std::array<float, kLegCount>;
 using ContactStates = std::array<bool, kLegCount>;
 
+// Validity is separate from signed intermediate values, which can equal -1.
+struct CalibratedData {
+    ScaledRawData values{};
+    ContactStates valid{};
+};
+
 struct Config {
     std::string serial_port;
     float raw_data_divisor{};
@@ -55,25 +62,27 @@ ContactStates DetectContacts(const ScaledRawData& raw_data,
 ScaledRawData ScaleRawData(const RawData& raw_data, float divisor) noexcept;
 
 ScaledRawData AbsoluteRawData(const ScaledRawData& raw_data) noexcept;
+ScaledRawData AbsoluteRawData(const CalibratedData& raw_data) noexcept;
 
 class ZeroOffsetCalibrator {
 public:
     explicit ZeroOffsetCalibrator(std::size_t sample_count);
 
-    // Calibration samples are consumed but not returned. Once calibration is
-    // complete, every subsequent sample is corrected by the measured offset.
-    [[nodiscard]] std::optional<ScaledRawData> Process(
-        const ScaledRawData& raw_data) noexcept;
+    // Every signed int16 value in a v3 frame is a measurement, including -1.
+    // Calibration samples are consumed; subsequent samples are corrected.
+    [[nodiscard]] CalibratedData Process(
+        const RawData& raw_data, float divisor) noexcept;
 
     void Reset() noexcept;
+    void ResetIncomplete() noexcept;
 
-    [[nodiscard]] bool IsCalibrated() const noexcept;
-    [[nodiscard]] std::size_t samples_collected() const noexcept;
+    [[nodiscard]] bool IsCalibrated(std::size_t leg) const noexcept;
+    [[nodiscard]] std::size_t samples_collected(std::size_t leg) const noexcept;
     [[nodiscard]] const Offsets& offset() const noexcept;
 
 private:
     std::size_t sample_count_;
-    std::size_t samples_collected_{};
+    std::array<std::size_t, kLegCount> samples_collected_{};
     std::array<double, kLegCount> sums_{};
     Offsets offset_{};
 };

@@ -7,6 +7,9 @@
 #include "gm_force_observer.hpp"
 #include "heightmap_residual_estimator.hpp"
 #include "robot_state_source.hpp"
+#include "robot_state_publication.hpp"
+#include "sensor_readiness_config.hpp"
+#include "worker_threads.hpp"
 #include "sensor_fusion.hpp"
 #include "KalmanMIT.hpp"
 
@@ -160,13 +163,15 @@ struct StateEstimatorConfig
         state_estimator_hmb::ContactSource::GrfObserver};
     Eigen::Vector3d camera_offset{0.0, 0.0, 0.0};
 
-    // Источник канала ROBOT_STATE. Канал ROBOT_STATE_CHECK всегда получает
+    // Запрошенный источник ROBOT_STATE (до возможного перехода на Kalman).
+    // Канал ROBOT_STATE_CHECK всегда получает
     // противоположную оценку — см. state_estimator_hmb::Other().
     state_estimator_hmb::RobotStateSource robot_state_source{
         state_estimator_hmb::RobotStateSource::T265};
 
     state_estimator_hmb::KalmanMITConfig kalman_mit{};
     bool kalman_mit_enabled{true};
+    state_estimator_hmb::SensorReadinessConfig sensor_readiness{};
 };
 
 struct T265Config
@@ -215,9 +220,11 @@ struct SharedInputs
     std::array<double, NUM_LEGS> gait_phases{};
     std::array<int, NUM_LEGS> contact_states{STANCE, STANCE, STANCE, STANCE};
     int64_t odometry_timestamp_ns{0};
+    state_estimator_hmb::T265State t265_state{
+        state_estimator_hmb::T265State::WaitingForPose};
+    std::string t265_error;
     bool has_imu{false};
     bool has_servo{false};
-    bool has_odometry{false};
     bool has_gait_phase{false};
 };
 
@@ -260,6 +267,7 @@ StateEstimatorConfig LoadStateEstimatorConfig(
     const YAML::Node se = YAML::LoadFile(state_estimator_path);
 
     StateEstimatorConfig config;
+    config.sensor_readiness = state_estimator_hmb::LoadSensorReadinessConfig(se);
     config.dt = timesteps["state_estimator_dt"].as<double>();
     config.contact_threshold = se["contact_threshold"].as<double>();
 
@@ -492,6 +500,10 @@ DepthProcessingConfig LoadDepthProcessingConfig(const std::string& path)
         if (sync["max_sync_dt_sec"]) config.max_sync_dt_sec = std::max(0.0, sync["max_sync_dt_sec"].as<double>());
         if (sync["require_recent_robot_state"]) config.require_recent_robot_state = sync["require_recent_robot_state"].as<bool>();
     }
+    if (config.min_depth_m >= config.max_depth_m)
+    {
+        throw std::invalid_argument("Invalid depth limits: min_depth >= max_depth.");
+    }
     return config;
 }
 
@@ -560,6 +572,7 @@ public:
           se_config_(LoadStateEstimatorConfig(
               ConfigPath(config_dir_, "timesteps.yaml"),
               ConfigPath(config_dir_, "state_estimator.yaml"))),
+          sensor_readiness_(se_config_.sensor_readiness),
           robot_params_(LoadRobotPhysicalParams(ConfigPath(config_dir_, "robot.yaml"))),
           t265_config_(LoadT265Config(ConfigPath(config_dir_, "sensors.yaml"))),
           d435i_config_(LoadD435iConfig(ConfigPath(config_dir_, "sensors.yaml"))),
@@ -569,14 +582,14 @@ public:
           contact_lcm_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
           gait_phase_lcm_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
           robot_state_publisher_(std::make_unique<lcm::LCM>(locomotion_lcm_url_)),
+          robot_state_publication_(*robot_state_publisher_, channels_.robot_state),
           servo_filtered_publisher_(std::make_unique<lcm::LCM>(servo_lcm_url_)),
           depth_image_publisher_(
               d435i_config_.publish_depth_image
                   ? std::make_unique<lcm::LCM>(locomotion_lcm_url_)
                   : nullptr),
           heightmap_builder_(std::make_unique<hmb::HeightMapBuilderNode>(
-              ConfigPath(config_dir_, "heightmap_builder.yaml"),
-              false))
+              ConfigPath(config_dir_, "heightmap_builder.yaml")))
     {
         if (!imu_lcm_->good() || !servo_lcm_->good() || !contact_lcm_->good() ||
             !gait_phase_lcm_->good() ||
@@ -616,7 +629,7 @@ public:
                   << std::endl;
     }
 
-    void Run()
+    int Run()
     {
         running_.store(true);
         threads_.emplace_back(&StateEstimatorHMBApp::ImuLcmThread, this);
@@ -633,23 +646,12 @@ public:
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         Stop();
+        return failed_.load() ? 1 : 0;
     }
 
     void Stop()
     {
-        const bool was_running = running_.exchange(false);
-        depth_cv_.notify_all();
-        if (!was_running)
-        {
-            return;
-        }
-        for (std::thread& thread : threads_)
-        {
-            if (thread.joinable())
-            {
-                thread.join();
-            }
-        }
+        state_estimator_hmb::StopWorkerThreads(running_, depth_cv_, depth_mutex_, threads_);
     }
 
 private:
@@ -673,6 +675,7 @@ private:
         }
         shared_inputs_.imu.orientation_quaternion(3) = msg->orientation_quaternion[3];
         shared_inputs_.has_imu = true;
+        sensor_readiness_.OnImu(msg->orientation_quaternion);
     }
 
     void ServoHandler(
@@ -693,6 +696,7 @@ private:
             shared_inputs_.servo.torq(i) = -msg->torque[i];
         }
         shared_inputs_.has_servo = true;
+        sensor_readiness_.OnServo(msg->position);
     }
 
     void ContactHandler(
@@ -710,6 +714,7 @@ private:
         {
             shared_inputs_.contacts[i] = msg->contact_states[i];
         }
+        sensor_readiness_.OnContacts(msg->readiness);
     }
 
     void GaitPhaseHandler(
@@ -785,6 +790,8 @@ private:
     void PoseCameraThread()
     {
         std::unique_ptr<rs2::pipeline> pipe;
+        bool pipeline_started = false;
+        bool received_pose = false;
         try
         {
             {
@@ -797,6 +804,7 @@ private:
                 }
                 cfg.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
                 pipe->start(cfg);
+                pipeline_started = true;
             }
 
             std::cout << "[StateEstimatorHMB] T265 pose stream started"
@@ -805,11 +813,16 @@ private:
 
             while (running_.load() && g_running.load())
             {
-                const rs2::frameset frames = pipe->wait_for_frames();
+                // До первого pose сохраняем штатное ожидание SDK (5 с).
+                const auto timeout_ms = static_cast<unsigned int>(std::clamp(
+                    std::ceil(se_config_.sensor_readiness.data_timeout_sec * 1000.0),
+                    1.0, static_cast<double>(std::numeric_limits<unsigned int>::max())));
+                const rs2::frameset frames = pipe->wait_for_frames(
+                    received_pose ? timeout_ms : 5000U);
                 const rs2::frame pose_frame = frames.first_or_default(RS2_STREAM_POSE);
                 if (!pose_frame)
                 {
-                    continue;
+                    throw std::runtime_error("T265 stream returned no pose frame");
                 }
 
                 const auto pose = pose_frame.as<rs2::pose_frame>().get_pose_data();
@@ -847,22 +860,44 @@ private:
                 std::lock_guard<std::mutex> lock(inputs_mutex_);
                 shared_inputs_.odometry = odometry;
                 shared_inputs_.odometry_timestamp_ns = NowNs();
-                shared_inputs_.has_odometry = true;
+                shared_inputs_.t265_state = state_estimator_hmb::T265State::Streaming;
+                sensor_readiness_.OnT265Pose();
+                received_pose = true;
             }
         }
         catch (const rs2::error& e)
         {
-            std::cerr << "[StateEstimatorHMB] T265 RealSense error in "
-                      << e.get_failed_function() << "(" << e.get_failed_args()
-                      << "): " << e.what() << std::endl;
-            running_.store(false);
+            RecordT265Failure(
+                received_pose,
+                std::string(e.get_failed_function()) + "(" + e.get_failed_args() +
+                    "): " + e.what());
         }
         catch (const std::exception& e)
         {
-            std::cerr << "[StateEstimatorHMB] T265 fatal: " << e.what() << std::endl;
-            running_.store(false);
+            RecordT265Failure(received_pose, e.what());
         }
-        StopRealSensePipeline(pipe);
+        if (pipeline_started)
+        {
+            StopRealSensePipeline(pipe);
+        }
+    }
+
+    void RecordT265Failure(bool received_pose, const std::string& error)
+    {
+        std::lock_guard<std::mutex> lock(inputs_mutex_);
+        shared_inputs_.t265_state = received_pose
+            ? state_estimator_hmb::T265State::Disconnected
+            : state_estimator_hmb::T265State::Unavailable;
+        // Последняя поза и её время нужны для финальной диагностической публикации.
+        sensor_readiness_.SetT265State(shared_inputs_.t265_state);
+        shared_inputs_.t265_error = error;
+    }
+
+    void StopAfterT265Failure()
+    {
+        failed_.store(true);
+        running_.store(false);
+        depth_cv_.notify_all();
     }
 
     void StateEstimatorThread()
@@ -890,12 +925,7 @@ private:
             Eigen::Vector3d pos_offset = Eigen::Vector3d::Zero();
             double yaw_offset = 0.0;
 
-            // ROBOT_STATE идёт от выбранного источника, ROBOT_STATE_CHECK — от
-            // противоположного. Оба канала целиком формируются своим источником.
-            const state_estimator_hmb::RobotStateSource primary_source =
-                se_config_.robot_state_source;
-            const state_estimator_hmb::RobotStateSource check_source =
-                state_estimator_hmb::Other(primary_source);
+            bool reported_t265_failure = false;
             std::optional<bool> reported_t265_validity;
             std::optional<bool> reported_kalman_validity;
 
@@ -909,9 +939,46 @@ private:
                 next_tick += std::chrono::duration_cast<std::chrono::steady_clock::duration>(period);
 
                 SharedInputs inputs;
+                state_estimator_hmb::SensorReadiness::Readiness readiness;
                 {
                     std::lock_guard<std::mutex> lock(inputs_mutex_);
                     inputs = shared_inputs_;
+                    readiness = sensor_readiness_.GetReadiness();
+                }
+
+                const auto sources = state_estimator_hmb::SelectRobotStateSources(
+                    se_config_.robot_state_source,
+                    se_config_.kalman_mit_enabled,
+                    inputs.t265_state);
+                if (!reported_t265_failure &&
+                    (inputs.t265_state == state_estimator_hmb::T265State::Unavailable ||
+                     inputs.t265_state == state_estimator_hmb::T265State::Disconnected))
+                {
+                    std::cerr << "[StateEstimatorHMB] "
+                              << (sources.fatal ? "fatal: " : "warning: ")
+                              << "T265 " << inputs.t265_error << ". ";
+                    if (sources.fatal)
+                    {
+                        std::cerr << "Primary T265 lost; stopping.";
+                    }
+                    else
+                    {
+                        std::cerr << channels_.robot_state << " source: kalman; "
+                                  << channels_.robot_state_check << " is not published. "
+                                  << "State estimation and heightmap processing continue.";
+                        if (!se_config_.kalman_mit_enabled && sources.kalman_enabled)
+                        {
+                            std::cerr << " KalmanMIT enabled for fallback despite "
+                                         "kalman_mit.enabled: false.";
+                        }
+                    }
+                    std::cerr << std::endl;
+                    reported_t265_failure = true;
+                }
+                if (sources.fatal && robot_state_publication_.PublishT265Failure(readiness))
+                {
+                    StopAfterT265Failure();
+                    break;
                 }
 
                 ServoData servo_state = inputs.servo;
@@ -974,7 +1041,8 @@ private:
                             inputs.contacts[leg]);
                 }
 
-                const int64_t timestamp_ns = NowNs();
+                const int64_t timestamp_ns = sources.fatal
+                    ? inputs.odometry_timestamp_ns : NowNs();
                 state_estimator_hmb::HeightmapResidualEstimator::TrustCoefficients
                     trust_coefficients{};
                 if (inputs.has_gait_phase)
@@ -996,7 +1064,10 @@ private:
                 };
 
                 BodyEstimate t265;
-                if (inputs.has_odometry)
+                // Если камера потеряна до первого такта оценивания, её последняя
+                // поза всё равно позволяет отправить один пакет с флагом отказа.
+                if (sources.t265_valid ||
+                    (sources.fatal && inputs.odometry_timestamp_ns != 0))
                 {
                     // Смещение защёлкивается на первом кадре одометрии, а не на
                     // первом такте: до появления кадра позиция ещё нулевая, и
@@ -1017,7 +1088,7 @@ private:
                 }
 
                 BodyEstimate kalman;
-                if (se_config_.kalman_mit_enabled &&
+                if (sources.kalman_enabled &&
                     inputs.has_imu && inputs.has_servo &&
                     servo_state.pos.size() >= kNumJoints &&
                     servo_state.vel.size() >= kNumJoints)
@@ -1077,7 +1148,7 @@ private:
                 };
                 report_validity(
                     state_estimator_hmb::RobotStateSource::T265, t265, reported_t265_validity);
-                if (se_config_.kalman_mit_enabled)
+                if (sources.kalman_enabled)
                 {
                     report_validity(
                         state_estimator_hmb::RobotStateSource::Kalman,
@@ -1088,8 +1159,8 @@ private:
                 // Канал целиком формируется своим источником: поза и линейная
                 // скорость — из его оценки, стопы — та же поза плюс относительная
                 // кинематика (leg_state посчитан при нулевой базе). Ориентация и
-                // угловая скорость общие. Подмены источника не бывает: невалидный
-                // источник означает, что канал в этом такте не публикуется.
+                // угловая скорость общие. Если фактический источник невалиден,
+                // канал в этом такте не публикуется.
                 const auto build_channel_state =
                     [&](const BodyEstimate& estimate) -> std::pair<RobotData, LegData>
                 {
@@ -1110,7 +1181,7 @@ private:
                     return state;
                 };
 
-                const BodyEstimate& primary_estimate = source_estimate(primary_source);
+                const BodyEstimate& primary_estimate = source_estimate(sources.primary);
                 if (primary_estimate.valid)
                 {
                     const auto published_state = build_channel_state(primary_estimate);
@@ -1118,17 +1189,28 @@ private:
                         channels_.robot_state,
                         timestamp_ns,
                         published_state.first,
-                        published_state.second);
-                    // Карта высот строится в той же системе координат, что публикуется.
-                    PushEstimatorSnapshot(
-                        timestamp_ns,
-                        published_state.first,
                         published_state.second,
-                        trust_coefficients,
-                        inputs.has_imu && inputs.has_servo && inputs.has_gait_phase);
+                        servo_state,
+                        readiness);
+                    // Карта высот строится в той же системе координат, что публикуется.
+                    if (!sources.fatal)
+                    {
+                        PushEstimatorSnapshot(
+                            timestamp_ns,
+                            published_state.first,
+                            published_state.second,
+                            trust_coefficients,
+                            inputs.has_imu && inputs.has_servo && inputs.has_gait_phase);
+                    }
                 }
 
-                const BodyEstimate& check_estimate = source_estimate(check_source);
+                if (sources.fatal)
+                {
+                    StopAfterT265Failure();
+                    break;
+                }
+
+                const BodyEstimate& check_estimate = source_estimate(sources.check);
                 if (check_estimate.valid)
                 {
                     const auto check_state = build_channel_state(check_estimate);
@@ -1136,7 +1218,9 @@ private:
                         channels_.robot_state_check,
                         timestamp_ns,
                         check_state.first,
-                        check_state.second);
+                        check_state.second,
+                        servo_state,
+                        readiness);
                 }
 
                 std::this_thread::sleep_until(next_tick);
@@ -1145,6 +1229,7 @@ private:
         catch (const std::exception& e)
         {
             std::cerr << "[StateEstimatorHMB] state estimator fatal: " << e.what() << std::endl;
+            failed_.store(true);
             running_.store(false);
         }
     }
@@ -1200,6 +1285,8 @@ private:
                     continue;
                 }
 
+                sensor_readiness_.OnDepthFrame();
+
                 if (d435i_config_.publish_fps > 0.0 &&
                     d435i_config_.publish_fps < static_cast<double>(d435i_config_.fps))
                 {
@@ -1239,6 +1326,7 @@ private:
         }
         catch (const rs2::error& e)
         {
+            sensor_readiness_.SetDepthHealthy(false);
             std::cerr << "[StateEstimatorHMB] D435i RealSense error in "
                       << e.get_failed_function() << "(" << e.get_failed_args()
                       << "): " << e.what()
@@ -1248,6 +1336,7 @@ private:
         }
         catch (const std::exception& e)
         {
+            sensor_readiness_.SetDepthHealthy(false);
             std::cerr << "[StateEstimatorHMB] D435i fatal: " << e.what()
                       << ". Heightmap updates disabled; state estimation continues."
                       << std::endl;
@@ -1282,9 +1371,8 @@ private:
     }
 
     // Телеметрия для ROS-моста: тот же кадр Z16, переведённый в миллиметры,
-    // 0 = невалидный пиксель. Формат совпадает с depth_image_msg, который
-    // публиковал отдельный RealsenseCameraD435i, поэтому robot_state_viewer и
-    // симуляция читают канал одинаково.
+    // 0 = невалидный пиксель. Формат depth_image_msg сохраняет совместимость
+    // с robot_state_viewer.
     void PublishDepthImage(
         const rs2::depth_frame& depth_frame,
         double depth_scale,
@@ -1512,14 +1600,16 @@ private:
         const std::string& channel,
         int64_t timestamp_ns,
         const RobotData& robot_state,
-        const LegData& leg_state)
+        const LegData& leg_state,
+        const ServoData& servo_state,
+        const state_estimator_hmb::SensorReadiness::Readiness& readiness)
     {
-        mors_msgs::robot_state_msg msg;
+        mors_msgs::robot_state_msg msg{};
         msg.timestamp = timestamp_ns;
         for (int i = 0; i < 3; ++i)
         {
             msg.body.position[i] = robot_state.pos(i);
-            msg.body.orientation[i] = robot_state.orientation(i);
+            msg.body.orientation_euler[i] = robot_state.orientation(i);
             msg.body.orientation_quaternion[i] = robot_state.orientation_quaternion(i);
             msg.body.lin_vel[i] = robot_state.lin_vel(i);
             msg.body.ang_vel[i] = robot_state.ang_vel(i);
@@ -1544,8 +1634,15 @@ private:
         {
             msg.legs.contact_states[i] = leg_state.contacts[i];
         }
+        // Индексы SERVO_STATE сохраняются; моменты уже приведены к расчётным.
+        for (int i = 0; i < kNumJoints; ++i)
+        {
+            msg.joints.position[i] = servo_state.pos(i);
+            msg.joints.velocity[i] = servo_state.vel(i);
+            msg.joints.torque[i] = servo_state.torq(i);
+        }
 
-        robot_state_publisher_->publish(channel, &msg);
+        robot_state_publication_.Publish(channel, msg, readiness);
     }
 
     void PushEstimatorSnapshot(
@@ -1558,7 +1655,6 @@ private:
     {
         EstimatorSnapshot snapshot;
         snapshot.robot_state.valid = true;
-        snapshot.robot_state.receive_timestamp_ns = timestamp_ns;
         snapshot.robot_state.state_timestamp_ns = timestamp_ns;
         snapshot.robot_state.yaw = robot_state.orientation(2);
         for (size_t i = 0; i < 3; ++i)
@@ -1633,6 +1729,7 @@ private:
     std::string servo_lcm_url_;
     ChannelsConfig channels_;
     StateEstimatorConfig se_config_;
+    state_estimator_hmb::SensorReadiness sensor_readiness_;
     RobotPhysicalParams robot_params_;
     T265Config t265_config_;
     D435iConfig d435i_config_;
@@ -1643,11 +1740,13 @@ private:
     std::unique_ptr<lcm::LCM> contact_lcm_;
     std::unique_ptr<lcm::LCM> gait_phase_lcm_;
     std::unique_ptr<lcm::LCM> robot_state_publisher_;
+    state_estimator_hmb::RobotStatePublication robot_state_publication_;
     std::unique_ptr<lcm::LCM> servo_filtered_publisher_;
     std::unique_ptr<lcm::LCM> depth_image_publisher_;
     std::unique_ptr<hmb::HeightMapBuilderNode> heightmap_builder_;
 
     std::atomic_bool running_{false};
+    std::atomic_bool failed_{false};
     std::vector<std::thread> threads_;
 
     mutable std::mutex inputs_mutex_;
@@ -1677,44 +1776,27 @@ int main(int argc, char** argv)
         std::cout << std::unitbuf;
         std::cerr << std::unitbuf;
 
-        bool sim_mode = false;
         for (int i = 1; i < argc; ++i)
         {
             const std::string arg = argv[i];
-            if (arg == "--sim")
+            if (arg == "-h" || arg == "--help")
             {
-                sim_mode = true;
-            }
-            else if (arg == "-h" || arg == "--help")
-            {
-                std::cout << "Usage: " << argv[0] << " [--sim]" << std::endl;
+                std::cout << "Usage: " << argv[0] << " [-h|--help]" << std::endl;
                 return 0;
             }
             else
             {
                 std::cerr << "Unknown option: " << arg << "\n"
-                          << "Usage: " << argv[0] << " [--sim]" << std::endl;
+                          << "Usage: " << argv[0] << " [-h|--help]" << std::endl;
                 return 2;
             }
-        }
-
-        if (sim_mode)
-        {
-            const std::string config_path = ConfigPath(
-                GetRequiredEnv("CONFIGPATH"),
-                "heightmap_builder.yaml");
-            std::cout << "[StateEstimatorHMB] simulation mode: LCM heightmap builder only"
-                      << std::endl;
-            hmb::HeightMapBuilderNode node(config_path, true);
-            return node.Run();
         }
 
         std::signal(SIGINT, SignalHandler);
         std::signal(SIGTERM, SignalHandler);
 
         StateEstimatorHMBApp app;
-        app.Run();
-        return 0;
+        return app.Run();
     }
     catch (const std::exception& e)
     {

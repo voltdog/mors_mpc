@@ -170,21 +170,24 @@ private:
 
 mors_msgs::contact_sensor_msg MakeMessage(
     const contact_sensor::ScaledRawData& raw_data,
-    const contact_sensor::ContactStates& contact_states)
+    const contact_sensor::ContactStates& contact_states,
+    bool available)
 {
-    mors_msgs::contact_sensor_msg message;
+    mors_msgs::contact_sensor_msg message{};
     for (std::size_t index = 0; index < contact_sensor::kLegCount; ++index)
     {
         message.raw_data[index] = raw_data[index];
         message.contact_states[index] = contact_states[index] ? 1 : 0;
+        message.readiness[index] = available ? 1 : 0;
     }
     return message;
 }
 
 mors_msgs::contact_sensor_msg MakeFallbackMessage()
 {
-    return MakeMessage(
-        contact_sensor::ScaledRawData{}, contact_sensor::ContactStates{});
+    contact_sensor::ScaledRawData invalid;
+    invalid.fill(contact_sensor::kInvalidMeasurement);
+    return MakeMessage(invalid, contact_sensor::ContactStates{}, false);
 }
 
 void Publish(
@@ -271,7 +274,7 @@ public:
                   << bytes_since_frame_ << " bytes received, "
                   << accumulator_.rejected_candidates() -
                          rejected_at_last_frame_
-                  << " frames rejected); publishing zero contacts\n";
+                  << " frames rejected); publishing invalid channels\n";
     }
 
     void ReportStats(Clock::time_point now)
@@ -308,11 +311,39 @@ private:
     std::size_t stats_rejected_ = 0;
 };
 
-void LogSerialError(const std::exception& error)
+// Transport availability and calibration readiness are separate diagnostics.
+class ChannelDiagnostics
 {
-    std::cerr << "[ContactSensor]: " << error.what()
-              << "; retrying in " << kReconnectPeriod.count() << " s\n";
-}
+public:
+    void OnFrame(bool available,
+                 const contact_sensor::ZeroOffsetCalibrator& calibrator)
+    {
+        constexpr std::array<const char*, 4> names{"R1", "L1", "R2", "L2"};
+        for (std::size_t leg = 0; leg < contact_sensor::kLegCount; ++leg)
+        {
+            if (!known_[leg] || available_[leg] != available)
+            {
+                std::cout << "[ContactSensor]: " << names[leg]
+                          << (available ? " data available" : " data unavailable")
+                          << '\n';
+            }
+            if (!calibrated_[leg] && calibrator.IsCalibrated(leg))
+            {
+                std::cout << "[ContactSensor]: " << names[leg]
+                          << " calibration complete; offset: "
+                          << calibrator.offset()[leg] << '\n';
+            }
+            known_[leg] = true;
+            available_[leg] = available;
+            calibrated_[leg] = calibrator.IsCalibrated(leg);
+        }
+    }
+
+private:
+    contact_sensor::ContactStates known_{};
+    contact_sensor::ContactStates available_{};
+    contact_sensor::ContactStates calibrated_{};
+};
 
 void InstallSignalHandlers()
 {
@@ -366,6 +397,8 @@ int Run()
         config.calibration_samples);
     contact_sensor::FallbackScheduler fallback_scheduler(Clock::now());
     LinkDiagnostics diagnostics(frame_accumulator, Clock::now());
+    ChannelDiagnostics channel_diagnostics;
+    bool serial_error_reported = false;
     Clock::time_point next_reconnect = Clock::now();
     const mors_msgs::contact_sensor_msg fallback_message = MakeFallbackMessage();
 
@@ -378,11 +411,18 @@ int Run()
             {
                 serial_port.Open(config.serial_port);
                 frame_accumulator.Reset();
+                serial_error_reported = false;
                 std::cout << "[ContactSensor]: serial port opened\n";
             }
             catch (const std::exception& error)
             {
-                LogSerialError(error);
+                if (!serial_error_reported)
+                {
+                    std::cerr << "[ContactSensor]: " << error.what()
+                              << "; retrying every " << kReconnectPeriod.count()
+                              << " s\n";
+                    serial_error_reported = true;
+                }
                 fallback_scheduler.OnIoError(now);
                 next_reconnect = now + kReconnectPeriod;
             }
@@ -434,43 +474,25 @@ int Run()
 
                         for (const contact_sensor::RawData& serial_data : frames)
                         {
-                            const contact_sensor::ScaledRawData raw_data =
-                                contact_sensor::ScaleRawData(
-                                    serial_data, config.raw_data_divisor);
                             const auto frame_time = Clock::now();
+                            if (fallback_scheduler.IsDue(frame_time))
+                            {
+                                calibrator.ResetIncomplete();
+                            }
                             fallback_scheduler.OnFrame(frame_time);
                             diagnostics.OnFrame(frame_time);
-                            const bool was_calibrated =
-                                calibrator.IsCalibrated();
-                            const std::optional<contact_sensor::ScaledRawData>
-                                corrected_data = calibrator.Process(raw_data);
-
-                            if (!was_calibrated && calibrator.IsCalibrated())
-                            {
-                                const contact_sensor::Offsets& offset =
-                                    calibrator.offset();
-                                std::cout
-                                    << "[ContactSensor]: calibration complete; "
-                                    << "offsets: " << offset[0] << ' '
-                                    << offset[1] << ' ' << offset[2] << ' '
-                                    << offset[3] << '\n';
-                            }
-
-                            if (!corrected_data)
-                            {
-                                continue;
-                            }
-
-                            const contact_sensor::ScaledRawData absolute_data =
-                                contact_sensor::AbsoluteRawData(
-                                    *corrected_data);
+                            const auto corrected_data = calibrator.Process(
+                                serial_data, config.raw_data_divisor);
+                            channel_diagnostics.OnFrame(true, calibrator);
+                            const auto absolute_data =
+                                contact_sensor::AbsoluteRawData(corrected_data);
                             const contact_sensor::ContactStates contacts =
                                 contact_sensor::DetectContacts(
                                     absolute_data, config.thresholds);
                             Publish(
                                 publisher,
                                 contact_channel,
-                                MakeMessage(absolute_data, contacts));
+                                MakeMessage(absolute_data, contacts, true));
                         }
                         continue;
                     }
@@ -513,10 +535,7 @@ int Run()
         {
             serial_port.Close();
             frame_accumulator.Reset();
-            if (!calibrator.IsCalibrated())
-            {
-                calibrator.Reset();
-            }
+            calibrator.ResetIncomplete();
             fallback_scheduler.OnIoError(now);
             next_reconnect = now + kReconnectPeriod;
         }
@@ -529,6 +548,8 @@ int Run()
         if (fallback_scheduler.IsDue(now))
         {
             diagnostics.OnFallback(now);
+            calibrator.ResetIncomplete();
+            channel_diagnostics.OnFrame(false, calibrator);
             Publish(publisher, contact_channel, fallback_message);
             fallback_scheduler.MarkPublished(now);
         }

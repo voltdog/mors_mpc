@@ -1,0 +1,11 @@
+package mors_msgs;
+struct robot_mode_result_msg
+{
+    // results
+    const int8_t ACCEPTED = 0, SUCCEEDED = 1, REJECTED = 2, BUSY = 3;
+    const int8_t CANCELED = 4, SUPERSEDED = 5, TIMEOUT = 6, FAILED = 7;
+
+    int8_t command; // Command being acknowledged or completed.
+    int8_t result;
+    string reason;
+}

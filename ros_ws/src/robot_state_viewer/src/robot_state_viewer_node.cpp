@@ -1078,9 +1078,9 @@ private:
 
     if (!quaternionValid(qx, qy, qz, qw)) {
       const auto q = eulerToQuaternion(
-        msg->body.orientation[0],
-        msg->body.orientation[1],
-        msg->body.orientation[2]);
+        msg->body.orientation_euler[0],
+        msg->body.orientation_euler[1],
+        msg->body.orientation_euler[2]);
       qx = q[0];
       qy = q[1];
       qz = q[2];

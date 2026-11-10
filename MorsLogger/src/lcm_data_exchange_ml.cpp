@@ -310,7 +310,7 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer* rbuf,
         leg_state.contacts[i] = msg->legs.contact_states[i];
 
         body_state.pos(i) = msg->body.position[i];
-        body_state.orientation(i) = msg->body.orientation[i];
+        body_state.orientation(i) = msg->body.orientation_euler[i];
         body_state.lin_vel(i) = msg->body.lin_vel[i];
         body_state.ang_vel(i) = msg->body.ang_vel[i];
     }
@@ -341,7 +341,7 @@ void LCMExchanger::robotStateCheckHandler(const lcm::ReceiveBuffer* rbuf,
         leg_state_check.contacts[i] = msg->legs.contact_states[i];
 
         body_state_check.pos(i) = msg->body.position[i];
-        body_state_check.orientation(i) = msg->body.orientation[i];
+        body_state_check.orientation(i) = msg->body.orientation_euler[i];
         body_state_check.lin_vel(i) = msg->body.lin_vel[i];
         body_state_check.ang_vel(i) = msg->body.ang_vel[i];
     }

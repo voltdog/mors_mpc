@@ -355,7 +355,7 @@ class Hardware_Level_Sim():
 
         self.lcm_robot_state_msg.timestamp = time.time_ns()
         self.lcm_robot_state_msg.body.position = base_pos[:]
-        self.lcm_robot_state_msg.body.orientation = rpy[:]
+        self.lcm_robot_state_msg.body.orientation_euler = rpy[:]
         self.lcm_robot_state_msg.body.orientation_quaternion = quat_xyzw
         self.lcm_robot_state_msg.body.lin_vel = base_vel[:]
         self.lcm_robot_state_msg.body.ang_vel = imu_data[7:10]

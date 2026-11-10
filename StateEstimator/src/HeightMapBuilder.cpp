@@ -5,7 +5,6 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
-#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -14,12 +13,10 @@
 #include <utility>
 
 #include <yaml-cpp/yaml.h>
-#include <zlib.h>
 
 namespace
 {
 
-constexpr double kMillimetersToMeters = 1e-3;
 constexpr double kSecondsToNanoseconds = 1e9;
 constexpr uint8_t kClassSteppable = 0u;
 constexpr uint8_t kClassUnsteppable = 1u;
@@ -52,7 +49,7 @@ int PositiveModulo(int value, int modulus)
 namespace hmb
 {
 
-HeightMapBuilderNode::HeightMapBuilderNode(const std::string& config_path, bool subscribe_inputs)
+HeightMapBuilderNode::HeightMapBuilderNode(const std::string& config_path)
     : locomotion_lcm_url_(GetRequiredEnv(kLocomotionLcmUrlEnv)),
       locomotion_lcm_(locomotion_lcm_url_)
 {
@@ -66,16 +63,8 @@ HeightMapBuilderNode::HeightMapBuilderNode(const std::string& config_path, bool 
         throw std::runtime_error("[HeightMapBuilder] Failed to load config: " + config_path);
     }
 
-    if (subscribe_inputs)
-    {
-        locomotion_lcm_.subscribe(config_.channels.depth_image, &HeightMapBuilderNode::OnDepthImage, this);
-        locomotion_lcm_.subscribe(config_.channels.robot_state, &HeightMapBuilderNode::OnRobotState, this);
-    }
-
     std::cout << "[HeightMapBuilder] started\n"
               << "  LCM URL: " << locomotion_lcm_url_ << "\n"
-              << "  depth channel: " << config_.channels.depth_image << "\n"
-              << "  robot_state channel: " << config_.channels.robot_state << "\n"
               << "  pointcloud channel: " << config_.channels.pointcloud << "\n"
               << "  heightmap channel: " << config_.channels.heightmap << "\n"
               << "  global map cells: " << global_cells_x_ << "x" << global_cells_y_ << "\n"
@@ -95,34 +84,13 @@ HeightMapBuilderNode::HeightMapBuilderNode(const std::string& config_path, bool 
               << (config_.height_correction.enabled ? "enabled" : "disabled")
               << " window=" << config_.height_correction.window_size_m << "m"
               << " min_contacts=" << config_.height_correction.minimum_contacts << "\n"
-              << "  input mode: " << (subscribe_inputs ? "LCM subscriptions" : "direct in-process API")
               << std::endl;
-}
-
-int HeightMapBuilderNode::Run()
-{
-    while (true)
-    {
-        const int status = locomotion_lcm_.handleTimeout(10);
-        if (status < 0)
-        {
-            std::cerr << "[HeightMapBuilder] LCM handleTimeout failed." << std::endl;
-            return 1;
-        }
-    }
 }
 
 int64_t HeightMapBuilderNode::NowNs()
 {
     const auto now = std::chrono::system_clock::now().time_since_epoch();
     return std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
-}
-
-double HeightMapBuilderNode::ComputeYawFromQuaternion(double qx, double qy, double qz, double qw)
-{
-    const double siny_cosp = 2.0 * (qw * qz + qx * qy);
-    const double cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz);
-    return std::atan2(siny_cosp, cosy_cosp);
 }
 
 std::array<double, 9> HeightMapBuilderNode::RotationFromEuler(
@@ -650,8 +618,6 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
     }
     try
     {
-        config_.channels.depth_image = channels["depth_image"].as<std::string>();
-        config_.channels.robot_state = channels["robot_state"].as<std::string>();
         config_.channels.pointcloud = channels["pointcloud"].as<std::string>();
         config_.channels.heightmap = channels["heightmap"].as<std::string>();
     }
@@ -660,139 +626,6 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         std::cerr << "[HeightMapBuilder] Invalid channels config '" << channels_path.string()
                   << "': " << e.what() << std::endl;
         return false;
-    }
-
-    if (const YAML::Node camera = root["camera"])
-    {
-        if (camera["width"])
-        {
-            config_.camera.width = std::max(1, camera["width"].as<int>());
-        }
-        if (camera["height"])
-        {
-            config_.camera.height = std::max(1, camera["height"].as<int>());
-        }
-        if (camera["fx"])
-        {
-            config_.camera.fx = camera["fx"].as<double>();
-        }
-        if (camera["fy"])
-        {
-            config_.camera.fy = camera["fy"].as<double>();
-        }
-        if (camera["cx"])
-        {
-            config_.camera.cx = camera["cx"].as<double>();
-        }
-        if (camera["cy"])
-        {
-            config_.camera.cy = camera["cy"].as<double>();
-        }
-        if (camera["fovy_deg"])
-        {
-            config_.camera.fovy_deg = camera["fovy_deg"].as<double>();
-        }
-    }
-
-    if (const YAML::Node depth = root["depth"])
-    {
-        if (depth["min_depth"])
-        {
-            config_.depth.min_depth = depth["min_depth"].as<double>();
-        }
-        if (depth["max_depth"])
-        {
-            config_.depth.max_depth = depth["max_depth"].as<double>();
-        }
-        if (depth["enable_downsampling"])
-        {
-            config_.depth.enable_downsampling = depth["enable_downsampling"].as<bool>();
-        }
-        if (depth["downsample_factor"])
-        {
-            config_.depth.downsample_factor = std::max(1, depth["downsample_factor"].as<int>());
-        }
-        if (depth["remove_outliers"])
-        {
-            config_.depth.remove_outliers = depth["remove_outliers"].as<bool>();
-        }
-        if (depth["outlier_window_radius"])
-        {
-            config_.depth.outlier_window_radius = std::max(1, depth["outlier_window_radius"].as<int>());
-        }
-        if (depth["outlier_threshold_m"])
-        {
-            config_.depth.outlier_threshold_m = std::max(0.0, depth["outlier_threshold_m"].as<double>());
-        }
-        if (depth["min_neighbors_for_outlier"])
-        {
-            config_.depth.min_neighbors_for_outlier = std::max(1, depth["min_neighbors_for_outlier"].as<int>());
-        }
-    }
-
-    if (const YAML::Node sync = root["sync"])
-    {
-        if (sync["max_sync_dt_sec"])
-        {
-            config_.sync.max_sync_dt_sec = std::max(0.0, sync["max_sync_dt_sec"].as<double>());
-        }
-        if (sync["require_recent_robot_state"])
-        {
-            config_.sync.require_recent_robot_state = sync["require_recent_robot_state"].as<bool>();
-        }
-    }
-
-    if (const YAML::Node correction = root["height_correction"])
-    {
-        if (correction["enabled"])
-        {
-            config_.height_correction.enabled = correction["enabled"].as<bool>();
-        }
-        if (correction["window_size_m"])
-        {
-            config_.height_correction.window_size_m =
-                correction["window_size_m"].as<double>();
-        }
-        if (correction["foot_contact_offset_m"])
-        {
-            config_.height_correction.foot_contact_offset_m =
-                correction["foot_contact_offset_m"].as<double>();
-        }
-        if (correction["minimum_contacts"])
-        {
-            config_.height_correction.minimum_contacts =
-                correction["minimum_contacts"].as<int>();
-        }
-        if (correction["max_map_age_sec"])
-        {
-            config_.height_correction.max_map_age_sec =
-                correction["max_map_age_sec"].as<double>();
-        }
-        if (correction["residual_deadband_m"])
-        {
-            config_.height_correction.residual_deadband_m =
-                correction["residual_deadband_m"].as<double>();
-        }
-        if (correction["max_residual_m"])
-        {
-            config_.height_correction.max_residual_m =
-                correction["max_residual_m"].as<double>();
-        }
-        if (correction["max_residual_spread_m"])
-        {
-            config_.height_correction.max_residual_spread_m =
-                correction["max_residual_spread_m"].as<double>();
-        }
-        if (correction["time_constant_sec"])
-        {
-            config_.height_correction.time_constant_sec =
-                correction["time_constant_sec"].as<double>();
-        }
-        if (correction["max_step_per_frame_m"])
-        {
-            config_.height_correction.max_step_per_frame_m =
-                correction["max_step_per_frame_m"].as<double>();
-        }
     }
 
     if (const YAML::Node map = root["map"])
@@ -1000,12 +833,6 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         };
     }
 
-    if (config_.depth.min_depth >= config_.depth.max_depth)
-    {
-        std::cerr << "[HeightMapBuilder] Invalid depth limits: min_depth >= max_depth." << std::endl;
-        return false;
-    }
-
     if (!(config_.map.cell_size > 0.0))
     {
         std::cerr << "[HeightMapBuilder] map.cell_size must be > 0." << std::endl;
@@ -1123,218 +950,10 @@ bool HeightMapBuilderNode::LoadConfig(const std::string& config_path)
         return false;
     }
 
-    ApplyIntrinsicsFallback();
     InitializeGlobalMapStorage();
     ResolveRollingConfig();
     BuildOpeningKernelOffsets();
     return true;
-}
-
-void HeightMapBuilderNode::ApplyIntrinsicsFallback()
-{
-    if (config_.camera.fx <= 0.0 || config_.camera.fy <= 0.0)
-    {
-        const double fovy_rad = config_.camera.fovy_deg * std::numbers::pi_v<double> / 180.0;
-        const double fy = static_cast<double>(config_.camera.height) / (2.0 * std::tan(0.5 * fovy_rad));
-        config_.camera.fy = fy;
-        config_.camera.fx = fy;
-    }
-
-    if (config_.camera.cx <= 0.0)
-    {
-        config_.camera.cx = (static_cast<double>(config_.camera.width) - 1.0) * 0.5;
-    }
-    if (config_.camera.cy <= 0.0)
-    {
-        config_.camera.cy = (static_cast<double>(config_.camera.height) - 1.0) * 0.5;
-    }
-}
-
-bool HeightMapBuilderNode::DecodeDepthImage(
-    const mors_msgs::depth_image_msg& msg, std::vector<uint16_t>* depth_mm) const
-{
-    if (depth_mm == nullptr)
-    {
-        return false;
-    }
-    if (msg.width <= 0 || msg.height <= 0)
-    {
-        std::cerr << "[HeightMapBuilder] Invalid depth dimensions: "
-                  << msg.width << "x" << msg.height << std::endl;
-        return false;
-    }
-
-    const uint64_t expected_bytes_u64 =
-        static_cast<uint64_t>(msg.width) * static_cast<uint64_t>(msg.height) * sizeof(uint16_t);
-    if (expected_bytes_u64 > static_cast<uint64_t>(std::numeric_limits<size_t>::max()))
-    {
-        std::cerr << "[HeightMapBuilder] Depth frame is too large to allocate." << std::endl;
-        return false;
-    }
-    const size_t expected_bytes = static_cast<size_t>(expected_bytes_u64);
-
-    if (msg.compression == 0)
-    {
-        if (msg.data.size() != expected_bytes)
-        {
-            std::cerr << "[HeightMapBuilder] Raw depth payload size mismatch. expected="
-                      << expected_bytes << " got=" << msg.data.size() << std::endl;
-            return false;
-        }
-        depth_mm->resize(static_cast<size_t>(msg.width) * static_cast<size_t>(msg.height));
-        std::memcpy(depth_mm->data(), msg.data.data(), expected_bytes);
-        return true;
-    }
-
-    if (msg.compression == 1)
-    {
-        std::vector<uint8_t> raw_bytes(expected_bytes);
-        uLongf decoded_size = static_cast<uLongf>(raw_bytes.size());
-        const int zret = ::uncompress(
-            raw_bytes.data(),
-            &decoded_size,
-            reinterpret_cast<const Bytef*>(msg.data.data()),
-            static_cast<uLongf>(msg.data.size()));
-        if (zret != Z_OK)
-        {
-            std::cerr << "[HeightMapBuilder] zlib uncompress failed. code=" << zret << std::endl;
-            return false;
-        }
-        if (static_cast<size_t>(decoded_size) != expected_bytes)
-        {
-            std::cerr << "[HeightMapBuilder] Decompressed depth payload size mismatch. expected="
-                      << expected_bytes << " got=" << decoded_size << std::endl;
-            return false;
-        }
-        depth_mm->resize(static_cast<size_t>(msg.width) * static_cast<size_t>(msg.height));
-        std::memcpy(depth_mm->data(), raw_bytes.data(), expected_bytes);
-        return true;
-    }
-
-    std::cerr << "[HeightMapBuilder] Unsupported depth compression type: "
-              << static_cast<int>(msg.compression) << std::endl;
-    return false;
-}
-
-bool HeightMapBuilderNode::IsValidDepth(double depth_m) const
-{
-    return std::isfinite(depth_m) &&
-           depth_m >= config_.depth.min_depth &&
-           depth_m <= config_.depth.max_depth;
-}
-
-bool HeightMapBuilderNode::IsOutlier(
-    const std::vector<uint16_t>& depth_mm,
-    int width,
-    int height,
-    int u,
-    int v,
-    double depth_m) const
-{
-    if (!config_.depth.remove_outliers)
-    {
-        return false;
-    }
-
-    const int r = config_.depth.outlier_window_radius;
-    std::vector<double> neighbors;
-    neighbors.reserve(static_cast<size_t>((2 * r + 1) * (2 * r + 1)));
-
-    for (int dv = -r; dv <= r; ++dv)
-    {
-        const int vv = v + dv;
-        if (vv < 0 || vv >= height)
-        {
-            continue;
-        }
-        for (int du = -r; du <= r; ++du)
-        {
-            const int uu = u + du;
-            if (uu < 0 || uu >= width || (du == 0 && dv == 0))
-            {
-                continue;
-            }
-            const uint16_t raw_depth = depth_mm[static_cast<size_t>(vv) * static_cast<size_t>(width) + static_cast<size_t>(uu)];
-            if (raw_depth == 0u)
-            {
-                continue;
-            }
-
-            const double neighbor_depth_m = static_cast<double>(raw_depth) * kMillimetersToMeters;
-            if (!IsValidDepth(neighbor_depth_m))
-            {
-                continue;
-            }
-            neighbors.push_back(neighbor_depth_m);
-        }
-    }
-
-    if (static_cast<int>(neighbors.size()) < config_.depth.min_neighbors_for_outlier)
-    {
-        return false;
-    }
-
-    auto middle_it = neighbors.begin() + (neighbors.size() / 2u);
-    std::nth_element(neighbors.begin(), middle_it, neighbors.end());
-    const double median = *middle_it;
-    return std::fabs(depth_m - median) > config_.depth.outlier_threshold_m;
-}
-
-void HeightMapBuilderNode::BuildPointCloudCameraFrame(
-    const std::vector<uint16_t>& depth_mm,
-    int width,
-    int height,
-    std::vector<float>* out_x,
-    std::vector<float>* out_y,
-    std::vector<float>* out_z) const
-{
-    if (out_x == nullptr || out_y == nullptr || out_z == nullptr)
-    {
-        return;
-    }
-
-    out_x->clear();
-    out_y->clear();
-    out_z->clear();
-
-    const int downsample =
-        config_.depth.enable_downsampling ? std::max(1, config_.depth.downsample_factor) : 1;
-
-    const size_t approx_points =
-        (static_cast<size_t>(width) / static_cast<size_t>(downsample) + 1u) *
-        (static_cast<size_t>(height) / static_cast<size_t>(downsample) + 1u);
-    out_x->reserve(approx_points);
-    out_y->reserve(approx_points);
-    out_z->reserve(approx_points);
-
-    for (int v = 0; v < height; v += downsample)
-    {
-        for (int u = 0; u < width; u += downsample)
-        {
-            const uint16_t raw_depth = depth_mm[static_cast<size_t>(v) * static_cast<size_t>(width) + static_cast<size_t>(u)];
-            if (raw_depth == 0u)
-            {
-                continue;
-            }
-
-            const double depth_m = static_cast<double>(raw_depth) * kMillimetersToMeters;
-            if (!IsValidDepth(depth_m))
-            {
-                continue;
-            }
-            if (IsOutlier(depth_mm, width, height, u, v, depth_m))
-            {
-                continue;
-            }
-
-            const double x = (static_cast<double>(u) - config_.camera.cx) * depth_m / config_.camera.fx;
-            const double y = (static_cast<double>(v) - config_.camera.cy) * depth_m / config_.camera.fy;
-
-            out_x->push_back(static_cast<float>(x));
-            out_y->push_back(static_cast<float>(y));
-            out_z->push_back(static_cast<float>(depth_m));
-        }
-    }
 }
 
 void HeightMapBuilderNode::TransformPointCloudCameraToWorld(
@@ -1418,42 +1037,6 @@ void HeightMapBuilderNode::TransformPointCloudCameraToWorld(
         (*world_y)[i] = static_cast<float>(p_world[1]);
         (*world_z)[i] = static_cast<float>(p_world[2]);
     }
-}
-
-void HeightMapBuilderNode::PublishPointCloud(
-    const mors_msgs::depth_image_msg& depth_msg,
-    const std::vector<float>& x,
-    const std::vector<float>& y,
-    const std::vector<float>& z)
-{
-    if (x.size() != y.size() || x.size() != z.size())
-    {
-        std::cerr << "[HeightMapBuilder] Internal pointcloud vector size mismatch." << std::endl;
-        return;
-    }
-
-    mors_msgs::pointcloud_msg pointcloud_msg;
-    pointcloud_msg.timestamp = NowNs();
-    pointcloud_msg.depth_timestamp = depth_msg.timestamp;
-    pointcloud_msg.robot_state_rx_timestamp = latest_robot_state_.receive_timestamp_ns;
-
-    for (size_t i = 0; i < 3; ++i)
-    {
-        pointcloud_msg.robot_position[i] = static_cast<float>(latest_robot_state_.position[i]);
-    }
-    for (size_t i = 0; i < 4; ++i)
-    {
-        pointcloud_msg.robot_orientation_quaternion[i] =
-            static_cast<float>(latest_robot_state_.orientation_quaternion[i]);
-    }
-    pointcloud_msg.robot_yaw = static_cast<float>(latest_robot_state_.yaw);
-
-    pointcloud_msg.points_count = static_cast<int32_t>(x.size());
-    pointcloud_msg.x = x;
-    pointcloud_msg.y = y;
-    pointcloud_msg.z = z;
-
-    locomotion_lcm_.publish(config_.channels.pointcloud, &pointcloud_msg);
 }
 
 void HeightMapBuilderNode::PublishPointCloudDirect(
@@ -2380,117 +1963,6 @@ bool HeightMapBuilderNode::ProcessCameraPointCloudFrame(
     }
 
     return true;
-}
-
-void HeightMapBuilderNode::OnDepthImage(
-    const lcm::ReceiveBuffer* /*rbuf*/,
-    const std::string& /*chan*/,
-    const mors_msgs::depth_image_msg* msg)
-{
-    if (msg == nullptr)
-    {
-        return;
-    }
-
-    if (config_.sync.require_recent_robot_state && !latest_robot_state_.valid)
-    {
-        return;
-    }
-
-    const int64_t depth_receive_ts_ns = NowNs();
-    if (latest_robot_state_.valid)
-    {
-        const int64_t dt_ns = std::llabs(depth_receive_ts_ns - latest_robot_state_.receive_timestamp_ns);
-        const double dt_sec = static_cast<double>(dt_ns) / kSecondsToNanoseconds;
-        if (dt_sec > config_.sync.max_sync_dt_sec && config_.sync.require_recent_robot_state)
-        {
-            return;
-        }
-    }
-
-    std::vector<uint16_t> depth_mm;
-    if (!DecodeDepthImage(*msg, &depth_mm))
-    {
-        return;
-    }
-
-    std::vector<float> points_x;
-    std::vector<float> points_y;
-    std::vector<float> points_z;
-    BuildPointCloudCameraFrame(depth_mm, msg->width, msg->height, &points_x, &points_y, &points_z);
-
-    std::vector<float> points_world_x;
-    std::vector<float> points_world_y;
-    std::vector<float> points_world_z;
-    TransformPointCloudCameraToWorld(
-        points_x,
-        points_y,
-        points_z,
-        &points_world_x,
-        &points_world_y,
-        &points_world_z);
-    if (config_.runtime.publish_pointcloud)
-    {
-        PublishPointCloud(*msg, points_world_x, points_world_y, points_world_z);
-    }
-    ShiftGlobalMapIfNeeded(
-        latest_robot_state_.position[0],
-        latest_robot_state_.position[1]);
-    ApplyHeightCorrection(HeightCorrectionObservation{}, depth_receive_ts_ns);
-    UpdateGlobalHeightMap(
-        points_world_x,
-        points_world_y,
-        points_world_z,
-        depth_receive_ts_ns);
-    PublishHeightMapWindow(depth_receive_ts_ns);
-
-    ++frame_counter_;
-    if (config_.runtime.verbose && frame_counter_ % 30u == 0u)
-    {
-        std::cout << "[HeightMapBuilder] Frame " << frame_counter_
-                  << ", points: " << points_x.size() << std::endl;
-    }
-}
-
-void HeightMapBuilderNode::OnRobotState(
-    const lcm::ReceiveBuffer* /*rbuf*/,
-    const std::string& /*chan*/,
-    const mors_msgs::robot_state_msg* msg)
-{
-    if (msg == nullptr)
-    {
-        return;
-    }
-
-    latest_robot_state_.receive_timestamp_ns = NowNs();
-    latest_robot_state_.state_timestamp_ns =
-        msg->timestamp != 0 ? msg->timestamp : latest_robot_state_.receive_timestamp_ns;
-
-    for (size_t i = 0; i < 3; ++i)
-    {
-        latest_robot_state_.position[i] = msg->body.position[i];
-        latest_robot_state_.orientation_rpy[i] = msg->body.orientation[i];
-    }
-    for (size_t i = 0; i < 4; ++i)
-    {
-        latest_robot_state_.orientation_quaternion[i] = msg->body.orientation_quaternion[i];
-    }
-
-    const double yaw_from_euler = msg->body.orientation[2];
-    if (std::isfinite(yaw_from_euler))
-    {
-        latest_robot_state_.yaw = yaw_from_euler;
-    }
-    else
-    {
-        latest_robot_state_.yaw = ComputeYawFromQuaternion(
-            latest_robot_state_.orientation_quaternion[0],
-            latest_robot_state_.orientation_quaternion[1],
-            latest_robot_state_.orientation_quaternion[2],
-            latest_robot_state_.orientation_quaternion[3]);
-    }
-
-    latest_robot_state_.valid = true;
 }
 
 }  // namespace hmb

@@ -8,49 +8,16 @@
 
 #include <lcm/lcm-cpp.hpp>
 
-#include "mors_msgs/depth_image_msg.hpp"
 #include "mors_msgs/heightmap_msg.hpp"
 #include "mors_msgs/pointcloud_msg.hpp"
-#include "mors_msgs/robot_state_msg.hpp"
 
 namespace hmb
 {
 
 struct ChannelsConfig
 {
-    std::string depth_image;
-    std::string robot_state;
     std::string pointcloud;
     std::string heightmap;
-};
-
-struct CameraConfig
-{
-    int width{424};
-    int height{240};
-    double fx{0.0};
-    double fy{0.0};
-    double cx{0.0};
-    double cy{0.0};
-    double fovy_deg{58.0};
-};
-
-struct DepthConfig
-{
-    double min_depth{0.10};
-    double max_depth{3.00};
-    bool enable_downsampling{true};
-    int downsample_factor{2};
-    bool remove_outliers{true};
-    int outlier_window_radius{1};
-    double outlier_threshold_m{0.12};
-    int min_neighbors_for_outlier{3};
-};
-
-struct SyncConfig
-{
-    double max_sync_dt_sec{0.05};
-    bool require_recent_robot_state{true};
 };
 
 struct MapConfig
@@ -110,9 +77,6 @@ struct HeightCorrectionConfig
 struct HeightMapBuilderConfig
 {
     ChannelsConfig channels;
-    CameraConfig camera;
-    DepthConfig depth;
-    SyncConfig sync;
     MapConfig map;
     FilteringConfig filtering;
     GradientConfig gradient;
@@ -135,7 +99,6 @@ struct HeightMapBuilderConfig
 struct RobotStateSnapshot
 {
     bool valid{false};
-    int64_t receive_timestamp_ns{0};
     int64_t state_timestamp_ns{0};
     std::array<double, 3> position{0.0, 0.0, 0.0};
     std::array<double, 3> orientation_rpy{0.0, 0.0, 0.0}; // roll pitch yaw
@@ -153,8 +116,7 @@ struct HeightCorrectionObservation
 class HeightMapBuilderNode
 {
 public:
-    explicit HeightMapBuilderNode(const std::string& config_path, bool subscribe_inputs = true);
-    int Run();
+    explicit HeightMapBuilderNode(const std::string& config_path);
     bool ProcessCameraPointCloudFrame(
         int64_t depth_timestamp_ns,
         const RobotStateSnapshot& robot_state,
@@ -181,7 +143,6 @@ private:
     };
 
     static int64_t NowNs();
-    static double ComputeYawFromQuaternion(double qx, double qy, double qz, double qw);
     static std::array<double, 9> RotationFromEuler(double roll, double pitch, double yaw);
     static std::array<double, 9> RotationFromQuaternion(double qx, double qy, double qz, double qw);
     static std::array<double, 3> Mat3MulVec3(
@@ -199,7 +160,6 @@ private:
         double height_resolution);
 
     bool LoadConfig(const std::string& config_path);
-    void ApplyIntrinsicsFallback();
     void InitializeGlobalMapStorage();
     void ResolveRollingConfig();
     void ClearAllGlobalMapCells();
@@ -211,22 +171,6 @@ private:
     int GridYFromWorldY(double y) const;
     size_t GridIndex(int gx, int gy) const;
     [[nodiscard]] LocalWindowGeometry ComputeLocalWindowGeometry() const;
-    bool DecodeDepthImage(const mors_msgs::depth_image_msg& msg, std::vector<uint16_t>* depth_mm) const;
-    bool IsValidDepth(double depth_m) const;
-    bool IsOutlier(
-        const std::vector<uint16_t>& depth_mm,
-        int width,
-        int height,
-        int u,
-        int v,
-        double depth_m) const;
-    void BuildPointCloudCameraFrame(
-        const std::vector<uint16_t>& depth_mm,
-        int width,
-        int height,
-        std::vector<float>* out_x,
-        std::vector<float>* out_y,
-        std::vector<float>* out_z) const;
     void TransformPointCloudCameraToWorld(
         const std::vector<float>& cam_x,
         const std::vector<float>& cam_y,
@@ -234,11 +178,6 @@ private:
         std::vector<float>* world_x,
         std::vector<float>* world_y,
         std::vector<float>* world_z) const;
-    void PublishPointCloud(
-        const mors_msgs::depth_image_msg& depth_msg,
-        const std::vector<float>& x,
-        const std::vector<float>& y,
-        const std::vector<float>& z);
     void PublishPointCloudDirect(
         int64_t depth_timestamp_ns,
         const std::vector<float>& x,
@@ -287,15 +226,6 @@ private:
         double gradient_value,
         bool gradient_valid) const;
     void PublishHeightMapWindow(int64_t observation_timestamp_ns);
-
-    void OnDepthImage(
-        const lcm::ReceiveBuffer* rbuf,
-        const std::string& chan,
-        const mors_msgs::depth_image_msg* msg);
-    void OnRobotState(
-        const lcm::ReceiveBuffer* rbuf,
-        const std::string& chan,
-        const mors_msgs::robot_state_msg* msg);
 
     HeightMapBuilderConfig config_;
     RobotStateSnapshot latest_robot_state_;

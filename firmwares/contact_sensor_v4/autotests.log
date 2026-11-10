@@ -1,0 +1,93 @@
+[OUTPUT] 
+Internal ctest changing into directory: /home/yoggi/mors_mpc/ContactSensor/build
+
+[HANDLER_VERBOSE_OUTPUT] 
+UpdateCTestConfiguration  from :/home/yoggi/mors_mpc/ContactSensor/build/DartConfiguration.tcl
+
+Parse Config file:/home/yoggi/mors_mpc/ContactSensor/build/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/home/yoggi/mors_mpc/ContactSensor/build/DartConfiguration.tcl
+Parse Config file:/home/yoggi/mors_mpc/ContactSensor/build/DartConfiguration.tcl
+[HANDLER_OUTPUT] 
+Test project /home/yoggi/mors_mpc/ContactSensor/build
+
+[HANDLER_VERBOSE_OUTPUT] 
+Constructing a list of tests
+
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+[HANDLER_OUTPUT] 
+    Start 1: core_test
+
+[HANDLER_VERBOSE_OUTPUT] 
+
+1: Test command: /home/yoggi/mors_mpc/ContactSensor/build/core_test
+
+1: Working Directory: /home/yoggi/mors_mpc/ContactSensor/build
+1: Test timeout computed to be: 1500
+1: [PASS] CRC golden vectors
+1: [PASS] decode signed little-endian
+1: [PASS] reject malformed frames
+1: [PASS] frame accumulator
+1: [PASS] frame resynchronization
+1: [PASS] contact detection
+1: [PASS] raw_data scaling
+1: [PASS] raw_data absolute value
+1: [PASS] zero-offset calibration
+1: [PASS] calibration reset
+1: [PASS] 16 availability combinations
+1: [PASS] independent calibration and recovery
+1: [PASS] signed -1 intermediate
+1: [PASS] valid config
+1: [PASS] invalid configs
+1: [PASS] fallback timing
+1: [PASS] fallback I/O recovery
+1: 17 test(s) passed
+[HANDLER_OUTPUT] 
+1/3 Test #1: core_test ........................
+   Passed    0.00 sec
+[HANDLER_VERBOSE_OUTPUT] 
+test 2
+
+[HANDLER_OUTPUT] 
+    Start 2: firmware_test
+
+[HANDLER_VERBOSE_OUTPUT] 
+
+2: Test command: /home/yoggi/mors_mpc/ContactSensor/build/firmware_test
+
+2: Working Directory: /home/yoggi/mors_mpc/ContactSensor/build
+2: Test timeout computed to be: 1500
+2: [PASS] all 16 startup combinations, frame and median rates
+2: [PASS] individual cable loss, expiry and recovery
+2: [PASS] simultaneous recovery, full UART buffer, delayed schedule
+2: [PASS] micros/millis/DWT wrap and transaction status faults
+2: [PASS] stale/lost DRDY, frame closure and config readback faults
+2: [PASS] retry intervals, fractional schedule, signed median/time and age latch
+2: [PASS] reserved wire code and stuck LOW fairness
+[HANDLER_OUTPUT] 
+2/3 Test #2: firmware_test ....................
+   Passed    0.76 sec
+[HANDLER_VERBOSE_OUTPUT] 
+test 3
+
+[HANDLER_OUTPUT] 
+    Start 3: integration_test
+
+[HANDLER_VERBOSE_OUTPUT] 
+
+3: Test command: /home/yoggi/mors_mpc/ContactSensor/build/integration_test "/home/yoggi/mors_mpc/ContactSensor/build/contact_sensor"
+
+3: Working Directory: /home/yoggi/mors_mpc/ContactSensor/build
+3: Test timeout computed to be: 15
+3: [PASS] PTY + real LCM: 600 frames/s, 16 masks, calibration, CRC, timeout, reconnect with retained zeros
+[HANDLER_OUTPUT] 
+3/3 Test #3: integration_test .................
+   Passed    2.22 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   2.98 sec

@@ -4,4 +4,5 @@ struct contact_sensor_msg
 {
     boolean contact_states[4];
     float raw_data[4];
+    boolean readiness[4]; // readiness of contact sensors in the order: r1, l1, r2, l2
 }

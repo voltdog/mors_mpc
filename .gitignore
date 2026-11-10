@@ -4,8 +4,8 @@ aaa/
 build/
 # build-safe/
 build*
-!Simulator/MJCF/building.xml
-!Simulator/MJCF/building_obstacle.xml
+# !Simulator/MJCF/building.xml
+# !Simulator/MJCF/building_obstacle.xml
 install/
 log/
 __pycache__/
@@ -14,10 +14,17 @@ ros_ws/install/
 ros_ws/log/
 lcm_msgs/mors_msgs/
 tests/
+!StateEstimator/tests/
+StateEstimator/tests/*
+!StateEstimator/tests/robot_state_source_test.cpp
+!StateEstimator/tests/worker_threads_test.cpp
+!StateEstimator/tests/sensor_readiness_test.cpp
+!StateEstimator/tests/sensor_readiness_config_test.cpp
+!StateEstimator/tests/robot_state_publication_test.cpp
 tools/
 *_logs/
 # navigation/
-FSMLocomotion/
+# FSMLocomotion/
 
 # ros_ws/
 # mors_sim/
@@ -31,5 +38,5 @@ MUJOCO_LOG.TXT
 plotjuggler_layout.xml
 .codex
 tech_req.md
-AGENTS.md
+# AGENTS.md
 # LocomotionControllerDCM/

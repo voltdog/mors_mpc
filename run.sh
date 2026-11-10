@@ -48,7 +48,7 @@ set +m
         return 1
     }
 
-    ensure_robot_state_python_binding() {
+    ensure_simulator_python_bindings() {
         local python_bin="${SCRIPT_DIR}/.mpc_venv/bin/python"
         local lcm_msgs_dir="${SCRIPT_DIR}/lcm_msgs"
 
@@ -56,20 +56,26 @@ set +m
 import sys
 sys.path.insert(0, sys.argv[1])
 from mors_msgs.robot_state_msg import robot_state_msg
-assert hasattr(robot_state_msg(), "timestamp")
+from mors_msgs.contact_sensor_msg import contact_sensor_msg
+msg = robot_state_msg()
+assert hasattr(msg, "timestamp")
+assert hasattr(msg.body, "orientation_euler")
+assert hasattr(msg, "joints")
+assert len(msg.readiness) == 19
+assert len(contact_sensor_msg().readiness) == 4
 ' "$lcm_msgs_dir" 2>/dev/null; then
             return
         fi
 
         if ! command -v lcm-gen >/dev/null 2>&1; then
-            echo "Python ROBOT_STATE binding is stale and lcm-gen is unavailable" >&2
+            echo "Python simulator LCM bindings are stale and lcm-gen is unavailable" >&2
             exit 1
         fi
 
-        echo "Regenerating Python ROBOT_STATE binding..."
+        echo "Regenerating Python simulator LCM bindings..."
         (
             cd "$lcm_msgs_dir"
-            lcm-gen -p --ppath . robot_state_msg.lcm
+            lcm-gen -p --ppath . robot_state_msg.lcm contact_sensor_msg.lcm
         )
     }
 
@@ -231,7 +237,7 @@ assert hasattr(robot_state_msg(), "timestamp")
             exit 1
         fi
 
-        ensure_robot_state_python_binding
+        ensure_simulator_python_bindings
 
         # dddmr needs the lidar cloud: the simulator must run with the lidar enabled
         if [ "$nav_mode" = true ]; then

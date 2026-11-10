@@ -103,9 +103,10 @@ find_package(Eigen3 3.2.10 REQUIRED)
 # find_package(OsqpEigen REQUIRED)
 find_package(lcm REQUIRED)
 find_package(pinocchio REQUIRED)
-find_package(realsense2 QUIET)
+find_package(realsense2 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(Threads REQUIRED)
 
 include(${LCM_USE_FILE})
 set(LCM_MSGS_DIR "${CMAKE_CURRENT_LIST_DIR}/../lcm_msgs")
@@ -135,67 +136,96 @@ add_library(state_estimator_robot_state_source src/robot_state_source.cpp)
 target_include_directories(state_estimator_robot_state_source PUBLIC include)
 target_compile_features(state_estimator_robot_state_source PUBLIC cxx_std_20)
 
+add_library(state_estimator_sensor_readiness src/sensor_readiness.cpp)
+target_include_directories(state_estimator_sensor_readiness PUBLIC include)
+target_link_libraries(state_estimator_sensor_readiness PUBLIC Threads::Threads)
+
+add_library(state_estimator_sensor_readiness_config src/sensor_readiness_config.cpp)
+target_link_libraries(state_estimator_sensor_readiness_config PUBLIC
+  state_estimator_sensor_readiness yaml-cpp::yaml-cpp)
+
+add_library(state_estimator_robot_state_publication src/robot_state_publication.cpp)
+target_link_libraries(state_estimator_robot_state_publication
+  state_estimator_sensor_readiness)
+lcm_target_link_libraries(state_estimator_robot_state_publication
+  messages-cpp ${LCM_NAMESPACE}lcm)
+
 add_library(state_estimator_heightmap_residual
   src/heightmap_residual_estimator.cpp)
 target_include_directories(state_estimator_heightmap_residual PUBLIC include)
 target_compile_features(state_estimator_heightmap_residual PUBLIC cxx_std_20)
 
-if(realsense2_FOUND)
-  add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
+add_subdirectory(/home/$ENV{USER}/vbcontrol ${PROJECT_BINARY_DIR}/build/vbcontrol)
 
-  set(EXEC_SOURCES
-      src/main.cpp
-      src/KalmanMIT.cpp
-      src/sensor_fusion.cpp
-      src/leg_state.cpp
-      src/gm_force_observer.cpp
-      src/HeightMapBuilder.cpp
-      ../common/src/system_functions.cpp
-      ../common/src/reliable_contact.cpp
-      ../common/src/Robot.cpp
-  )
-  add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
-  target_link_libraries(${PROJECT_NAME}
-    state_estimator_contact_source
-    state_estimator_robot_state_source
-    state_estimator_heightmap_residual
-    vbcontrol
-    Eigen3::Eigen
-    yaml-cpp::yaml-cpp
-    ZLIB::ZLIB
-    pinocchio::pinocchio
-    pinocchio::pinocchio_parsers
-  )
+set(EXEC_SOURCES
+    src/main.cpp
+    src/KalmanMIT.cpp
+    src/sensor_fusion.cpp
+    src/leg_state.cpp
+    src/gm_force_observer.cpp
+    src/HeightMapBuilder.cpp
+    ../common/src/system_functions.cpp
+    ../common/src/reliable_contact.cpp
+    ../common/src/Robot.cpp
+)
+add_executable(${PROJECT_NAME} ${EXEC_SOURCES})
+target_link_libraries(${PROJECT_NAME}
+  state_estimator_contact_source
+  state_estimator_robot_state_source
+  state_estimator_sensor_readiness_config
+  state_estimator_robot_state_publication
+  state_estimator_heightmap_residual
+  vbcontrol
+  Eigen3::Eigen
+  yaml-cpp::yaml-cpp
+  ZLIB::ZLIB
+  pinocchio::pinocchio
+  pinocchio::pinocchio_parsers
+)
 
-  if(TARGET realsense2::realsense2)
-    target_link_libraries(${PROJECT_NAME} realsense2::realsense2)
-  else()
-    target_link_libraries(${PROJECT_NAME} ${realsense2_LIBRARY})
-  endif()
-
-  target_compile_definitions(${PROJECT_NAME} PRIVATE
-      PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
-      COAL_DISABLE_HPP_FCL_WARNINGS
-      # Match Eigen's allocation and layout policy to precompiled Pinocchio.
-      EIGEN_MALLOC_ALREADY_ALIGNED=1
-      EIGEN_MAX_ALIGN_BYTES=16
-      EIGEN_MAX_STATIC_ALIGN_BYTES=16
-  )
+if(TARGET realsense2::realsense2)
+  target_link_libraries(${PROJECT_NAME} realsense2::realsense2)
 else()
-  message(WARNING
-      "realsense2 was not found; building simulation-only state_estimator")
-  add_executable(${PROJECT_NAME}
-      src/sim_main.cpp
-      src/HeightMapBuilder.cpp)
-  target_link_libraries(${PROJECT_NAME}
-      yaml-cpp::yaml-cpp
-      ZLIB::ZLIB)
+  target_link_libraries(${PROJECT_NAME} ${realsense2_LIBRARY})
 endif()
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    PINOCCHIO_URDFDOM_USE_STD_SHARED_PTR
+    COAL_DISABLE_HPP_FCL_WARNINGS
+    # Match Eigen's allocation and layout policy to precompiled Pinocchio.
+    EIGEN_MALLOC_ALREADY_ALIGNED=1
+    EIGEN_MAX_ALIGN_BYTES=16
+    EIGEN_MAX_STATIC_ALIGN_BYTES=16
+)
 
 lcm_target_link_libraries(${PROJECT_NAME} messages-cpp ${LCM_NAMESPACE}lcm)
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(robot_state_publication_test tests/robot_state_publication_test.cpp)
+  target_link_libraries(robot_state_publication_test PRIVATE
+    state_estimator_robot_state_publication state_estimator_robot_state_source)
+  add_test(NAME robot_state_publication_test COMMAND robot_state_publication_test)
+  set_tests_properties(robot_state_publication_test PROPERTIES TIMEOUT 10)
+
+  add_executable(sensor_readiness_test tests/sensor_readiness_test.cpp)
+  target_link_libraries(sensor_readiness_test PRIVATE state_estimator_sensor_readiness)
+  add_test(NAME sensor_readiness_test COMMAND sensor_readiness_test)
+
+  add_executable(sensor_readiness_config_test tests/sensor_readiness_config_test.cpp)
+  target_link_libraries(sensor_readiness_config_test PRIVATE
+    state_estimator_sensor_readiness_config)
+  add_test(NAME sensor_readiness_config_test COMMAND sensor_readiness_config_test)
+
+  add_executable(robot_state_source_test tests/robot_state_source_test.cpp)
+  target_link_libraries(robot_state_source_test PRIVATE state_estimator_robot_state_source)
+  add_test(NAME robot_state_source_test COMMAND robot_state_source_test)
+
+  add_executable(worker_threads_test tests/worker_threads_test.cpp)
+  target_link_libraries(worker_threads_test PRIVATE Threads::Threads)
+  add_test(NAME worker_threads_test COMMAND worker_threads_test)
+  set_tests_properties(worker_threads_test PROPERTIES TIMEOUT 10)
+
   add_executable(contact_source_test tests/contact_source_test.cpp)
   target_link_libraries(contact_source_test PRIVATE state_estimator_contact_source)
   add_test(NAME contact_source_test COMMAND contact_source_test)
