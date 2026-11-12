@@ -20,6 +20,8 @@
 using namespace std::chrono_literals;
 using Clock = std::chrono::steady_clock;
 using Values = std::array<float, 4>;
+using Readiness = contact_sensor::ChannelReadiness;
+constexpr Readiness kAllReady{true, true, true, true};
 static void check(bool condition, const char* message) {
     if (!condition) throw std::runtime_error(message);
 }
@@ -93,22 +95,38 @@ public:
         return {std::istreambuf_iterator<char>(input), {}};
     }
     void Disconnect() { ::close(master); master = -1; }
-    void Send(const contact_sensor::RawData& raw, bool corrupt = false, bool split = false,
+    void Send(const contact_sensor::RawData& raw,
+              const Readiness& readiness = kAllReady,
+              bool corrupt = false, bool split = false,
               size_t bytes_to_send = contact_sensor::kFrameSize) {
-        std::array<uint8_t, 15> frame{'#', '0', '1'};
+        std::array<uint8_t, contact_sensor::kFrameSize> frame{};
+        std::copy(contact_sensor::kFrameHeader.begin(),
+                  contact_sensor::kFrameHeader.end(), frame.begin());
         for (size_t i = 0; i < 4; ++i) {
             const uint16_t value = static_cast<uint16_t>(raw[i]);
-            frame[3 + 2 * i] = static_cast<uint8_t>(value);
-            frame[4 + 2 * i] = static_cast<uint8_t>(value >> 8);
+            const size_t offset = contact_sensor::kPayloadOffset + 2 * i;
+            frame[offset] = static_cast<uint8_t>(value);
+            frame[offset + 1] = static_cast<uint8_t>(value >> 8);
+            if (readiness[i]) {
+                frame[contact_sensor::kReadinessOffset] |=
+                    static_cast<uint8_t>(1U << i);
+            }
         }
-        const auto crc = contact_sensor::ComputeCrc16CcittFalse(std::span(frame).first(11));
-        frame[11] = static_cast<uint8_t>(crc >> 8); frame[12] = static_cast<uint8_t>(crc);
-        frame[13] = '\r'; frame[14] = '\n';
+        const auto crc = contact_sensor::ComputeCrc16CcittFalse(
+            std::span(frame).first(contact_sensor::kCrcOffset));
+        frame[contact_sensor::kCrcOffset] = static_cast<uint8_t>(crc >> 8);
+        frame[contact_sensor::kCrcOffset + 1] = static_cast<uint8_t>(crc);
+        std::copy(contact_sensor::kFrameTerminator.begin(),
+                  contact_sensor::kFrameTerminator.end(),
+                  frame.begin() + contact_sensor::kTerminatorOffset);
         if (corrupt) frame[5] ^= 0x10;
         if (split) {
             check(::write(master, frame.data(), 5) == 5, "split write");
             std::this_thread::sleep_for(1ms);
-            check(::write(master, frame.data() + 5, 10) == 10, "split suffix");
+            const size_t suffix_size = frame.size() - 5;
+            check(::write(master, frame.data() + 5, suffix_size) ==
+                      static_cast<ssize_t>(suffix_size),
+                  "split suffix");
         } else check(::write(master, frame.data(), bytes_to_send) ==
                          static_cast<ssize_t>(bytes_to_send), "frame write");
     }
@@ -122,19 +140,37 @@ static void pump(lcm::LCM& subscriber, std::chrono::milliseconds duration) {
     const auto end = Clock::now() + duration;
     while (Clock::now() < end) check(subscriber.handleTimeout(5) >= 0, "LCM receive");
 }
+
+struct ExpectedMessage {
+    Values values;
+    Readiness readiness;
+};
+
+static ExpectedMessage expected(Values values,
+                                Readiness readiness = kAllReady) {
+    return ExpectedMessage{values, readiness};
+}
+
 static void expect(lcm::LCM& subscriber, Receiver& receiver,
-                   const std::vector<Values>& values, bool available = true) {
+                   const std::vector<ExpectedMessage>& messages) {
     const auto end = Clock::now() + 80ms;
-    while (receiver.messages.size() < values.size() && Clock::now() < end)
+    while (receiver.messages.size() < messages.size() && Clock::now() < end)
         check(subscriber.handleTimeout(5) >= 0, "LCM receive");
     while (subscriber.handleTimeout(0) > 0) {}
-    check(receiver.messages.size() == values.size(), "frame/publication count mismatch");
-    for (size_t frame = 0; frame < values.size(); ++frame) {
+    check(receiver.messages.size() == messages.size(),
+          "frame/publication count mismatch");
+    for (size_t frame = 0; frame < messages.size(); ++frame) {
         for (size_t i = 0; i < 4; ++i) {
-            check(std::abs(receiver.messages[frame].raw_data[i] - values[frame][i]) < 1e-5F,
+            check(std::abs(receiver.messages[frame].raw_data[i] -
+                           messages[frame].values[i]) < 1e-5F,
                   "LCM value/marker mismatch");
-            check(receiver.messages[frame].contact_states[i] == (values[frame][i] >= 1), "LCM contact mismatch");
-            check(receiver.messages[frame].readiness[i] == available, "LCM readiness mismatch");
+            const bool contact = messages[frame].readiness[i] &&
+                                 messages[frame].values[i] >= 1;
+            check(receiver.messages[frame].contact_states[i] == contact,
+                  "LCM contact mismatch");
+            check(receiver.messages[frame].readiness[i] ==
+                      messages[frame].readiness[i],
+                  "LCM readiness mismatch");
         }
     }
     receiver.messages.clear();
@@ -149,76 +185,116 @@ int main(int argc, char** argv) {
         subscriber.subscribe("CONTACT_SENSOR_TEST", &Receiver::OnMessage, &receiver);
         driver.WaitOpen();
         const Values invalid{-1, -1, -1, -1};
+        const Readiness none_ready{};
         pump(subscriber, 130ms);
-        expect(subscriber, receiver, {invalid}, false);
+        expect(subscriber, receiver, {expected(invalid, none_ready)});
         pump(subscriber, 100ms);
-        expect(subscriber, receiver, {invalid}, false);
+        expect(subscriber, receiver, {expected(invalid, none_ready)});
 
         // A break before calibration completes must discard the partial zero.
         driver.Send({110, 220, 330, 440});
-        expect(subscriber, receiver, {invalid});
+        expect(subscriber, receiver, {expected(invalid, none_ready)});
         pump(subscriber, 130ms);
-        expect(subscriber, receiver, {invalid}, false);
+        expect(subscriber, receiver, {expected(invalid, none_ready)});
 
-        driver.Send({-1, 0, 55, 110}, false, true);
-        driver.Send({-1, 0, 55, 110});
-        driver.Send({-1, 0, 55, 110});
-        expect(subscriber, receiver, {{-1, -1, -1, -1}, {-1, -1, -1, -1},
-                                      {0, 0, 0, 0}});
-        driver.Send({0, 0, 0, 0});
-        expect(subscriber, receiver, {{1.0F / 55, 0, 1, 2}});
+        const Readiness first_pair{true, true, false, false};
+        driver.Send({55, 110, -1, -1}, first_pair, false, true);
+        driver.Send({55, 110, -1, -1}, first_pair);
+        expect(subscriber, receiver,
+               {expected(invalid, none_ready),
+                expected(invalid, none_ready)});
+        driver.Send({110, 165, -1, -1}, first_pair);
+        expect(subscriber, receiver,
+               {expected({1, 1, -1, -1}, first_pair)});
 
-        // In v3, -1 in any combination of channels is an ordinary measurement.
-        const Values minus_one_output{0, 1.0F / 55, 56.0F / 55, 111.0F / 55};
+        // Channel 0 fails after calibration. Channel 2 calibrates independently.
+        const Readiness middle_pair{false, true, true, false};
+        driver.Send({-1, 220, 330, -1}, middle_pair);
+        driver.Send({-1, 220, 330, -1}, middle_pair);
+        expect(subscriber, receiver,
+               {expected({-1, 2, -1, -1},
+                         Readiness{false, true, false, false}),
+                expected({-1, 2, -1, -1},
+                         Readiness{false, true, false, false})});
+
+        const Readiness first_three{true, true, true, false};
+        driver.Send({165, 220, 385, -1}, first_three);
+        expect(subscriber, receiver,
+               {expected({2, 2, 1, -1}, first_three)});
+
+        // An interrupted initial calibration of channel 3 starts from scratch.
+        driver.Send({165, 220, 385, 440});
+        expect(subscriber, receiver,
+               {expected({2, 2, 1, -1}, first_three)});
+        driver.Send({165, 220, 385, -1}, first_three);
+        expect(subscriber, receiver,
+               {expected({2, 2, 1, -1}, first_three)});
+        driver.Send({165, 220, 385, 55});
+        driver.Send({165, 220, 385, 55});
+        expect(subscriber, receiver,
+               {expected({2, 2, 1, -1}, first_three),
+                expected({2, 2, 1, -1}, first_three)});
+        driver.Send({165, 220, 385, 110});
+        expect(subscriber, receiver,
+               {expected({2, 2, 1, 1})});
+
+        // Completed offsets survive every combination of channel failures.
         for (unsigned mask = 0; mask < 16; ++mask) {
-            contact_sensor::RawData raw{54, 55, 110, 165};
+            contact_sensor::RawData raw{110, 165, 385, 110};
             Values output{1, 1, 1, 1};
+            Readiness readiness{};
             for (unsigned i = 0; i < 4; ++i) {
-                if (!(mask & (1U << i))) {
+                readiness[i] = (mask & (1U << i)) != 0U;
+                if (!readiness[i]) {
                     raw[i] = -1;
-                    output[i] = minus_one_output[i];
+                    output[i] = -1;
                 }
             }
-            driver.Send(raw); expect(subscriber, receiver, {output});
+            driver.Send(raw, readiness);
+            expect(subscriber, receiver, {expected(output, readiness)});
         }
+
         // One-second real-process stream at 600 frames/s, servicing the subscriber
         // throughout so its own finite subscription queue does not hide delivery.
         const auto streamStart = Clock::now();
         for (int frame = 1; frame <= 600; ++frame) {
             std::this_thread::sleep_until(streamStart + std::chrono::microseconds(frame * 1000000LL / 600));
-            driver.Send({54, 55, 110, 165});
+            driver.Send({110, 165, 385, 110});
             while (subscriber.handleTimeout(0) > 0) {}
         }
-        expect(subscriber, receiver, std::vector<Values>(600, Values{1, 1, 1, 1}));
+        expect(subscriber, receiver,
+               std::vector<ExpectedMessage>(
+                   600, expected(Values{1, 1, 1, 1})));
         // Bad CRC must neither publish nor extend the last valid frame's freshness.
         for (int i = 0; i < 16; ++i) {
-            driver.Send({110, 55, 165, 220}, true); pump(subscriber, 10ms);
+            driver.Send({110, 165, 385, 110}, kAllReady, true);
+            pump(subscriber, 10ms);
         }
-        expect(subscriber, receiver, {invalid}, false);
+        expect(subscriber, receiver, {expected(invalid, none_ready)});
         pump(subscriber, 100ms);
-        expect(subscriber, receiver, {invalid}, false);
-        driver.Send({54, 55, 110, 165});
-        expect(subscriber, receiver, {{1, 1, 1, 1}});
+        expect(subscriber, receiver, {expected(invalid, none_ready)});
+        driver.Send({110, 165, 385, 110});
+        expect(subscriber, receiver, {expected({1, 1, 1, 1})});
 
         // A header and partial payload must not keep the stream ready.
-        driver.Send({54, 55, 110, 165}, false, false, 5);
+        driver.Send({110, 165, 385, 110}, kAllReady, false, false, 5);
         pump(subscriber, 130ms);
-        expect(subscriber, receiver, {invalid}, false);
-        driver.Send({54, 55, 110, 165});
-        expect(subscriber, receiver, {{1, 1, 1, 1}});
+        expect(subscriber, receiver, {expected(invalid, none_ready)});
+        driver.Send({110, 165, 385, 110});
+        expect(subscriber, receiver, {expected({1, 1, 1, 1})});
         driver.Disconnect();
         pump(subscriber, 30ms);
         check(receiver.messages.size() == 1, "I/O loss did not immediately publish fallback");
-        expect(subscriber, receiver, {invalid}, false);
+        expect(subscriber, receiver, {expected(invalid, none_ready)});
         driver.MakePty(); driver.WaitOpen();
         pump(subscriber, 5ms); receiver.messages.clear();
-        driver.Send({54, 55, 110, 165});
-        expect(subscriber, receiver, {{1, 1, 1, 1}});
+        driver.Send({110, 165, 385, 110});
+        expect(subscriber, receiver, {expected({1, 1, 1, 1})});
         ::kill(driver.pid, SIGTERM); ::waitpid(driver.pid, nullptr, 0); driver.pid = -1;
         const auto log = driver.Log();
         check(log.find("R1 calibration complete") != std::string::npos, "missing calibration diagnostic");
         check(log.find("R1 data unavailable") != std::string::npos, "missing channel diagnostic");
-        std::cout << "[PASS] PTY + real LCM: v3 readiness, -1 measurements, 600 frames/s, calibration, CRC, partial frames, timeout, reconnect with retained zeros\n";
+        std::cout << "[PASS] PTY + real LCM: #02 per-channel readiness, 600 frames/s, calibration, CRC, partial frames, timeout, reconnect with retained zeros\n";
     } catch (const std::exception& error) {
         std::cerr << "[FAIL] " << error.what() << '\n'; return 1;
     }

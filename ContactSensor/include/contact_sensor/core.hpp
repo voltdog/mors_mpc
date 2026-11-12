@@ -13,27 +13,42 @@ namespace contact_sensor {
 
 inline constexpr std::size_t kLegCount = 4;
 inline constexpr float kInvalidMeasurement = -1.0F;
+inline constexpr std::int32_t kInvalidRawMeasurement = -1;
 
-// Wire format (15 bytes):
-// "#01" + R1,L1,R2,L2 (int16 LE) + CRC-16/CCITT-FALSE (BE) + "\r\n".
-// The CRC covers the header and payload.
-inline constexpr std::array<std::uint8_t, 3> kFrameHeader{'#', '0', '1'};
+// Wire format (16 bytes):
+// "#02" + R1,L1,R2,L2 (int16 LE) + readiness mask +
+// CRC-16/CCITT-FALSE (BE) + "\r\n".
+// The CRC covers the header, payload and readiness mask.
+inline constexpr std::array<std::uint8_t, 3> kFrameHeader{'#', '0', '2'};
 inline constexpr std::array<std::uint8_t, 2> kFrameTerminator{'\r', '\n'};
 inline constexpr std::size_t kPayloadSize =
     kLegCount * sizeof(std::int16_t);
+inline constexpr std::size_t kReadinessSize = sizeof(std::uint8_t);
 inline constexpr std::size_t kCrcSize = sizeof(std::uint16_t);
 inline constexpr std::size_t kPayloadOffset = kFrameHeader.size();
-inline constexpr std::size_t kCrcOffset = kPayloadOffset + kPayloadSize;
+inline constexpr std::size_t kReadinessOffset =
+    kPayloadOffset + kPayloadSize;
+inline constexpr std::size_t kCrcOffset =
+    kReadinessOffset + kReadinessSize;
 inline constexpr std::size_t kTerminatorOffset = kCrcOffset + kCrcSize;
 inline constexpr std::size_t kFrameSize =
     kTerminatorOffset + kFrameTerminator.size();
-static_assert(kFrameSize == 15);
+static_assert(kLegCount <= 8);
+static_assert(kFrameSize == 16);
 
 using RawData = std::array<std::int32_t, kLegCount>;
 using ScaledRawData = std::array<float, kLegCount>;
 using Offsets = std::array<float, kLegCount>;
 using Thresholds = std::array<float, kLegCount>;
 using ContactStates = std::array<bool, kLegCount>;
+using ChannelReadiness = std::array<bool, kLegCount>;
+
+struct DecodedFrame {
+    RawData raw_data{};
+    ChannelReadiness readiness{};
+
+    bool operator==(const DecodedFrame&) const = default;
+};
 
 // Validity is separate from signed intermediate values, which can equal -1.
 struct CalibratedData {
@@ -53,7 +68,7 @@ Config LoadConfig(const std::string& path);
 std::uint16_t ComputeCrc16CcittFalse(
     std::span<const std::uint8_t> bytes) noexcept;
 
-std::optional<RawData> DecodeFrame(
+std::optional<DecodedFrame> DecodeFrame(
     std::span<const std::uint8_t, kFrameSize> frame) noexcept;
 
 ContactStates DetectContacts(const ScaledRawData& raw_data,
@@ -68,10 +83,11 @@ class ZeroOffsetCalibrator {
 public:
     explicit ZeroOffsetCalibrator(std::size_t sample_count);
 
-    // Every signed int16 value in a v3 frame is a measurement, including -1.
-    // Calibration samples are consumed; subsequent samples are corrected.
+    // Only ready channels contribute calibration samples. The sample that
+    // completes calibration is consumed; subsequent samples are corrected.
     [[nodiscard]] CalibratedData Process(
-        const RawData& raw_data, float divisor) noexcept;
+        const RawData& raw_data, const ChannelReadiness& readiness,
+        float divisor) noexcept;
 
     void Reset() noexcept;
     void ResetIncomplete() noexcept;
@@ -89,13 +105,13 @@ private:
 
 class FrameAccumulator {
 public:
-    std::vector<RawData> Append(std::span<const std::uint8_t> bytes);
+    std::vector<DecodedFrame> Append(std::span<const std::uint8_t> bytes);
 
     void Reset() noexcept;
 
     [[nodiscard]] std::size_t buffered_size() const noexcept;
 
-    // Header candidates rejected by DecodeFrame (bad CRC or terminator).
+    // Header candidates rejected by DecodeFrame as malformed.
     // Cumulative diagnostic counter; Reset() does not clear it.
     [[nodiscard]] std::size_t rejected_candidates() const noexcept;
 

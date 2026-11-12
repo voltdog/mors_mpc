@@ -83,8 +83,8 @@ struct MedianFilter3 {
   uint8_t writeIndex;
 };
 
-// Эти счетчики не передаются в основном кадре, чтобы сохранить совместимость
-// протокола #01. Их можно наблюдать через отладчик по символу
+// Эти счетчики не передаются в основном кадре. Их можно наблюдать через
+// отладчик по символу
 // cs1237Diagnostics.
 struct Cs1237Diagnostics {
   volatile uint32_t successfulReads;
@@ -122,16 +122,21 @@ MedianFilter3 cs1237MedianFilters[CS1237_COUNT] = {};
 int32_t cs1237FilteredValues[CS1237_COUNT] = {};
 uint32_t cs1237FilteredAtCycles[CS1237_COUNT] = {};
 
-constexpr uint8_t FRAME_HEADER[] = {'#', '0', '1'};
+constexpr uint8_t FRAME_HEADER[] = {'#', '0', '2'};
 constexpr uint8_t FRAME_TERMINATOR[] = {'\r', '\n'};
 constexpr size_t FRAME_PAYLOAD_SIZE = CS1237_COUNT * sizeof(int16_t);
+constexpr size_t FRAME_READINESS_SIZE = sizeof(uint8_t);
 constexpr size_t FRAME_CRC_SIZE = sizeof(uint16_t);
 constexpr size_t FRAME_PAYLOAD_OFFSET = sizeof(FRAME_HEADER);
-constexpr size_t FRAME_CRC_OFFSET = FRAME_PAYLOAD_OFFSET + FRAME_PAYLOAD_SIZE;
+constexpr size_t FRAME_READINESS_OFFSET =
+    FRAME_PAYLOAD_OFFSET + FRAME_PAYLOAD_SIZE;
+constexpr size_t FRAME_CRC_OFFSET =
+    FRAME_READINESS_OFFSET + FRAME_READINESS_SIZE;
 constexpr size_t FRAME_TERMINATOR_OFFSET = FRAME_CRC_OFFSET + FRAME_CRC_SIZE;
 constexpr size_t FRAME_SIZE =
     FRAME_TERMINATOR_OFFSET + sizeof(FRAME_TERMINATOR);
-static_assert(FRAME_SIZE == 15, "Unexpected contact sensor frame size");
+static_assert(CS1237_COUNT <= 8, "Readiness mask does not fit into one byte");
+static_assert(FRAME_SIZE == 16, "Unexpected contact sensor frame size");
 
 constexpr uint8_t CMD_WRITE_CFG = 0x65;
 constexpr uint8_t CMD_READ_CFG = 0x56;
@@ -261,7 +266,7 @@ bool cs1237_attach_ready_interrupt(uint8_t sensorIndex) {
     return false;
   }
 
-  pinMode(sensor.dout, INPUT_PULLUP);
+  pinMode(sensor.dout, INPUT);
   switch (sensorIndex) {
     case 0:
       attachInterrupt(digitalPinToInterrupt(sensor.dout),
@@ -554,7 +559,7 @@ static void fail_channel(uint8_t index, ChannelError error) {
   ChannelState &channel = cs1237Channels[index];
   cs1237_suspend_ready_interrupt(index, Cs1237ReadyPhase::Recovery);
   digitalWrite(CS1237_SENSORS[index].sck, LOW);
-  pinMode(CS1237_SENSORS[index].dout, INPUT_PULLUP);
+  pinMode(CS1237_SENSORS[index].dout, INPUT);
   channel.filteredValid = false;
   median_filter_reset(index);
   cs1237Diagnostics[index].lastError = static_cast<uint8_t>(error);
@@ -590,26 +595,26 @@ static Cs1237ReadResult config_transaction(uint8_t index, uint8_t command,
   const uint8_t status = static_cast<uint8_t>(cs1237_read_bits(sensor, 2));
   cs1237_sck_pulse(sensor);
   bool closed = digitalRead(sensor.dout) == HIGH;
-  if (closed && (status & 1U) == 0U && !stale) {
+  if (closed && !stale) {
     digitalWrite(sensor.dout, HIGH);
     pinMode(sensor.dout, OUTPUT);
     cs1237_sck_pulse(sensor);  // 28
     cs1237_sck_pulse(sensor);  // 29
     cs1237_write_bits(sensor, command, 7);  // 30..36
     if (command == CMD_READ_CFG) {
-      pinMode(sensor.dout, INPUT_PULLUP);
+      pinMode(sensor.dout, INPUT);
       cs1237_sck_pulse(sensor);  // 37
       config = static_cast<uint8_t>(cs1237_read_bits(sensor, 8));
     } else {
       cs1237_sck_pulse(sensor);  // 37
       cs1237_write_bits(sensor, config, 8);
-      pinMode(sensor.dout, INPUT_PULLUP);
+      pinMode(sensor.dout, INPUT);
     }
     cs1237_sck_pulse(sensor);  // 46
     closed = digitalRead(sensor.dout) == HIGH;
   }
   digitalWrite(sensor.sck, LOW);
-  // pinMode(INPUT_PULLUP) changes EXTI mode; attach restores it from a known HIGH.
+  // pinMode(INPUT) changes EXTI mode; attach restores it from a known HIGH.
   ready.phase = Cs1237ReadyPhase::Disabled;
   const uint32_t transactionUs = cycles_to_microseconds(dwt_getCycles() - started);
   __set_PRIMASK(savedPrimask);
@@ -618,13 +623,11 @@ static Cs1237ReadResult config_transaction(uint8_t index, uint8_t command,
   update_maximum(diagnostics.maxTransactionUs, transactionUs);
   update_maximum(diagnostics.maxReadyDetectedToClockUs, readyAgeUs);
   if ((status & 2U) != 0U) ++diagnostics.configUpdateFlags;
+  if ((status & 1U) != 0U) ++diagnostics.reservedStatusErrors;
   Cs1237ReadResult result = Cs1237ReadResult::Ok;
   if (!closed) {
     ++diagnostics.frameCloseErrors;
     result = Cs1237ReadResult::FrameNotClosed;
-  } else if ((status & 1U) != 0U) {
-    ++diagnostics.reservedStatusErrors;
-    result = Cs1237ReadResult::ReservedStatusSet;
   } else if (stale) {
     ++diagnostics.staleReady;
     result = Cs1237ReadResult::StaleReady;
@@ -719,7 +722,7 @@ static bool service_recovery_step(uint8_t index) {
       cs1237_suspend_ready_interrupt(index, Cs1237ReadyPhase::Recovery);
       channel.filteredValid = false;
       median_filter_reset(index);
-      pinMode(sensor.dout, INPUT_PULLUP);
+      pinMode(sensor.dout, INPUT);
       digitalWrite(sensor.sck, LOW);
       channel.deadlineUs = nowUs + CS1237_READY_STABLE_US;
       channel.phase = ChannelPhase::ResetStable;
@@ -817,14 +820,18 @@ static uint16_t encode_measurement(int32_t value, bool valid) {
 static void send_contact_frame() {
   uint8_t frame[FRAME_SIZE] = {};
   for (size_t i = 0; i < sizeof(FRAME_HEADER); ++i) frame[i] = FRAME_HEADER[i];
+  uint8_t readinessMask = 0;
   for (uint8_t i = 0; i < CS1237_COUNT; ++i) {
     expire_filtered(i);
+    const bool valid = cs1237Channels[i].filteredValid;
     const uint16_t encoded = encode_measurement(
-        cs1237FilteredValues[i], cs1237Channels[i].filteredValid);
+        cs1237FilteredValues[i], valid);
     const size_t offset = FRAME_PAYLOAD_OFFSET + i * sizeof(int16_t);
     frame[offset] = static_cast<uint8_t>(encoded);
     frame[offset + 1] = static_cast<uint8_t>(encoded >> 8U);
+    if (valid) readinessMask |= static_cast<uint8_t>(1U << i);
   }
+  frame[FRAME_READINESS_OFFSET] = readinessMask;
   const uint16_t crc = crc16_ccitt_false(frame, FRAME_CRC_OFFSET);
   frame[FRAME_CRC_OFFSET] = static_cast<uint8_t>(crc >> 8U);
   frame[FRAME_CRC_OFFSET + 1] = static_cast<uint8_t>(crc);
@@ -860,7 +867,7 @@ static void service_transmit() {
 void setup() {
   Serial.begin(250000);
   for (const Cs1237Pins &sensor : CS1237_SENSORS) {
-    pinMode(sensor.dout, INPUT_PULLUP);
+    pinMode(sensor.dout, INPUT);
     pinMode(sensor.sck, OUTPUT);
     digitalWrite(sensor.sck, LOW);
   }
