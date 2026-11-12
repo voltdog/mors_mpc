@@ -3,30 +3,20 @@ struct robot_mode_state_msg
 {
     const int8_t PASSIVE = 0;
     const int8_t STANDUP = 1;
-    const int8_t BALANCE = 2;
+    const int8_t STANDING = 2;
     const int8_t LOCOMOTION = 3;
     const int8_t ACTION = 4;
     const int8_t EXTERNAL = 5;
     const int8_t LAYDOWN = 6;
-
-    const int8_t PHASE_HOLDING = 0;
-    const int8_t PHASE_STANDUP = 1;
-    const int8_t PHASE_LOCOMOTION = 2;
-    const int8_t PHASE_ACTION = 3;
-    const int8_t PHASE_EXTERNAL = 4;
-    const int8_t PHASE_TRANSFERRING = 5;
-    const int8_t PHASE_LAYDOWN = 6;
-    const int8_t PHASE_WAIT_QUIESCENT = 7;
-    const int8_t PHASE_STOPPING = 8;
-    const int8_t PHASE_RECOVERING = 9;
-    const int8_t PHASE_FAULT = 10;
-    const int16_t NO_MODULE = -1;
+    const int8_t FAILURE = 7;
 
     int8_t current_state;
     int8_t target_state;
-    int8_t phase;
-    int16_t algorithm_id; // NO_MODULE or registered ID 0..255.
-    int16_t action_id; // NO_MODULE or prepared/running action ID 0..255.
+    
+    int8_t cur_algorithm; 
+    int8_t cur_action;
+    int8_t cur_params;
+    
     boolean fault;
-    boolean stub_mode;
+    string fault_str;
 }

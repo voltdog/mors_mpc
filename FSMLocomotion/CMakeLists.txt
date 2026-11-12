@@ -13,12 +13,20 @@ endif()
 message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
 add_library(fsm_locomotion STATIC
-  src/FSMTypes.cpp
+  src/FSM/ActionState.cpp
+  src/FSM/ExternalState.cpp
+  src/FSM/FailureState.cpp
+  src/FSM/FSMTypes.cpp
+  src/FSM/IdleState.cpp
+  src/FSM/LaydownState.cpp
+  src/FSM/LocomotionState.cpp
+  src/FSM/StandingState.cpp
+  src/FSM/StandupState.cpp
+  src/FSM/State.cpp
   src/LocomotionControl.cpp
   src/ReadinessChecker.cpp
   src/RobotFSM.cpp
   src/SafetyMonitor.cpp
-  src/States.cpp
 )
 target_include_directories(fsm_locomotion PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(fsm_locomotion PUBLIC cxx_std_20)

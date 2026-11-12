@@ -74,6 +74,7 @@ class Hardware_Level_Sim():
         self.servo_state_msg = servo_state_msg()
         self.lcm_imu_msg = imu_lcm_data()
         self.lcm_robot_state_msg = robot_state_msg()
+        self.lcm_robot_state_msg.readiness = [True] * 19
         self.lcm_odom_msg = odometry_msg()
         self.lcm_contact_sensor_msg = contact_sensor_msg()
         if self.depth_image_enabled:
@@ -371,6 +372,11 @@ class Hardware_Level_Sim():
         self.lcm_robot_state_msg.legs.l2_vel = l2_vel[:]
 
         self.lcm_robot_state_msg.legs.contact_states = contact_states[:]
+
+        joints = self.lcm_robot_state_msg.joints
+        joints.position = self.servo_state_msg.position[:]
+        joints.velocity = self.servo_state_msg.velocity[:]
+        joints.torque = self.servo_state_msg.torque[:]
 
         self.lc_robot_state.publish(self.lcm_robot_state_channel, self.lcm_robot_state_msg.encode())
 

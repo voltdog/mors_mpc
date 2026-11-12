@@ -1,6 +1,6 @@
 #pragma once
 
-#include "FSMTypes.hpp"
+#include "FSM/FSMTypes.hpp"
 
 namespace mors::fsm {
 
