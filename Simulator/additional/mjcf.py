@@ -1,12 +1,12 @@
 """Functions for loading and combining MuJoCo models."""
 
 import itertools
-import re
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import mujoco
 import numpy as np
+from numpy.typing import ArrayLike
 
 from additional.errors import ModelValidationError, TemplateDirectoryNotFoundError, TemplateNotFoundError
 
@@ -188,27 +188,41 @@ def validate_model(mj: mujoco.MjModel) -> None:
                 raise NotImplementedError("Cylinders of half-length>0.001 are not supported for collision.")
 
 
-def load_mjmodel(path: str | Path, scene: str | None = None) -> mujoco.MjModel:
+def load_mjmodel(
+    path: str | Path,
+    scene: str | None = None,
+    *,
+    fixed_base: bool = False,
+    init_body_pos: ArrayLike | None = None,
+    init_body_quat: ArrayLike | None = None,
+) -> mujoco.MjModel:
     xml_path = Path(path).resolve()
     elem = ET.fromstring(xml_path.read_text())
     meshdir = _get_meshdir(elem)
     assets = _find_assets(elem, xml_path, meshdir)
+
+    if scene is not None:
+        scene_path = get_scene(scene)
+        scene_text = scene_path.read_text().format(name=elem.get("model", "robot"), path=xml_path)
+        elem = ET.fromstring(scene_text)
+        assets.update(_find_assets(elem, scene_path, meshdir))
+
     xml = ET.tostring(elem, encoding="unicode")
+    if not fixed_base:
+        return mujoco.MjModel.from_xml_string(xml, assets=assets)
 
-    if scene is None:
-        mj = mujoco.MjModel.from_xml_string(xml, assets=assets)
-        return mj
+    spec = mujoco.MjSpec.from_string(xml, assets=assets)
+    base = spec.body("base")
+    if base is None or base.parent.name != "world":
+        raise ModelValidationError("fixed_base requires a body named 'base' directly under world.")
+    joints = base.joints
+    if len(joints) != 1 or joints[0].type != mujoco.mjtJoint.mjJNT_FREE:
+        raise ModelValidationError("fixed_base requires a free joint on body 'base'.")
 
-    scene_path = get_scene(scene)
-    scene_text = scene_path.read_text()
-    if (robot_match := re.search(r"<mujoco model=\"(.*)\"", xml)) is None:
-        robot_name = "robot"
-    else:
-        robot_name = robot_match.group(1)
-    scene_text = scene_text.format(name=robot_name, path=xml_path)
-    scene_elem = ET.fromstring(scene_text)
-    assets.update(_find_assets(scene_elem, scene_path, meshdir))
-    scene_xml = ET.tostring(scene_elem, encoding="unicode")
-    mj = mujoco.MjModel.from_xml_string(scene_xml, assets=assets)
-
-    return mj
+    if init_body_pos is not None:
+        base.pos = init_body_pos
+    if init_body_quat is not None:
+        base.alt.type = mujoco.mjtOrientation.mjORIENTATION_QUAT
+        base.quat = init_body_quat
+    spec.delete(joints[0])
+    return spec.compile()

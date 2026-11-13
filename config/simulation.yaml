@@ -1,10 +1,11 @@
 frequency: 1000
 mjcf_root: "MJCF/mors.xml"
-render_quality: "low" # "high" or "low"
+render_quality: "high" # "high" or "low"
 
-scene: "boards" # "stairs" "platform" "patch" "boxes" "ramp" "flat" "boards" "stumps" "building" "building_obstacle"
+scene: "building_obstacle" # "stairs" "platform" "patch" "boxes" "ramp" "flat" "boards" "stumps" "building" "building_obstacle"
 
-init_body_pos: [0.0, 0.0, 0.4] # [x, y, z]
+fixed_base: False
+init_body_pos: [0.0, 0.0, 0.5] # [x, y, z]
 init_body_ori: [0.0, 0.0, 0.0] # [roll, pitch, yaw] in radians
 # <<
 # init_motor_angles: [0.0, -1.57, 3.14,
@@ -13,7 +14,14 @@ init_body_ori: [0.0, 0.0, 0.0] # [roll, pitch, yaw] in radians
 #                     0.0, 1.57, -3.14]
 
 # X
-init_motor_angles: [0.0, -1.57, 3.14, -0.0, 1.57, -3.14, -0.0, -1.57, 3.14, 0.0, 1.57, -3.14]
+init_motor_angles: [0.0, -1.57, 3.14, 
+                   -0.0, 1.57, -3.14, 
+                   -0.0,  1.57,-3.14, 
+                    0.0, -1.57, 3.14]
+# init_motor_angles: [-1.57, -1.57,  3.14, 
+#                      0.3,  -0.05,  0.135, 
+#                      1.57,  1.57, -3.14, 
+#                     -1.57, -1.57,  3.14]
 
 # O
 # init_motor_angles: [0.0,   1.57, -3.14,
@@ -38,4 +46,4 @@ joint_offset: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 depth_image: True
 
 # лидар Robosense Airy, параметры в sensors.yaml (robosense_airy)
-lidar: False
+lidar: True

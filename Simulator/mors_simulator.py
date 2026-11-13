@@ -140,6 +140,7 @@ class Hardware_Level_Sim():
                                                                       -0.0, 1.57, -3.14,
                                                                       -0.0, -1.57, 3.14,
                                                                       0.0, 1.57, -3.14])
+        self.fixed_base = sim_config.get("fixed_base", False)
         self.init_body_pos = sim_config.get("init_body_pos", None) # [x, y, z]; None -> из MJCF
         self.init_body_ori = sim_config.get("init_body_ori", None) # [roll, pitch, yaw]; None -> из MJCF
         self.foot_contacts_enabled = sim_config.get("foot_contacts", True)
@@ -266,6 +267,7 @@ class Hardware_Level_Sim():
                  init_motor_angles=self.init_motor_angles,
                  init_body_pos=self.init_body_pos,
                  init_body_ori=self.init_body_ori,
+                 fixed_base=self.fixed_base,
                  depth_image_enabled=self.depth_image_enabled,
                  depth_image_size=self.depth_image_size,
                  lidar_config=self.lidar_config)

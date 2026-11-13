@@ -11,7 +11,9 @@
 
   <default>
     <geom friction="1.0 0.02 0.01" margin="0.00" solimp="0.015 1.0 0.022"/>
-    <joint damping="0.1" armature="0.001" frictionloss="0.1"/>
+    <!-- <joint damping="0.1" armature="0.001" frictionloss="0.1"/> -->
+    <!-- <joint damping="0.018" armature="0.001" frictionloss="0.035"/> -->
+    <joint damping="0.00755" armature="0.001" frictionloss="0.07487"/>
     <!-- геомы робота в группе 1: сцены остаются в группе 0, лидар может их различать -->
     <default class="mors">
       <geom group="1"/>

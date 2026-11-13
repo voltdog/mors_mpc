@@ -58,7 +58,8 @@ class MorsMujocoEnv():
                                     -0.0, -1.57,  3.14,
                                      0.0,  1.57, -3.14],
                  init_body_pos=None,
-                 init_body_ori=None):
+                 init_body_ori=None,
+                 fixed_base=False):
 
         self._motor_kp = motor_kp
         self._motor_kd = motor_kd
@@ -83,7 +84,19 @@ class MorsMujocoEnv():
         self._depth_max_range_m = D435I_DEPTH_RANGE_M[1]
 
         # ---------------- MuJoCo ----------------
-        self.model = load_mjmodel(xml_path, scene=scene)
+        init_body_quat = None
+        if init_body_ori is not None:
+            # MuJoCo quaternions are [w, x, y, z].
+            init_body_quat = Rotation.from_euler('xyz', init_body_ori).as_quat(scalar_first=True)
+        self.model = load_mjmodel(xml_path,
+                                  scene=scene,
+                                  fixed_base=fixed_base,
+                                  init_body_pos=init_body_pos,
+                                  init_body_quat=init_body_quat)
+        self._fixed_base_body_id = self.model.body("base").id if fixed_base else None
+        motor_joint_ids = [self.model.joint(name).id for name in MOTOR_NAMES]
+        self._motor_qpos_indices = self.model.jnt_qposadr[motor_joint_ids]
+        self._motor_dof_indices = self.model.jnt_dofadr[motor_joint_ids]
         self.data = mujoco.MjData(self.model)
         self.model.opt.timestep = self._time_step
         self._lidar = None
@@ -97,23 +110,17 @@ class MorsMujocoEnv():
                                                    self.data,
                                                    show_left_ui=False,
                                                    show_right_ui=False)
-        if init_body_pos is not None:
-            self.data.qpos[0:3] = init_body_pos[:]
-        if init_body_ori is not None:
-            # MuJoCo freejoint quaternion is [w, x, y, z]
-            self.data.qpos[3:7] = Rotation.from_euler('xyz', init_body_ori).as_quat(scalar_first=True)
-        self.data.qpos[7:7+NUM_MOTORS] = init_motor_angles[:]
+        if not fixed_base:
+            if init_body_pos is not None:
+                self.data.qpos[0:3] = init_body_pos[:]
+            if init_body_quat is not None:
+                self.data.qpos[3:7] = init_body_quat
+        self.data.qpos[self._motor_qpos_indices] = init_motor_angles[:]
         mujoco.mj_forward(self.model, self.data)
         self._apply_render_quality()
         if self._depth_enabled:
             self._init_depth_camera()
 
-        # motor id mapping
-        self._motor_id_list = [mujoco.mj_name2id(self.model,
-                                                 mujoco.mjtObj.mjOBJ_JOINT,
-                                                 name)
-                               for name in MOTOR_NAMES]
-        
         # --------------- Init motors ---------------
         self._motor_model = MotorModel(NUM_MOTORS)
         self._motor_model.set_kp(self._motor_kp)
@@ -249,8 +256,7 @@ class MorsMujocoEnv():
         self._motor_model.set_kd(self._motor_kd)
         torque = self._motor_model.step()
 
-        for i, joint_id in enumerate(self._motor_id_list):
-            self.data.ctrl[i] = torque[i]
+        self.data.ctrl[:NUM_MOTORS] = torque
 
     def close(self):
         with self._depth_renderer_lock:
@@ -271,20 +277,26 @@ class MorsMujocoEnv():
     # ==========================================================
 
     def get_motor_angles(self):
-        return self.data.qpos[7:7+NUM_MOTORS].copy()
+        return self.data.qpos[self._motor_qpos_indices]
 
     def get_motor_velocities(self):
-        return self.data.qvel[6:6+NUM_MOTORS].copy()
+        return self.data.qvel[self._motor_dof_indices]
 
     def get_motor_torques(self):
+        if self._fixed_base_body_id is not None:
+            return self.data.qfrc_actuator[self._motor_dof_indices]
         return self.data.qfrc_actuator[:NUM_MOTORS].copy()
 
     def get_base_position(self):
-        pos = self.data.qpos[0:3]
-        return pos.copy()
+        if self._fixed_base_body_id is not None:
+            return self.data.xpos[self._fixed_base_body_id].copy()
+        return self.data.qpos[0:3].copy()
 
     def get_base_orientation(self):
-        quat = self.data.qpos[3:7].copy()
+        if self._fixed_base_body_id is not None:
+            quat = self.data.xquat[self._fixed_base_body_id]
+        else:
+            quat = self.data.qpos[3:7]
         # normalization
         w, x, y, z = quat
         n = math.sqrt(w*w + x*x + y*y + z*z)
@@ -302,14 +314,17 @@ class MorsMujocoEnv():
         return euler_correct.copy()
 
     def get_base_lin_vel(self):
+        if self._fixed_base_body_id is not None:
+            return np.zeros(3)
         return self.data.qvel[0:3].copy()
     
     def get_base_lin_acc(self):
         return self.data.sensor('accelerometer').data.copy()
 
     def get_base_ang_vel(self):
-        ang_vel = self.data.qvel[3:6].copy()
-        return ang_vel.copy()
+        if self._fixed_base_body_id is not None:
+            return np.zeros(3)
+        return self.data.qvel[3:6].copy()
     
     def get_contact_flags(self):
         """
