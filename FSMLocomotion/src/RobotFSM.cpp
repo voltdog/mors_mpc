@@ -1,5 +1,14 @@
 #include "RobotFSM.hpp"
 
+#include "FSM/ActionState.hpp"
+#include "FSM/ExternalState.hpp"
+#include "FSM/FailureState.hpp"
+#include "FSM/IdleState.hpp"
+#include "FSM/LaydownState.hpp"
+#include "FSM/LocomotionState.hpp"
+#include "FSM/StandingState.hpp"
+#include "FSM/StandupState.hpp"
+
 #include <algorithm>
 #include <array>
 #include <iostream>
@@ -136,7 +145,7 @@ bool RobotFSM::transition_to(StateID next_state) {
 bool RobotFSM::handle_event(Event event) {
     if (event == Event::ESTOP) {
         target_state.reset(); // Без автоматического возобновления движения.
-        controller.emergency_stop(); // Блокировка ДО обработчиков состояний.
+        controller.disable_outputs(); // Блокировка ДО обработчиков состояний.
         return transition_to(StateID::FAILURE);
     }
     if (event == Event::CLEAR_FAULT) {

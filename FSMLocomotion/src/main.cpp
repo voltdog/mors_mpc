@@ -76,13 +76,13 @@ int main() try {
     fsm.update();
     require(fsm.state_id == StateID::FAILURE, "Не выполнен ESTOP по углу");
     require(monitor.fault() && monitor.fault()->code == "JOINT_LIMIT", "Ожидалась JOINT_LIMIT");
-    require(fsm.controller.outputs_inhibited, "Выдача команд не заблокирована");
+    require(fsm.controller.enable, "Выдача команд не заблокирована");
 
     std::cout << "\n4. Ручной сброс и разрешение выдачи команд\n";
     feed();
     require(!fsm.try_clear_fault(false), "Сброс без подтверждения оператора");
     require(fsm.try_clear_fault(true), "Ручной сброс отклонён");
-    require(fsm.state_id == StateID::IDLE && fsm.controller.outputs_inhibited,
+    require(fsm.state_id == StateID::IDLE && fsm.controller.enable,
             "После сброса ожидался IDLE с блокировкой команд");
     for (int i = 0; i < 6; ++i) {
         feed();

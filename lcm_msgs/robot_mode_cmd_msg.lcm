@@ -4,12 +4,29 @@ struct robot_mode_cmd_msg
     // values for command
     const int8_t SET_MODE = 0, START_ACTION = 1, CANCEL_ACTION = 2;
     const int8_t SET_ALGORITHM = 3, ESTOP = 4, CLEAR_FAULT = 5, SET_EXTERNAL = 6;
+    
+    int8_t command;
 
     // values for target when SET_MODE
-    const int8_t PASSIVE = 0, STANDUP = 1, BALANCE = 2, LOCOMOTION = 3;
-    const int8_t ACTION = 4, EXTERNAL = 5, LAYDOWN = 6;
+    const int8_t PASSIVE = 0, STANDING = 2, LOCOMOTION = 3;
+    const int8_t EXTERNAL = 5;
 
-    int8_t command;
-    int16_t target; // SET_MODE: mode; SET_ALGORITHM/START_ACTION: ID 0..255; otherwise ignored.
+    // values for targets when START_ACTION
+    const int8_t CHANGE_KINEMATICS = 0, GIVE_PAW = 1, WAVE_PAW = 2;
+
+    // values for target when SET_ALGORITHM
+    const int8_t VISION = 0, DCM = 1;
+
+    // ignored when other modes
+
+    int8_t target;
+    
+    // values for params when CHANGE_KINEMATICS
+    const int8_t KNEE_INSIDE = 0, KNEE_OUTSIDE = 1, KNEE_BACK = 2, KNEE_FRONT = 3;
+
+    // values for params when GIVE_PAW or WAVE_PAW
+    const int8_t LEFT = 0, RIGHT = 1;
+
+    int8_t params;
 }
  

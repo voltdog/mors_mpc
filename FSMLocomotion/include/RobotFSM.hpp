@@ -1,10 +1,10 @@
 #pragma once
 
-#include "FSMTypes.hpp"
+#include "FSM/FSMTypes.hpp"
+#include "FSM/State.hpp"
 #include "LocomotionControl.hpp"
 #include "ReadinessChecker.hpp"
 #include "SafetyMonitor.hpp"
-#include "States.hpp"
 
 #include <map>
 #include <memory>

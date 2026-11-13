@@ -66,11 +66,11 @@ public:
         LocomotionControl::set_velocity(vx, vy, yaw_rate);
     }
 
-    void emergency_stop() override {
+    void disable_outputs() override {
         if (fsm) {
             stop_states.push_back(fsm->state_id);
         }
-        LocomotionControl::emergency_stop();
+        LocomotionControl::disable_outputs();
     }
 
     RobotFSM* fsm = nullptr;
@@ -326,7 +326,7 @@ void transitions() {
     }
     CHECK(fixture.fsm.state_id == StateID::IDLE && !fixture.monitor.fault());
     CHECK(!fixture.readiness.last_errors.empty());
-    fixture.controller.outputs_inhibited = true;
+    fixture.controller.enable = true;
     fixture.tick();
     CHECK(fixture.fsm.state_id == StateID::IDLE);
     CHECK(fixture.fsm.enable_actuator_commands());
@@ -390,7 +390,7 @@ void emergency_stop_and_reset() {
         CaptureOutput output;
         CHECK(fixture.fsm.handle_event(Event::ESTOP));
         CHECK(fixture.fsm.state_id == StateID::FAILURE);
-        CHECK(fixture.controller.outputs_inhibited && !fixture.fsm.target_state);
+        CHECK(fixture.controller.enable && !fixture.fsm.target_state);
         CHECK(fixture.controller.velocity_command == std::array{0.0, 0.0, 0.0});
         if (state != StateID::FAILURE) {
             CHECK(fixture.controller.stop_states == std::vector{state, StateID::FAILURE});
@@ -421,7 +421,7 @@ void emergency_stop_and_reset() {
     fixture.status.estop_active = false;
     CHECK(fixture.fsm.try_clear_fault(true));
     CHECK(fixture.fsm.state_id == StateID::IDLE && !fixture.monitor.fault());
-    CHECK(fixture.controller.outputs_inhibited && !fixture.fsm.target_state);
+    CHECK(fixture.controller.enable && !fixture.fsm.target_state);
     fixture.tick();
     CHECK(fixture.fsm.state_id == StateID::IDLE); // Цель автоматически не восстанавливается.
     CHECK(fixture.fsm.request_state(StateID::STANDING));
@@ -442,7 +442,7 @@ void emergency_stop_and_reset() {
     external.status.estop_active = false;
     // Прямое CLEAR_FAULT имеет те же условия, что и в исходнике.
     CHECK(external.fsm.handle_event(Event::CLEAR_FAULT));
-    CHECK(external.controller.outputs_inhibited);
+    CHECK(external.controller.enable);
 }
 
 void locomotion_stop() {
@@ -526,9 +526,9 @@ void controller_stub() {
     CHECK(controller.velocity_command == std::array{1.0, 2.0, 3.0});
     {
         CaptureOutput output;
-        controller.emergency_stop();
+        controller.disable_outputs();
         const auto first_log = output.stream.str();
-        controller.emergency_stop();
+        controller.disable_outputs();
         CHECK(output.stream.str() == first_log);
     }
     controller.set_velocity(1.0, 2.0, 3.0);
