@@ -2,7 +2,7 @@ frequency: 1000
 mjcf_root: "MJCF/mors.xml"
 render_quality: "high" # "high" or "low"
 
-scene: "building_obstacle" # "stairs" "platform" "patch" "boxes" "ramp" "flat" "boards" "stumps" "building" "building_obstacle"
+scene: "flat" # "stairs" "platform" "patch" "boxes" "ramp" "flat" "boards" "stumps" "building" "building_obstacle"
 
 fixed_base: False
 init_body_pos: [0.0, 0.0, 0.5] # [x, y, z]
@@ -46,4 +46,4 @@ joint_offset: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 depth_image: True
 
 # лидар Robosense Airy, параметры в sensors.yaml (robosense_airy)
-lidar: True
+lidar: False
