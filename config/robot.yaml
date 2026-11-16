@@ -64,3 +64,5 @@ emergency:
   contact_timeout_ms: 50.0
   # fault is cleared only after the data has been arriving without gaps for this time
   contact_recovery_ms: 1000.0
+
+  robot_state_timeout_ms: 50.0

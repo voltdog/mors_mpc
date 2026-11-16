@@ -1,9 +1,11 @@
 #ifndef _lcm_data_exchange_hpp_
 #define _lcm_data_exchange_hpp_
 
+#include <array>
 #include <iostream>
 #include <atomic>
 #include <cstdint>
+#include <queue>
 #include <unistd.h>
 #include <chrono>
 #include <mutex>
@@ -22,8 +24,10 @@
 #include "mors_msgs/heightmap_msg.hpp"
 #include "mors_msgs/footsteps_msg.hpp"
 #include "mors_msgs/dcm_com_trajectory_msg.hpp"
+#include "mors_msgs/robot_mode_cmd_msg.hpp"
+#include "mors_msgs/robot_mode_result_msg.hpp"
+#include "mors_msgs/robot_mode_state_msg.hpp"
  
-
 
 #include "system_functions.hpp"
 #include <yaml-cpp/yaml.h>
@@ -58,19 +62,26 @@ class LCMExchanger
         void heightmapHandler(const lcm::ReceiveBuffer* rbuf,
                             const std::string& chan,
                             const mors_msgs::heightmap_msg* msg);
+        void robotModeHandler(const lcm::ReceiveBuffer* rbuf,
+                            const std::string& chan,
+                            const mors_msgs::robot_mode_cmd_msg* msg);
 
         RobotData getRobotCmd();
         RobotData getBodyState();
         LegData getLegState();
         ServoStateData getServoState();
         void get_observation_data(RobotData& body_state,
-                                    LegData& leg_state);
+                                  LegData& leg_state,
+                                  ServoStateData& servo_state,
+                                  std::array<bool, 19>& readiness);
         void getWbicObservationStatus(bool& robot_state_received) const;
         void get_gait_params(double& t_st, double& t_sw, vector<double>& gait_type, bool& standing, double& stride_height);
         void get_active_legs(vector<bool>& active_legs);
         int get_adaptation_type();
         void get_heightmap_data(VisionBasedMap& vision_map);
         void getHeightmapStatus(bool& heightmap_received) const;
+        // Takes the oldest command. Returns false without changing the outputs if the queue is empty.
+        bool getRobotModeCmd(int8_t& command, int8_t& target, int8_t& params);
 
         void sendWbcCmd(RobotData& robot_data, LegData& leg_data);
         void sendPhaseSig(vector<int>& phase, vector<double>& phi, double t);
@@ -88,18 +99,27 @@ class LCMExchanger
                           const JointVector12d& kp,
                           const JointVector12d& kd);
         void sendWbcState(const JointVector12d& grf);
+        void sendRobotModeResult(const int8_t& command, const int8_t& result, const string& reason);
+        void sendRobotModeState(const int8_t& current_state,
+                                const int8_t& target_state,
+                                const int8_t& cur_algorithm,
+                                const int8_t& cur_action,
+                                const int8_t& cur_params,
+                                const bool& fault,
+                                const string& fault_str);
 
         bool initialized = false;
 
     private:
         void robotCmdThread();
         void robotStateThread();
-        void servoStateThread();
         void gaitParamsThread();
         void heightmapThread();
+        void robotModeThread();
 
         string robot_cmd_channel, robot_state_channel, gait_params_channel;
         string heightmap_channel;
+        string robot_mode_cmd_channel, robot_mode_result_channel, robot_mode_state_channel;
         string wbc_cmd_channel, wbc_state_channel, phase_signal_channel;
         string mpc_cmd_channel;
         string footstep_sequence_channel;
@@ -110,13 +130,14 @@ class LCMExchanger
         lcm::LCM robot_state_subscriber;
         lcm::LCM gait_params_subscriber;
         lcm::LCM heightmap_subscriber;
+        lcm::LCM robot_mode_subscriber;
 
         unique_ptr<thread> thRobotCmd;
         unique_ptr<thread> thRobotState;
-        unique_ptr<thread> thServoState;
         unique_ptr<thread> thGaitParams;
         unique_ptr<thread> thEnable;
         unique_ptr<thread> thHeightmap;
+        unique_ptr<thread> thRobotMode;
 
         lcm::LCM wbc_cmd_publisher;
         lcm::LCM wbc_state_publisher;
@@ -125,6 +146,7 @@ class LCMExchanger
         lcm::LCM robot_ref_publisher;
         lcm::LCM footstep_sequence_publisher;
         lcm::LCM dcm_com_trajectory_publisher;
+        lcm::LCM robot_mode_publisher;
 
         mors_msgs::mpc_cmd_msg mpcCmdMsg;
         mors_msgs::wbc_cmd_msg wbcCmdMsg;
@@ -138,6 +160,8 @@ class LCMExchanger
         RobotData robot_cmd;
         LegData leg_state;
         ServoStateData servo_state;
+        std::array<bool, 19> readiness{};
+        std::queue<mors_msgs::robot_mode_cmd_msg> robot_mode_cmd_queue;
         double t_st;
         double t_sw;
         vector<double> gait_type;
@@ -150,6 +174,7 @@ class LCMExchanger
         float heightmap_height_resolution;
 
         bool leg_controller_reset;
+        std::atomic<bool> stop_requested_{false};
         std::atomic<bool> robot_state_received_{false};
         std::atomic<bool> heightmap_received_{false};
 
@@ -157,6 +182,7 @@ class LCMExchanger
         mutable std::mutex robot_state_mutex;
         mutable std::mutex gait_params_mutex;
         mutable std::mutex heightmap_mutex;
+        std::mutex robot_mode_cmd_mutex;
 };
 
 #endif //_lcm_data_exchange_hpp_

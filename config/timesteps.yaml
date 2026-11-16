@@ -6,3 +6,5 @@ state_estimator_dt: 0.002
 locomotion_controller: 0.002
 
 stance_controller_dt: 0.01
+
+fsm_dt: 0.01
