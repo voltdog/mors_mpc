@@ -9,7 +9,7 @@ void LaydownState::on_enter() {
     ticks_ = 0;
 }
 
-std::optional<Event> LaydownState::on_update() {
+std::optional<Event> LaydownState::on_update(const LocomotionSetpoints&) {
     // Заглушка завершения укладывания после трёх обновлений.
     ++ticks_;
     if (ticks_ >= 3) {

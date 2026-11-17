@@ -12,6 +12,18 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
+find_package(Eigen3 REQUIRED)
+find_package(Threads REQUIRED)
+find_package(yaml-cpp REQUIRED)
+find_package(lcm REQUIRED)
+include(${LCM_USE_FILE})
+
+set(LCM_MSGS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../lcm_msgs" CACHE PATH "Path to LCM schemas")
+file(GLOB message_definitions "${LCM_MSGS_DIR}/*.lcm")
+lcm_wrap_types(CPP_HEADERS cpp_headers ${message_definitions})
+lcm_add_library(fsm_messages CPP ${cpp_headers})
+target_include_directories(fsm_messages SYSTEM INTERFACE "${CMAKE_CURRENT_BINARY_DIR}")
+
 add_library(fsm_locomotion STATIC
   src/FSM/ActionState.cpp
   src/FSM/ExternalState.cpp
@@ -23,15 +35,28 @@ add_library(fsm_locomotion STATIC
   src/FSM/StandingState.cpp
   src/FSM/StandupState.cpp
   src/FSM/State.cpp
-  src/LocomotionControl.cpp
+  src/LcmDataExchange.cpp
+  src/LocomotionControlBase.cpp
+  src/LocomotionNode.cpp
+  src/LocomotionTransitionMonitor.cpp
   src/ReadinessChecker.cpp
   src/RobotFSM.cpp
   src/SafetyMonitor.cpp
 )
-target_include_directories(fsm_locomotion PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(fsm_locomotion PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../common/include"
+)
 target_compile_features(fsm_locomotion PUBLIC cxx_std_20)
+get_filename_component(config_dir "${CMAKE_CURRENT_SOURCE_DIR}/../config" ABSOLUTE)
+target_compile_definitions(fsm_locomotion PRIVATE FSM_DEFAULT_CONFIG_DIR="${config_dir}")
+lcm_target_link_libraries(fsm_locomotion fsm_messages ${LCM_NAMESPACE}lcm
+  Eigen3::Eigen Threads::Threads yaml-cpp::yaml-cpp)
 
-add_executable(fsm_locomotion_demo src/main.cpp)
+add_executable(fsm_locomotion_node src/main.cpp)
+target_link_libraries(fsm_locomotion_node PRIVATE fsm_locomotion)
+
+add_executable(fsm_locomotion_demo src/demo.cpp)
 target_link_libraries(fsm_locomotion_demo PRIVATE fsm_locomotion)
 
 include(CTest)
@@ -40,6 +65,16 @@ if(BUILD_TESTING)
   target_link_libraries(fsm_tests PRIVATE fsm_locomotion)
   add_test(NAME fsm_tests COMMAND fsm_tests)
   add_test(NAME fsm_demo COMMAND fsm_locomotion_demo)
+  set_tests_properties(fsm_tests fsm_demo PROPERTIES TIMEOUT 10)
+
+  find_package(Python3 COMPONENTS Interpreter QUIET)
+  if(Python3_Interpreter_FOUND)
+    add_test(NAME fsm_lcm COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_lcm.py"
+      "$<TARGET_FILE:fsm_locomotion_node>"
+      "$<TARGET_FILE:${LCM_NAMESPACE}lcm-gen>" "${LCM_MSGS_DIR}")
+    set_tests_properties(fsm_lcm PROPERTIES TIMEOUT 20 SKIP_RETURN_CODE 77)
+  endif()
 endif()
 
 if(FSM_ENABLE_IPO)
@@ -50,7 +85,7 @@ if(FSM_ENABLE_IPO)
   endif()
 endif()
 
-set(fsm_targets fsm_locomotion fsm_locomotion_demo)
+set(fsm_targets fsm_locomotion fsm_locomotion_node fsm_locomotion_demo)
 if(BUILD_TESTING)
   list(APPEND fsm_targets fsm_tests)
 endif()

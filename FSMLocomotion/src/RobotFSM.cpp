@@ -45,22 +45,27 @@ constexpr std::array targets{
     StateID::IDLE, StateID::STANDING, StateID::LOCOMOTION, StateID::ACTION, StateID::EXTERNAL,
 };
 
+bool checks_joint_limits(StateID state) {
+    return state != StateID::IDLE && state != StateID::STANDUP && state != StateID::FAILURE;
+}
+
 } // namespace
 
 RobotFSM::RobotFSM(SafetyMonitor& safety_monitor, RobotStatus* status,
-                   LocomotionControl* controller, ReadinessChecker* readiness_checker)
+                   LocomotionControlBase* controller, ReadinessChecker* readiness_checker, GaitStopConfig gait_stop)
     : owned_status_(status ? nullptr : std::make_unique<RobotStatus>()),
-      owned_controller_(controller ? nullptr : std::make_unique<LocomotionControl>()),
+      owned_controller_(controller ? nullptr : std::make_unique<LocomotionControlBase>()),
       owned_readiness_checker_(readiness_checker ? nullptr
-                                               : std::make_unique<ReadinessChecker>(safety_monitor)),
+                                               : std::make_unique<ReadinessChecker>()),
       status(status ? *status : *owned_status_),
       controller(controller ? *controller : *owned_controller_),
       safety_monitor(safety_monitor),
       readiness_checker(readiness_checker ? *readiness_checker : *owned_readiness_checker_) {
+    this->controller.set_data_input_mode(LocomotionControlBase::robot_input);
     states_.emplace(StateID::IDLE, std::make_unique<IdleState>(*this));
     states_.emplace(StateID::STANDUP, std::make_unique<StandupState>(*this));
     states_.emplace(StateID::STANDING, std::make_unique<StandingState>(*this));
-    states_.emplace(StateID::LOCOMOTION, std::make_unique<LocomotionState>(*this));
+    states_.emplace(StateID::LOCOMOTION, std::make_unique<LocomotionState>(*this, gait_stop));
     states_.emplace(StateID::LAYDOWN, std::make_unique<LaydownState>(*this));
     states_.emplace(StateID::ACTION, std::make_unique<ActionState>(*this));
     states_.emplace(StateID::EXTERNAL, std::make_unique<ExternalState>(*this));
@@ -97,7 +102,7 @@ bool RobotFSM::request_state(StateID target) {
         throw std::invalid_argument("Недопустимое целевое состояние: "
                                     + std::string(state_name(target)));
     }
-    if (state_id == StateID::FAILURE || status.estop_active || safety_monitor.fault()) {
+    if (state_id == StateID::FAILURE || safety_monitor.fault()) {
         return false;
     }
     const auto path = find_path(state_id, target);
@@ -129,6 +134,14 @@ bool RobotFSM::transition_to(StateID next_state) {
         last_blocked_ = edge;
         return false;
     }
+    // Уже проверенные углы начинают действовать в момент выхода из STANDUP.
+    if (checks_joint_limits(next_state) && status.safety.joint_fault) {
+        enter_failure(*status.safety.joint_fault);
+        return false;
+    }
+    if (next_state == StateID::STANDUP && !enable_actuator_commands()) {
+        return false;
+    }
 
     last_blocked_.reset();
     if (next_state == StateID::FAILURE) {
@@ -144,18 +157,14 @@ bool RobotFSM::transition_to(StateID next_state) {
 
 bool RobotFSM::handle_event(Event event) {
     if (event == Event::ESTOP) {
-        target_state.reset(); // Без автоматического возобновления движения.
-        controller.disable_outputs(); // Блокировка ДО обработчиков состояний.
-        return transition_to(StateID::FAILURE);
+        enter_failure({"ESTOP", "Emergency stop requested", monotonic_seconds()});
+        return true;
     }
     if (event == Event::CLEAR_FAULT) {
-        if (state_id == StateID::FAILURE && !status.estop_active && !safety_monitor.fault()) {
-            target_state.reset();
-            return transition_to(StateID::IDLE);
-        }
-        return false;
+        return !try_clear_fault();
     }
-    if (status.estop_active || state_id == StateID::FAILURE || safety_monitor.fault()) {
+    enforce_safety();
+    if (state_id == StateID::FAILURE) {
         return false;
     }
     for (const auto& edge : edges) {
@@ -166,23 +175,45 @@ bool RobotFSM::handle_event(Event event) {
     return false;
 }
 
-void RobotFSM::update() {
-    // Безопасность проверяется до on_update() и выдачи команд.
-    // В IDLE отсутствие телеметрии блокирует запуск, но не вызывает ESTOP.
-    const bool feedback_required = state_id != StateID::IDLE && state_id != StateID::FAILURE;
-    const auto& fault = safety_monitor.check(status.joint_feedback, feedback_required, state_id);
-    if ((status.estop_active || fault) && state_id != StateID::FAILURE) {
-        if (fault) {
-            std::cout << "SAFETY: " << fault->code << ": " << fault->description << '\n';
-        }
-        handle_event(Event::ESTOP);
+void RobotFSM::enter_failure(const SafetyFault& fault) {
+    if (state_id == StateID::FAILURE) {
+        return;
+    }
+    safety_monitor.latch_fault(fault);
+    target_state.reset();
+    controller.disable_outputs(); // Блокировка до on_abort().
+    std::cout << "SAFETY: " << fault.code << ": " << fault.description << '\n';
+    transition_to(StateID::FAILURE);
+}
+
+void RobotFSM::enforce_safety() {
+    if (state_id == StateID::IDLE || state_id == StateID::FAILURE) {
+        return;
+    }
+    if (status.safety.telemetry_fault) 
+    {
+        enter_failure(*status.safety.telemetry_fault);
+    } 
+    else if (checks_joint_limits(state_id) && status.safety.joint_fault) 
+    {
+        enter_failure(*status.safety.joint_fault);
+    }
+}
+
+void RobotFSM::update(const LocomotionSetpoints& setpoints) 
+{
+    enforce_safety();
+    if (state_id == StateID::FAILURE) 
+    {
         return;
     }
 
-    if (const auto event = states_.at(state_id)->on_update()) {
+    if (const auto event = states_.at(state_id)->on_update(setpoints)) 
+    {
         handle_event(*event);
         return;
     }
+    
     // Переходные состояния завершаются собственными on_update().
     if (std::ranges::find(transient, state_id) != transient.end() || !target_state
         || state_id == *target_state) {
@@ -200,19 +231,30 @@ void RobotFSM::update() {
     }
 }
 
-bool RobotFSM::try_clear_fault(bool operator_acknowledged) {
+std::optional<std::string> RobotFSM::try_clear_fault() {
     if (state_id != StateID::FAILURE) {
-        return false;
+        return "No fault to clear";
     }
-    if (!safety_monitor.clear_fault(status.joint_feedback, operator_acknowledged,
-                                     !status.estop_active)) {
-        return false;
+    if (status.safety.telemetry_fault) {
+        return status.safety.telemetry_fault->description;
     }
-    return handle_event(Event::CLEAR_FAULT);
+    if (const auto& fault = safety_monitor.fault(); fault && fault->code == "JOINT_LIMIT"
+        && status.safety.joint_fault) {
+        return status.safety.joint_fault->description;
+    }
+    if (!status.ready_to_move) {
+        return "Readiness has not been confirmed";
+    }
+
+    safety_monitor.clear_fault();
+    transition_to(StateID::IDLE);
+    // Вход в IDLE сбрасывает таймер, но готовность этого такта уже подтверждена.
+    enable_actuator_commands();
+    return std::nullopt;
 }
 
 bool RobotFSM::enable_actuator_commands() {
-    if (state_id != StateID::IDLE || status.estop_active || !readiness_checker.is_ready(status)) {
+    if (state_id != StateID::IDLE || safety_monitor.fault() || !status.ready_to_move) {
         return false;
     }
     controller.enable_outputs();

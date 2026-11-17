@@ -2,8 +2,10 @@
 """Separate ROS bridge + C++ FSM processes, real ROS 2 and UDP multicast."""
 import os
 from pathlib import Path
+import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -16,19 +18,14 @@ os.environ.setdefault('ROS_AUTOMATIC_DISCOVERY_RANGE', 'LOCALHOST')
 
 import lcm
 import rclpy
-from action_msgs.msg import GoalStatus
 from ament_index_python.packages import get_package_prefix
 from geometry_msgs.msg import Twist, TwistStamped
-from mors_ros_msgs.msg import GaitParams
-from mors_ros_msgs.srv import RobotCmd
-from rclpy.action import ActionClient
+from mors_ros_msgs.msg import GaitParams, ModeCommand, ModeResult, ModeState
+from mors_ros_msgs.srv import Command, RobotCmd
 from rclpy.executors import SingleThreadedExecutor
-from mors_ros_msgs.action import RunAction
-from mors_ros_msgs.msg import ModeResult, ModeState
-from mors_ros_msgs.srv import Command
 from ros2lcm_bridge_runtime.node import Bridge
 from ros2lcm_bridge_runtime.lcm_types.mors_msgs import (
-    robot_cmd_msg, robot_mode_cmd_msg, robot_mode_state_msg,
+    gait_params_msg, robot_cmd_msg, robot_mode_cmd_msg,
 )
 
 
@@ -115,10 +112,20 @@ class BridgeStreams(unittest.TestCase):
         self.assertEqual(self.packets[-1][1].cmd_vel, (0.,) * 6)
 
 
-@unittest.skipUnless(os.environ.get('FSM_BINARY'), 'Set FSM_BINARY to the built fsm_lcm')
+@unittest.skipUnless(os.environ.get('FSM_BINARY'), 'Set FSM_BINARY to fsm_locomotion_node')
 class BridgeIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        bindings = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(bindings.cleanup)
+        schema = Path(__file__).resolve().parents[4] / 'lcm_msgs' / 'robot_state_msg.lcm'
+        subprocess.run(['lcm-gen', '-p', '--ppath', bindings.name, str(schema)], check=True)
+        sys.path.insert(0, bindings.name)
+        try:
+            from mors_msgs import robot_state_msg
+            cls.robot_state_type = robot_state_msg
+        finally:
+            sys.path.remove(bindings.name)
         rclpy.init()
 
     @classmethod
@@ -134,22 +141,25 @@ class BridgeIntegration(unittest.TestCase):
         self.url = f'udpm://239.255.76.67:{number}?ttl=0'
         self.namespace = f'/bridge_test_{number}'
         self.config_dir = tempfile.TemporaryDirectory()
-        self.channels = yaml.safe_load((Path(os.environ['CONFIGPATH']) / 'channels.yaml').read_text())
+        for name in ('channels.yaml', 'robot.yaml', 'timesteps.yaml', 'heightmap_builder.yaml'):
+            shutil.copy(Path(os.environ['CONFIGPATH']) / name, self.config_dir.name)
+        channels_path = Path(self.config_dir.name) / 'channels.yaml'
+        self.channels = yaml.safe_load(channels_path.read_text())
         # Произвольные имена проверяют загрузку общего YAML обеими сторонами.
         self.channels.update(robot_mode_cmd='MODE_REQUEST', robot_mode_state='MODE_STATUS',
                              robot_mode_result='MODE_REPLY', robot_cmd='MOTION_SETPOINT',
-                             gait_params='GAIT_SETTINGS')
-        (Path(self.config_dir.name) / 'channels.yaml').write_text(yaml.safe_dump(self.channels))
-        self.env = {**os.environ, 'CONFIGPATH': self.config_dir.name}
+                             gait_params='GAIT_SETTINGS', robot_state='ROBOT_TELEMETRY')
+        channels_path.write_text(yaml.safe_dump(self.channels))
+        self.env = {**os.environ, 'CONFIGPATH': self.config_dir.name,
+                    'LCM_LOCOMOTION_URL': '', 'LCM_DEFAULT_URL': self.url}
         self.bus = lcm.LCM(self.url)
         self.packets, self.unsafe, self.states, self.results = [], [], [], []
-        self.commands = []
-        self.lcm_states = []
+        self.commands, self.gait_packets = [], []
         self.bus.subscribe(self.channels['robot_cmd'], lambda _, data: self.packets.append(robot_cmd_msg.decode(data)))
         self.bus.subscribe(self.channels['robot_mode_cmd'],
                            lambda _, data: self.commands.append(robot_mode_cmd_msg.decode(data)))
-        self.bus.subscribe(self.channels['robot_mode_state'],
-                           lambda _, data: self.lcm_states.append(robot_mode_state_msg.decode(data)))
+        self.bus.subscribe(self.channels['gait_params'],
+                           lambda _, data: self.gait_packets.append(gait_params_msg.decode(data)))
         self.bus.subscribe(f"({self.channels['servo_cmd']}|{self.channels['enable']})",
                            lambda channel, _: self.unsafe.append(channel))
         self.node = rclpy.create_node('bridge_test_client', namespace=self.namespace)
@@ -158,18 +168,23 @@ class BridgeIntegration(unittest.TestCase):
         self.state_sub = self.node.create_subscription(ModeState, 'fsm/state', self.states.append, 10)
         self.result_sub = self.node.create_subscription(ModeResult, 'fsm/result', self.results.append, 128)
         self.client = self.node.create_client(Command, 'fsm/command')
-        self.action = ActionClient(self.node, RunAction, 'fsm/run_action')
         self.vel_pub = self.node.create_publisher(Twist, 'cmd_vel', 10)
         self.pose_pub = self.node.create_publisher(Twist, 'cmd_pose', 10)
         self.stamped_pub = self.node.create_publisher(TwistStamped, 'cmd_vel_stamped', 10)
         self.gait_pub = self.node.create_publisher(GaitParams, 'gait_params', 10)
-        self.fsm = self.start_fsm()
+        self.telemetry = self.robot_state_type()
+        self.telemetry.body.orientation_quaternion = [0., 0., 0., 1.]
+        self.telemetry.legs.contact_states = [True] * 4
+        self.telemetry.readiness = [True] * 18 + [False]
+        self.streaming = False
+        self.next_telemetry = 0.
+        self.fsm = self.start([os.environ['FSM_BINARY']])
         executable = Path(get_package_prefix('ros2lcm_bridge')) / 'lib/ros2lcm_bridge/bridge_node'
         self.bridge = self.start([
-            str(executable), '--ros-args', '-r', f'__ns:={self.namespace}', '-p', f'lcm_url:={self.url}',
+            str(executable), '--ros-args', '-r', f'__ns:={self.namespace}',
             '-p', 'state_timeout:=0.5',
             '-p', 'ack_timeout:=0.8'])
-        self.wait(lambda: self.states and self.client.service_is_ready() and self.action.server_is_ready())
+        self.wait(lambda: self.states and self.client.service_is_ready())
 
     def start(self, args):
         log = tempfile.TemporaryFile(mode='w+t')
@@ -177,10 +192,6 @@ class BridgeIntegration(unittest.TestCase):
         self.processes.append(process)
         self.logs.append(log)
         return process
-
-    def start_fsm(self):
-        return self.start([os.environ['FSM_BINARY'], '--stub', '--url', self.url,
-                           '--stub-duration', '.4', '--status-ms', '40'])
 
     def cleanup(self):
         for process in reversed(self.processes):
@@ -193,20 +204,25 @@ class BridgeIntegration(unittest.TestCase):
                 print(log.read())
             log.close()
         if hasattr(self, 'node'):
-            self.action.destroy()
             self.executor.shutdown()
             self.node.destroy_node()
-        self.config_dir.cleanup()
-        self.assertFalse(self.unsafe)
+        if hasattr(self, 'config_dir'):
+            self.config_dir.cleanup()
+        self.assertFalse(getattr(self, 'unsafe', []))
 
     def pump(self):
+        now = time.monotonic()
+        if self.streaming and now >= self.next_telemetry:
+            self.bus.publish(self.channels['robot_state'], self.telemetry.encode())
+            self.next_telemetry = now + .005
         for _ in range(128):
             if not self.bus.handle_timeout(0):
                 break
         self.executor.spin_once(timeout_sec=.005)
-        if hasattr(self, 'bridge') and self.bridge.poll() is not None:
-            self.logs[self.processes.index(self.bridge)].seek(0)
-            self.fail(self.logs[self.processes.index(self.bridge)].read())
+        for process, log in zip(self.processes, self.logs):
+            if process.poll() not in (None, 0):
+                log.seek(0)
+                self.fail(log.read())
 
     def wait(self, condition, timeout=6.):
         deadline = time.monotonic() + timeout
@@ -234,113 +250,80 @@ class BridgeIntegration(unittest.TestCase):
         request.command.command, request.command.target = code, target
         return self.complete(self.client.call_async(request)).result
 
-    def balance(self):
+    def wait_for_mode(self, state):
+        self.wait(lambda: self.states[-1].current_state == state)
+        self.wait(lambda: self.results and self.results[-1].result == ModeResult.SUCCEEDED)
+        self.results.clear()
+
+    def standing(self):
+        self.streaming = True
         result = self.command()
-        self.assertIn(result.result, (ModeResult.ACCEPTED, ModeResult.SUCCEEDED))
-        self.wait(lambda: self.states[-1].current_state == ModeState.BALANCE)
+        self.assertEqual(result.result, ModeResult.ACCEPTED)
+        self.wait_for_mode(ModeState.STANDING)
 
-    def goal(self, action_id=0, feedback=None):
-        return self.complete(self.action.send_goal_async(
-            RunAction.Goal(action_id=action_id), feedback_callback=feedback))
+    def test_state_and_legacy_mode_transitions(self):
+        initial = self.states[-1]
+        self.assertEqual((initial.current_state, initial.target_state),
+                         (ModeState.PASSIVE, ModeState.PASSIVE))
+        self.assertEqual((initial.cur_algorithm, initial.cur_action, initial.cur_params),
+                         (-1, -1, -1))
+        self.assertFalse(initial.fault)
+        self.assertEqual(initial.fault_str, '')
 
-    def test_command_ack_completion_and_legacy(self):
-        initial = self.command()
-        self.assertIn(initial.result, (ModeResult.ACCEPTED, ModeResult.SUCCEEDED))
-        self.wait(lambda: any(r.result == ModeResult.SUCCEEDED for r in self.results))
-        repeated = self.command()
-        self.assertIn(repeated.result, (ModeResult.ACCEPTED, ModeResult.SUCCEEDED))
-        invalid = self.command(3, target=255)
-        self.assertEqual(invalid.result, ModeResult.REJECTED)
-        client = self.node.create_client(RobotCmd, 'robot_action')
-        self.wait(client.service_is_ready)
-        response = self.complete(client.call_async(RobotCmd.Request(data=2)))
-        self.assertEqual(response.success, 1)
-        self.wait(lambda: self.states[-1].current_state == ModeState.PASSIVE)
+        self.streaming = True
+        for name, data, expected in (
+            ('robot_action', 1, ModeState.STANDING),
+            ('robot_mode', 1, ModeState.STANDING),
+            ('robot_action', 2, ModeState.PASSIVE),
+        ):
+            client = self.node.create_client(RobotCmd, name)
+            self.wait(client.service_is_ready)
+            response = self.complete(client.call_async(RobotCmd.Request(data=data)))
+            self.assertEqual(response.success, 1)
+            self.wait_for_mode(expected)
+            if name == 'robot_mode':
+                velocity = Twist()
+                velocity.linear.y = -.12
+                self.run_for(.15, lambda: self.vel_pub.publish(velocity))
+                self.wait(lambda: self.states[-1].current_state == ModeState.LOCOMOTION)
+        self.assertTrue(all(c.params == 0 for c in self.commands))
 
-    def test_numeric_algorithm_selection_and_external_rejection(self):
-        selected = self.command(3, target=0)
-        self.assertEqual(selected.result, ModeResult.SUCCEEDED)
-        self.wait(lambda: self.states[-1].algorithm_id == 0)
-        unknown = self.command(3, target=255)
-        self.assertEqual(unknown.result, ModeResult.REJECTED)
-        self.wait(lambda: any(c.command == 3 and c.target == 255 for c in self.commands))
-        self.assertEqual(self.states[-1].algorithm_id, 0)
-        self.assertEqual(self.states[-1].current_state, ModeState.PASSIVE)
-        external = self.command(target=5)
-        self.assertEqual(external.result, ModeResult.REJECTED)
-        self.assertEqual(external.reason, 'INVALID_COMMAND_OR_MODE')
+    def test_unsupported_commands_are_not_forwarded(self):
+        for code in (1, 2, 3, 6, 255):
+            result = self.command(code, target=255)
+            self.assertEqual(result.result, ModeResult.REJECTED)
+        invalid_mode = self.command(target=5)
+        self.assertEqual(invalid_mode.result, ModeResult.REJECTED)
         self.run_for(.1)
-        self.assertFalse(any(c.command == 0 and c.target == 5 for c in self.commands))
+        self.assertFalse(self.commands)
 
-    def test_external_handover_and_return(self):
-        initial = self.command(6, target=255)
-        self.assertEqual(initial.result, ModeResult.ACCEPTED)
-        self.wait(lambda: any(s.phase == ModeState.PHASE_TRANSFERRING for s in self.states))
-        self.wait(lambda: any(r.result == ModeResult.SUCCEEDED
-                             for r in self.results))
-        self.wait(lambda: self.states[-1].phase == ModeState.PHASE_EXTERNAL)
-        self.assertEqual(self.states[-1].current_state, ModeState.EXTERNAL)
-        again = self.command(6)
-        self.assertEqual(again.result, ModeResult.SUCCEEDED)
-        self.assertTrue(all(c.target == 0 for c in self.commands if c.command == 6))
-        self.balance()
-        self.config_dir.cleanup()
-        self.assertFalse(self.unsafe)
-
-    def test_action_success_failure_rejection_and_feedback(self):
-        self.balance()
-        feedback = []
-        goal = self.goal(feedback=feedback.append)
-        self.assertTrue(goal.accepted)
-        response = self.complete(goal.get_result_async())
-        self.assertEqual(response.status, GoalStatus.STATUS_SUCCEEDED)
-        self.assertEqual(response.result.result.result, ModeResult.SUCCEEDED)
-        self.assertTrue(feedback)
-        goal = self.goal(1)
-        self.assertTrue(goal.accepted)
-        response = self.complete(goal.get_result_async())
-        self.assertEqual(response.status, GoalStatus.STATUS_ABORTED)
-        self.assertEqual(response.result.result.result, ModeResult.FAILED)
-        rejected = self.goal(255)
-        self.assertFalse(rejected.accepted)
-        self.wait(lambda: any(r.result == ModeResult.REJECTED for r in self.results))
-
-    def test_action_cancel_waits_for_fsm_safe_exit(self):
-        self.balance()
-        goal = self.goal()
-        self.assertTrue(goal.accepted)
-        canceled = self.complete(goal.cancel_goal_async())
-        self.assertTrue(canceled.goals_canceling)
-        response = self.complete(goal.get_result_async())
-        self.assertEqual(response.status, GoalStatus.STATUS_CANCELED)
-        self.assertEqual(response.result.result.result, ModeResult.CANCELED)
-        self.wait(lambda: self.states[-1].current_state == ModeState.BALANCE)
-
-    def test_estop_interrupts_action_and_clear_fault_leaves_passive(self):
-        self.balance()
-        goal = self.goal()
-        self.assertTrue(goal.accepted)
-        busy = self.goal()
-        self.assertFalse(busy.accepted)
-        result = self.command(4)
-        self.assertIn(result.result, (ModeResult.ACCEPTED, ModeResult.SUCCEEDED))
-        response = self.complete(goal.get_result_async())
-        self.assertEqual(response.status, GoalStatus.STATUS_ABORTED)
-        self.assertEqual(response.result.result.result, ModeResult.FAILED)
-        self.wait(lambda: self.states[-1].fault)
+    def test_estop_interrupts_pending_mode_and_clear_fault_leaves_passive(self):
+        self.assertEqual(self.command().result, ModeResult.ACCEPTED)
+        self.wait(lambda: self.states[-1].target_state == ModeState.STANDING)
         self.assertEqual(self.states[-1].current_state, ModeState.PASSIVE)
-        rejected = self.command(5)
-        self.assertEqual(rejected.result, ModeResult.REJECTED)
-        self.run_for(1.1)
-        cleared = self.command(5)
-        self.assertEqual(cleared.result, ModeResult.SUCCEEDED)
-        self.wait(lambda: not self.states[-1].fault)
-        self.assertEqual(self.states[-1].current_state, ModeState.PASSIVE)
+        stop = self.command(ModeCommand.ESTOP)
+        self.assertEqual(stop.result, ModeResult.SUCCEEDED)
+        self.wait(lambda: self.states[-1].current_state == ModeState.FAILURE)
+        self.wait(lambda: any(r.result == ModeResult.FAILED for r in self.results))
+        failed = next(r for r in self.results if r.result == ModeResult.FAILED)
+        self.assertIn('ESTOP', failed.reason)
+        self.assertTrue(self.states[-1].fault)
+        self.assertIn('ESTOP', self.states[-1].fault_str)
+        self.assertEqual(self.command(ModeCommand.CLEAR_FAULT).result, ModeResult.REJECTED)
 
-    def test_pose_stream_keeps_command_fresh_with_zero_expired_velocity(self):
-        self.balance()
+        self.streaming = True
+        self.run_for(.3)
+        self.assertEqual(self.command(ModeCommand.CLEAR_FAULT).result, ModeResult.SUCCEEDED)
+        self.wait(lambda: self.states[-1].current_state == ModeState.PASSIVE)
+        self.assertEqual(self.states[-1].target_state, ModeState.PASSIVE)
+        self.assertFalse(self.states[-1].fault)
+        self.assertEqual(self.states[-1].fault_str, '')
+
+    def test_streams_drive_locomotion_and_expire(self):
+        self.standing()
         result = self.command(target=3)
         self.assertIn(result.result, (ModeResult.ACCEPTED, ModeResult.SUCCEEDED))
+        self.wait_for_mode(ModeState.STANDING)
         velocity = Twist(); velocity.linear.x = .12; velocity.angular.z = .2
         self.run_for(.3, lambda: self.vel_pub.publish(velocity))
         self.wait(lambda: self.states[-1].current_state == ModeState.LOCOMOTION)
@@ -348,11 +331,12 @@ class BridgeIntegration(unittest.TestCase):
         self.run_for(.8, lambda: self.pose_pub.publish(pose))
         self.assertEqual(self.packets[-1].cmd_vel, (0.,) * 6)
         self.assertAlmostEqual(self.packets[-1].cmd_pose[2], .21, places=5)
-        self.assertEqual(self.states[-1].current_state, ModeState.LOCOMOTION)
+        self.wait(lambda: self.states[-1].current_state == ModeState.STANDING)
         velocity.linear.x = .18
         self.run_for(.15, lambda: self.vel_pub.publish(velocity))
         self.assertAlmostEqual(self.packets[-1].cmd_vel[0], .18, places=5)
         self.assertAlmostEqual(self.packets[-1].cmd_pose[2], .21, places=5)
+        self.wait(lambda: self.states[-1].current_state == ModeState.LOCOMOTION)
         self.run_for(.1)  # Drain the final input before checking the absence of periodic output.
         count = len(self.packets)
         gait = GaitParams(t_sw=.2, t_st=.3, stride_height=.04,
@@ -361,7 +345,10 @@ class BridgeIntegration(unittest.TestCase):
         self.run_for(.9, lambda: (self.gait_pub.publish(gait), self.pose_pub.publish(bad),
                                  self.vel_pub.publish(bad)))
         self.assertEqual(len(self.packets), count)
-        self.assertEqual(self.states[-1].current_state, ModeState.BALANCE)
+        self.wait(lambda: self.states[-1].current_state == ModeState.STANDING)
+        self.assertTrue(self.gait_packets)
+        self.assertAlmostEqual(self.gait_packets[-1].t_sw, .2, places=5)
+        self.assertEqual(self.gait_packets[-1].gait_type, (0., .5, .5, 0.))
 
     def test_pose_before_velocity_publishes_zero_and_preserves_pose(self):
         pose = Twist(); pose.linear.z = .24
@@ -394,32 +381,14 @@ class BridgeIntegration(unittest.TestCase):
         self.run_for(.1, lambda: self.vel_pub.publish(bad))
         self.assertEqual(len(self.packets), count)
 
-    def test_disconnect_reports_unknown_without_replaying_action(self):
-        self.balance()
-        goal = self.goal()
-        self.assertTrue(goal.accepted)
+    def test_disconnect_reports_unknown_without_replaying_mode(self):
+        self.assertEqual(self.command().result, ModeResult.ACCEPTED)
         self.fsm.terminate()
-        self.fsm.wait(timeout=3)
-        response = self.complete(goal.get_result_async())
-        self.assertEqual(response.status, GoalStatus.STATUS_ABORTED)
-        self.assertEqual(response.result.result.result, ModeResult.UNKNOWN)
-        self.assertEqual(sum(c.command == 1 for c in self.commands), 1)
-
-    def test_no_fsm_reply_never_confirms_acceptance(self):
-        self.fsm.terminate()
-        self.fsm.wait(timeout=3)
-        result = self.command(target=2)
-        self.assertEqual(result.result, ModeResult.UNKNOWN)
-        goal = self.goal()
-        self.assertFalse(goal.accepted)
-
-    def test_service_cannot_start_or_cancel_actions(self):
-        self.balance()
-        for code in (robot_mode_cmd_msg.START_ACTION, robot_mode_cmd_msg.CANCEL_ACTION):
-            result = self.command(code)
-            self.assertEqual(result.result, ModeResult.REJECTED)
-        self.run_for(.1)
-        self.assertFalse(any(c.command in (1, 2) for c in self.commands))
+        self.assertEqual(self.fsm.wait(timeout=3), 0)
+        self.wait(lambda: any(r.result == ModeResult.UNKNOWN for r in self.results))
+        self.assertEqual(self.results[-1].reason, 'FSM_UNAVAILABLE')
+        self.assertEqual(self.command().result, ModeResult.UNKNOWN)
+        self.assertEqual(len(self.commands), 1)
 
 
 if __name__ == '__main__':

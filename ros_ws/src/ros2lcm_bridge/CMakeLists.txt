@@ -43,12 +43,13 @@ install(FILES README.md DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
-  ament_add_pytest_test(bridge_protocol test/test_protocol.py
-    APPEND_ENV PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}:${GENERATED} TIMEOUT 30)
-  set(FSM_TEST_BINARY "" CACHE FILEPATH "Optional fsm_lcm binary for ROS/LCM integration tests")
+  ament_add_pytest_test(bridge_protocol test/test_protocol.py TIMEOUT 30)
+  set(FSM_TEST_BINARY "" CACHE FILEPATH "Optional fsm_locomotion_node binary for ROS/LCM integration tests")
+  set(integration_env "CONFIGPATH=${MORS_ROOT}/config")
   if(FSM_TEST_BINARY)
-    ament_add_pytest_test(bridge_integration test/test_integration.py
-      ENV FSM_BINARY=${FSM_TEST_BINARY} CONFIGPATH=${MORS_ROOT}/config TIMEOUT 90)
+    list(APPEND integration_env "FSM_BINARY=${FSM_TEST_BINARY}")
   endif()
+  ament_add_pytest_test(bridge_integration test/test_integration.py
+    ENV ${integration_env} TIMEOUT 90)
 endif()
 ament_package()

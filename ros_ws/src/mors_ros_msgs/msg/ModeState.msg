@@ -1,28 +1,17 @@
 int8 PASSIVE=0
 int8 STANDUP=1
+int8 STANDING=2
 int8 BALANCE=2
 int8 LOCOMOTION=3
 int8 ACTION=4
 int8 EXTERNAL=5
 int8 LAYDOWN=6
-
-int8 PHASE_HOLDING=0
-int8 PHASE_STANDUP=1
-int8 PHASE_LOCOMOTION=2
-int8 PHASE_ACTION=3
-int8 PHASE_EXTERNAL=4
-int8 PHASE_TRANSFERRING=5
-int8 PHASE_LAYDOWN=6
-int8 PHASE_WAIT_QUIESCENT=7
-int8 PHASE_STOPPING=8
-int8 PHASE_RECOVERING=9
-int8 PHASE_FAULT=10
-int16 NO_MODULE=-1
+int8 FAILURE=7
 
 int8 current_state
 int8 target_state
-int8 phase
-int16 algorithm_id
-int16 action_id
+int8 cur_algorithm
+int8 cur_action
+int8 cur_params
 bool fault
-bool stub_mode
+string fault_str

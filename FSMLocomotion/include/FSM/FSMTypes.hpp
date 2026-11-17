@@ -4,7 +4,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -46,13 +45,7 @@ struct JointLimits {
 };
 
 // Порядок конфигурации определяет, какая из одновременных ошибок будет первой.
-// Как в Python-словаре, каждому имени сустава соответствует одна запись.
 using JointLimitList = std::vector<std::pair<std::string, JointLimits>>;
-
-struct JointFeedback {
-    std::unordered_map<std::string, double> positions_rad;
-    double stamp_monotonic_s;  // Время приёма пакета на управляющем компьютере.
-};
 
 struct SafetyFault {
     std::string code;
@@ -60,26 +53,27 @@ struct SafetyFault {
     double timestamp_monotonic_s;
 };
 
-struct RobotStatus {
-    // Готовность источников перед выходом из IDLE.
-    bool drives_ready = false;
+struct SafetyDiagnostics {
+    std::optional<SafetyFault> telemetry_fault;
+    std::optional<SafetyFault> joint_fault;
     bool contact_sensors_ready = false;
-    bool estimator_ready = false;
+};
+
+struct GaitStopConfig {
+    double linear_mps = 0.05;
+    double yaw_radps = 0.10;
+    double hold_s = 0.30;
+};
+
+struct RobotStatus {
+    SafetyDiagnostics safety;
+    bool ready_to_move = false;
 
     double vx = 0.0;        // м/с, в системе координат корпуса.
     double vy = 0.0;        // м/с.
     double yaw_rate = 0.0;  // рад/с.
     std::array<bool, 4> contacts{};
     bool gait_stopped = false;
-
-    bool estop_active = false;    // Внешняя кнопка или контроллер безопасности.
-    bool drives_enabled = false; // Фактическое состояние силовых выходов.
-    std::optional<JointFeedback> joint_feedback;
-
-    // Обновлять только при получении новых пакетов, не на каждом такте FSM.
-    std::optional<double> drive_status_stamp_s;
-    std::optional<double> contact_stamp_s;
-    std::optional<double> estimator_stamp_s;
 };
 
 } // namespace mors::fsm

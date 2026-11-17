@@ -10,7 +10,7 @@ void State::on_enter() {
     std::cout << "Enter " << name_ << '\n';
 }
 
-std::optional<Event> State::on_update() {
+std::optional<Event> State::on_update(const LocomotionSetpoints&) {
     return std::nullopt;
 }
 

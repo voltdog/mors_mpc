@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 #include <optional>
 #include <stop_token>
@@ -15,9 +16,14 @@ namespace mors::fsm {
 using JointVector = mors::wbic::Vector12d;
 
 // Демонстрационная заглушка контура управления локомоцией.
-class LocomotionControl {
+class LocomotionControlBase {
 public:
-    virtual ~LocomotionControl() = default;
+    virtual ~LocomotionControlBase() = default;
+
+    static constexpr std::uint8_t robot_input = 1;
+    static constexpr std::uint8_t standing_mode = 1;
+    static constexpr std::uint8_t walking_mode = 2;
+    static constexpr std::uint8_t recovery_mode = 3;
 
     // в зависимости от выбора режима, будут использоваться разные функции: 
     // 1 - set_robot_cmd, 
@@ -28,7 +34,7 @@ public:
     // В зависимости от значения mode будут работать разные режимы:
     // 1 - standing mode
     // 2 - walking mode 
-    // 3 - мб recovery mode
+    // 3 - recovery mode
     // работает только в режиме input_mode = 1
     virtual void set_locomotion_mode(const u_int8_t& mode);
 
@@ -63,8 +69,11 @@ public:
     virtual void disable_outputs();
     // Возобновление выдачи команд на приводы после вызова emergency_stop()
     virtual void enable_outputs();
+    bool outputs_enabled() const;
 
-    
+    virtual void request_gait_stop();
+    virtual bool gait_stopped() const;
+
     std::optional<u_int8_t> input_mode;
 
 private:
@@ -74,6 +83,10 @@ private:
     // в этой функции будет реализован контур управления локомоцией, как в LocomotionController/main.cpp
     virtual void run(std::stop_token stop_token);
 
+    // Уставка и подтверждение остановки обновляются в потоке FSM.
+    RobotData robot_cmd_;
+    std::uint8_t locomotion_mode_ = standing_mode;
+    bool gait_stopped_ = false;
     std::atomic<bool> enable{false};
     std::mutex worker_mutex;
     std::jthread worker;

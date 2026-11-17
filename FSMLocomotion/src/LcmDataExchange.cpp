@@ -1,22 +1,24 @@
 #include "LcmDataExchange.hpp"
 
+#include "FSM/FSMTypes.hpp"
+
 #include <algorithm>
-#include <cmath>
 #include <cstdlib>
 #include <Eigen/Geometry>
 #include <limits>
 #include <stdexcept>
-#include <unistd.h>
+#include <yaml-cpp/yaml.h>
 
 namespace {
 
-std::string GetRequiredEnv(const char* name)
+std::string get_locomotion_url()
 {
-    const char* value = std::getenv(name);
-    if (value == nullptr || value[0] == '\0') {
-        throw std::runtime_error(std::string("[LocomotionControllerDCM] ") + name + " must be set.");
+    for (const char* name : {"LCM_LOCOMOTION_URL", "LCM_DEFAULT_URL"}) {
+        if (const char* value = std::getenv(name); value && *value) {
+            return value;
+        }
     }
-    return value;
+    throw std::runtime_error("LCM_LOCOMOTION_URL or LCM_DEFAULT_URL must be set");
 }
 
 constexpr uint16_t kHeightCellValidMask = static_cast<uint16_t>(1u << 15);
@@ -24,121 +26,36 @@ constexpr uint16_t kHeightCellClassMask = static_cast<uint16_t>(0x3u << 13);
 constexpr uint16_t kHeightCellHeightMask = static_cast<uint16_t>(0x1FFFu);
 constexpr int kReceiveTimeoutMs = 50;
 
-RobotData makeZeroRobotData()
-{
-    RobotData data;
-    data.pos.setZero();
-    data.lin_vel.setZero();
-    data.orientation.setZero();
-    data.orientation_quaternion << 0.0, 0.0, 0.0, 1.0;
-    data.ang_vel.setZero();
-    return data;
-}
-
-LegData makeZeroLegData()
-{
-    LegData data;
-    data.r1_grf.setZero();
-    data.l1_grf.setZero();
-    data.r2_grf.setZero();
-    data.l2_grf.setZero();
-    data.r1_pos.setZero();
-    data.l1_pos.setZero();
-    data.r2_pos.setZero();
-    data.l2_pos.setZero();
-    data.r1_vel.setZero();
-    data.l1_vel.setZero();
-    data.r2_vel.setZero();
-    data.l2_vel.setZero();
-    data.r1_acc.setZero();
-    data.l1_acc.setZero();
-    data.r2_acc.setZero();
-    data.l2_acc.setZero();
-    data.r1_kp.setZero();
-    data.l1_kp.setZero();
-    data.r2_kp.setZero();
-    data.l2_kp.setZero();
-    data.r1_kd.setZero();
-    data.l1_kd.setZero();
-    data.r2_kd.setZero();
-    data.l2_kd.setZero();
-    data.contacts = std::vector<bool>(NUM_LEGS, false);
-    return data;
-}
-
-template<typename Derived>
-void replace_non_finite(Eigen::MatrixBase<Derived>& value)
-{
-    for (Eigen::Index i = 0; i < value.size(); ++i) {
-        if (!std::isfinite(value.derived().coeff(i))) {
-            value.derived().coeffRef(i) = 0.0;
-        }
-    }
-}
-
-Eigen::Vector4d sanitize_quaternion_xyzw(const Eigen::Vector4d& raw_quaternion)
-{
-    Eigen::Vector4d quaternion = raw_quaternion;
-    replace_non_finite(quaternion);
-
-    const double quaternion_norm = quaternion.norm();
-    if (quaternion_norm < 1e-6) {
-        quaternion << 0.0, 0.0, 0.0, 1.0;
-        return quaternion;
-    }
-
-    quaternion /= quaternion_norm;
-    return quaternion;
-}
-
 } // namespace
 
-LCMExchanger::LCMExchanger()
-    : robot_cmd_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      robot_state_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      gait_params_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      heightmap_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      robot_mode_subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      wbc_cmd_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      wbc_state_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      servo_cmd_publisher(GetRequiredEnv("LCM_SERVO_URL")),
-      phase_sig_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      robot_ref_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      footstep_sequence_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      dcm_com_trajectory_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      robot_mode_publisher(GetRequiredEnv("LCM_LOCOMOTION_URL")),
-      robot_state(makeZeroRobotData()),
-      robot_cmd(makeZeroRobotData()),
-      leg_state(makeZeroLegData())
+LCMExchanger::LCMExchanger(const std::filesystem::path& config_path)
+    : robot_cmd_subscriber(get_locomotion_url()),
+      robot_state_subscriber(get_locomotion_url()),
+      gait_params_subscriber(get_locomotion_url()),
+      heightmap_subscriber(get_locomotion_url()),
+      robot_mode_subscriber(get_locomotion_url()),
+      wbc_cmd_publisher(get_locomotion_url()),
+      wbc_state_publisher(get_locomotion_url()),
+      phase_sig_publisher(get_locomotion_url()),
+      robot_ref_publisher(get_locomotion_url()),
+      footstep_sequence_publisher(get_locomotion_url()),
+      dcm_com_trajectory_publisher(get_locomotion_url()),
+      robot_mode_publisher(get_locomotion_url())
 {
-    initialized =
-        robot_cmd_subscriber.good() &&
-        robot_state_subscriber.good() &&
-        gait_params_subscriber.good() &&
-        heightmap_subscriber.good() &&
-        robot_mode_subscriber.good() &&
-        wbc_cmd_publisher.good() &&
-        wbc_state_publisher.good() &&
-        servo_cmd_publisher.good() &&
-        phase_sig_publisher.good() &&
-        robot_ref_publisher.good() &&
-        footstep_sequence_publisher.good() &&
-        dcm_com_trajectory_publisher.good() &&
-        robot_mode_publisher.good();
-
-    if (!initialized) {
-        return;
+    if (!(robot_cmd_subscriber.good() && robot_state_subscriber.good() &&
+          gait_params_subscriber.good() && heightmap_subscriber.good() &&
+          robot_mode_subscriber.good() && wbc_cmd_publisher.good() &&
+          wbc_state_publisher.good() && phase_sig_publisher.good() &&
+          robot_ref_publisher.good() && footstep_sequence_publisher.good() &&
+          dcm_com_trajectory_publisher.good() && robot_mode_publisher.good())) {
+        throw std::runtime_error("LCMExchanger initialization failed");
     }
 
-    string config_address = mors_sys::GetEnv("CONFIGPATH");
-    config_address += "/channels.yaml";
-
-    YAML::Node channel_config = YAML::LoadFile(config_address);
+    const YAML::Node channel_config = YAML::LoadFile((config_path / "channels.yaml").string());
     robot_cmd_channel = channel_config["robot_cmd"].as<string>();
     mpc_cmd_channel = channel_config["mpc_cmd"].as<string>();
     wbc_cmd_channel = channel_config["wbc_cmd"].as<string>();
     wbc_state_channel = channel_config["wbc_state"].as<string>();
-    servo_cmd_channel = channel_config["servo_cmd"].as<string>();
     robot_state_channel = channel_config["robot_state"].as<string>();
     gait_params_channel = channel_config["gait_params"].as<string>();
     phase_signal_channel = channel_config["gait_phase"].as<string>();
@@ -149,22 +66,12 @@ LCMExchanger::LCMExchanger()
     robot_mode_result_channel = channel_config["robot_mode_result"].as<string>();
     robot_mode_state_channel = channel_config["robot_mode_state"].as<string>();
 
-    t_sw = 0.2;
-    t_st = 0.3;
-    gait_type = {0.0, 0.0, 0.0, 0.0};
-    standing = true;
-    stride_height = 0.06;
-    active_legs = {true, true, true, true};
-    adaptation_type = 0;
-
-    leg_controller_reset = true;
     heightmap_height_min = -2.0f;
     heightmap_height_resolution = 0.005f;
 
     try {
-        string heightmap_config_address = mors_sys::GetEnv("CONFIGPATH");
-        heightmap_config_address += "/heightmap_builder.yaml";
-        const YAML::Node heightmap_config = YAML::LoadFile(heightmap_config_address);
+        const auto heightmap_config_path = config_path / "heightmap_builder.yaml";
+        const YAML::Node heightmap_config = YAML::LoadFile(heightmap_config_path.string());
         if (heightmap_config["map"]) {
             const YAML::Node map_config = heightmap_config["map"];
             if (map_config["height_min"]) {
@@ -185,14 +92,6 @@ LCMExchanger::LCMExchanger()
         wbcStateMsg.l2_grf[i] = 0.0f;
     }
 
-    for (int i = 0; i < 12; ++i) {
-        servoCmdMsg.position[i] = 0.0f;
-        servoCmdMsg.velocity[i] = 0.0f;
-        servoCmdMsg.torque[i] = 0.0f;
-        servoCmdMsg.kp[i] = 0.0f;
-        servoCmdMsg.kd[i] = 0.0f;
-    }
-
     footstepsMsg.t = 0.0;
     for (int stride = 0; stride < PREVIEW_STRIDES_HORIZON; ++stride) {
         for (int leg = 0; leg < NUM_LEGS; ++leg) {
@@ -210,12 +109,19 @@ LCMExchanger::LCMExchanger()
 
 void LCMExchanger::start_exchanger()
 {
-    if (!initialized || thRobotCmd) {
+    if (thRobotCmd) {
         return;
     }
-    if (!robot_mode_subscriber.subscribe(robot_mode_cmd_channel, &LCMExchanger::robotModeHandler, this)) {
-        throw std::runtime_error("[LCMExchanger] Failed to subscribe to " + robot_mode_cmd_channel);
-    }
+    const auto subscribe = [this](lcm::LCM& subscriber, const std::string& channel, auto handler) {
+        if (!subscriber.subscribe(channel, handler, this)) {
+            throw std::runtime_error("Failed to subscribe to " + channel);
+        }
+    };
+    subscribe(robot_cmd_subscriber, robot_cmd_channel, &LCMExchanger::robotCmdHandler);
+    subscribe(robot_state_subscriber, robot_state_channel, &LCMExchanger::robotStateHandler);
+    subscribe(gait_params_subscriber, gait_params_channel, &LCMExchanger::gaitParamsHandler);
+    subscribe(heightmap_subscriber, heightmap_channel, &LCMExchanger::heightmapHandler);
+    subscribe(robot_mode_subscriber, robot_mode_cmd_channel, &LCMExchanger::robotModeHandler);
 
     thRobotCmd = make_unique<thread>(&LCMExchanger::robotCmdThread, this);
     thRobotState = make_unique<thread>(&LCMExchanger::robotStateThread, this);
@@ -229,21 +135,27 @@ void LCMExchanger::robotCmdHandler(const lcm::ReceiveBuffer*,
                                    const mors_msgs::robot_cmd_msg* msg)
 {
     lock_guard<mutex> lock(robot_cmd_mutex);
+    auto& robot_cmd = setpoints.robot_cmd;
     for (int i = 0; i < 3; ++i) {
         robot_cmd.pos(i) = msg->cmd_pose[i];
         robot_cmd.orientation(i) = msg->cmd_pose[i + 3];
         robot_cmd.lin_vel(i) = msg->cmd_vel[i];
         robot_cmd.ang_vel(i) = msg->cmd_vel[i + 3];
     }
-    active_legs.assign(msg->active_legs, msg->active_legs + NUM_LEGS);
-    adaptation_type = msg->adaptation_type;
+    setpoints.active_legs.assign(msg->active_legs, msg->active_legs + NUM_LEGS);
+    setpoints.adaptation_type = static_cast<std::uint8_t>(msg->adaptation_type);
+    setpoints.robot_cmd_received_at_s = mors::fsm::monotonic_seconds();
 }
 
 void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer*,
                                      const std::string&,
                                      const mors_msgs::robot_state_msg* msg)
 {
-    lock_guard<mutex> lock(robot_state_mutex);
+    mors::fsm::RobotStateSnapshot state;
+    state.received_at_s = mors::fsm::monotonic_seconds();
+    auto& robot_state = state.body;
+    auto& leg_state = state.legs;
+    auto& servo_state = state.joints;
     for (int i = 0; i < 3; ++i) {
         leg_state.r1_pos(i) = msg->legs.r1_pos[i];
         leg_state.l1_pos(i) = msg->legs.l1_pos[i];
@@ -271,34 +183,15 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer*,
 
     leg_state.contacts[3] = msg->legs.contact_states[3];
     robot_state.orientation_quaternion(3) = msg->body.orientation_quaternion[3];
-    replace_non_finite(robot_state.pos);
-    replace_non_finite(robot_state.orientation);
-    replace_non_finite(robot_state.lin_vel);
-    replace_non_finite(robot_state.ang_vel);
-    robot_state.orientation_quaternion =
-        sanitize_quaternion_xyzw(robot_state.orientation_quaternion);
-
-    replace_non_finite(leg_state.r1_pos);
-    replace_non_finite(leg_state.l1_pos);
-    replace_non_finite(leg_state.r2_pos);
-    replace_non_finite(leg_state.l2_pos);
-    replace_non_finite(leg_state.r1_vel);
-    replace_non_finite(leg_state.l1_vel);
-    replace_non_finite(leg_state.r2_vel);
-    replace_non_finite(leg_state.l2_vel);
-    replace_non_finite(leg_state.r1_grf);
-    replace_non_finite(leg_state.l1_grf);
-    replace_non_finite(leg_state.r2_grf);
-    replace_non_finite(leg_state.l2_grf);
-
     for (Eigen::Index i = 0; i < servo_state.position.size(); ++i) {
         servo_state.position(i) = msg->joints.position[i];
         servo_state.velocity(i) = msg->joints.velocity[i];
         servo_state.torque(i) = msg->joints.torque[i];
     }
-    std::copy_n(msg->readiness, readiness.size(), readiness.begin());
+    std::copy_n(msg->readiness, state.readiness.size(), state.readiness.begin());
 
-    robot_state_received_.store(true, std::memory_order_release);
+    lock_guard<mutex> lock(robot_state_mutex);
+    observation = std::move(state);
 }
 
 void LCMExchanger::gaitParamsHandler(const lcm::ReceiveBuffer*,
@@ -306,11 +199,10 @@ void LCMExchanger::gaitParamsHandler(const lcm::ReceiveBuffer*,
                                      const mors_msgs::gait_params_msg* msg)
 {
     lock_guard<mutex> lock(gait_params_mutex);
-    t_sw = msg->t_sw;
-    t_st = msg->t_st;
-    standing = msg->standing;
-    stride_height = msg->stride_height;
-    gait_type.assign(msg->gait_type, msg->gait_type + NUM_LEGS);
+    setpoints.t_sw = msg->t_sw;
+    setpoints.t_st = msg->t_st;
+    setpoints.stride_height = msg->stride_height;
+    setpoints.gait_type.assign(msg->gait_type, msg->gait_type + NUM_LEGS);
 }
 
 void LCMExchanger::heightmapHandler(const lcm::ReceiveBuffer*,
@@ -356,12 +248,11 @@ void LCMExchanger::robotModeHandler(const lcm::ReceiveBuffer*,
                                     const mors_msgs::robot_mode_cmd_msg* msg)
 {
     lock_guard<mutex> lock(robot_mode_cmd_mutex);
-    robot_mode_cmd_queue.push(*msg);
+    robot_mode_cmd_queue.push_back(*msg);
 }
 
 void LCMExchanger::robotCmdThread()
 {
-    robot_cmd_subscriber.subscribe(robot_cmd_channel, &LCMExchanger::robotCmdHandler, this);
     while (!stop_requested_.load(std::memory_order_relaxed)) {
         robot_cmd_subscriber.handleTimeout(kReceiveTimeoutMs);
     }
@@ -369,7 +260,6 @@ void LCMExchanger::robotCmdThread()
 
 void LCMExchanger::robotStateThread()
 {
-    robot_state_subscriber.subscribe(robot_state_channel, &LCMExchanger::robotStateHandler, this);
     while (!stop_requested_.load(std::memory_order_relaxed)) {
         robot_state_subscriber.handleTimeout(kReceiveTimeoutMs);
     }
@@ -377,7 +267,6 @@ void LCMExchanger::robotStateThread()
 
 void LCMExchanger::gaitParamsThread()
 {
-    gait_params_subscriber.subscribe(gait_params_channel, &LCMExchanger::gaitParamsHandler, this);
     while (!stop_requested_.load(std::memory_order_relaxed)) {
         gait_params_subscriber.handleTimeout(kReceiveTimeoutMs);
     }
@@ -385,7 +274,6 @@ void LCMExchanger::gaitParamsThread()
 
 void LCMExchanger::heightmapThread()
 {
-    heightmap_subscriber.subscribe(heightmap_channel, &LCMExchanger::heightmapHandler, this);
     while (!stop_requested_.load(std::memory_order_relaxed)) {
         heightmap_subscriber.handleTimeout(kReceiveTimeoutMs);
     }
@@ -398,85 +286,29 @@ void LCMExchanger::robotModeThread()
     }
 }
 
-RobotData LCMExchanger::getRobotCmd()
+std::optional<mors::fsm::RobotStateSnapshot> LCMExchanger::get_robot_state() const
 {
-    lock_guard<mutex> lock(robot_cmd_mutex);
-    return robot_cmd;
+    lock_guard<mutex> lock(robot_state_mutex);
+    return observation;
 }
 
-bool LCMExchanger::getRobotModeCmd(int8_t& command, int8_t& target, int8_t& params)
+mors::fsm::LocomotionSetpoints LCMExchanger::get_setpoints() const
 {
+    std::scoped_lock lock(robot_cmd_mutex, gait_params_mutex);
+    return setpoints;
+}
+
+std::vector<mors_msgs::robot_mode_cmd_msg> LCMExchanger::take_mode_commands()
+{
+    std::vector<mors_msgs::robot_mode_cmd_msg> commands;
     lock_guard<mutex> lock(robot_mode_cmd_mutex);
-    if (robot_mode_cmd_queue.empty()) {
-        return false;
-    }
-
-    const auto& msg = robot_mode_cmd_queue.front();
-    command = msg.command;
-    target = msg.target;
-    params = msg.params;
-    robot_mode_cmd_queue.pop();
-    return true;
-}
-
-RobotData LCMExchanger::getBodyState()
-{
-    lock_guard<mutex> lock(robot_state_mutex);
-    return robot_state;
-}
-
-LegData LCMExchanger::getLegState()
-{
-    lock_guard<mutex> lock(robot_state_mutex);
-    return leg_state;
-}
-
-void LCMExchanger::get_observation_data(RobotData& body_state,
-                                       LegData& leg_state,
-                                       ServoStateData& servo_state,
-                                       std::array<bool, 19>& readiness)
-{
-    lock_guard<mutex> lock(robot_state_mutex);
-    body_state = robot_state;
-    leg_state = this->leg_state;
-    servo_state = this->servo_state;
-    readiness = this->readiness;
-}
-
-void LCMExchanger::getWbicObservationStatus(bool& robot_state_received) const
-{
-    robot_state_received = robot_state_received_.load(std::memory_order_acquire);
+    commands.swap(robot_mode_cmd_queue);
+    return commands;
 }
 
 void LCMExchanger::getHeightmapStatus(bool& heightmap_received) const
 {
-    heightmap_received = heightmap_received_.load(std::memory_order_acquire); 
-}
-
-void LCMExchanger::get_gait_params(double& t_st,
-                                   double& t_sw,
-                                   vector<double>& gait_type,
-                                   bool& standing,
-                                   double& stride_height)
-{
-    lock_guard<mutex> lock(gait_params_mutex);
-    t_st = this->t_st;
-    t_sw = this->t_sw;
-    gait_type = this->gait_type;
-    standing = this->standing;
-    stride_height = this->stride_height;
-}
-
-void LCMExchanger::get_active_legs(vector<bool>& active_legs)
-{
-    lock_guard<mutex> lock(robot_cmd_mutex);
-    active_legs = this->active_legs;
-}
-
-int LCMExchanger::get_adaptation_type()
-{
-    lock_guard<mutex> lock(robot_cmd_mutex);
-    return adaptation_type;
+    heightmap_received = heightmap_received_.load(std::memory_order_acquire);
 }
 
 void LCMExchanger::get_heightmap_data(VisionBasedMap& vision_map)
@@ -592,23 +424,6 @@ void LCMExchanger::sendDcmComTrajectory(const std::vector<Eigen::Vector3d>& x_co
     dcm_com_trajectory_publisher.publish(dcm_com_trajectory_channel, &dcmComTrajectoryMsg);
 }
 
-void LCMExchanger::sendServoCmd(const JointVector12d& position,
-                                const JointVector12d& velocity,
-                                const JointVector12d& torque,
-                                const JointVector12d& kp,
-                                const JointVector12d& kd)
-{
-    for (int i = 0; i < 12; ++i) {
-        servoCmdMsg.position[i] = static_cast<float>(position(i));
-        servoCmdMsg.velocity[i] = static_cast<float>(velocity(i));
-        servoCmdMsg.torque[i] = static_cast<float>(torque(i));
-        servoCmdMsg.kp[i] = static_cast<float>(kp(i));
-        servoCmdMsg.kd[i] = static_cast<float>(kd(i));
-    }
-
-    servo_cmd_publisher.publish(servo_cmd_channel, &servoCmdMsg);
-}
-
 void LCMExchanger::sendWbcState(const JointVector12d& grf)
 {
     for (int i = 0; i < 3; ++i) {
@@ -621,7 +436,7 @@ void LCMExchanger::sendWbcState(const JointVector12d& grf)
     wbc_state_publisher.publish(wbc_state_channel, &wbcStateMsg);
 }
 
-void LCMExchanger::sendRobotModeResult(const int8_t& command, const int8_t& result, const string& reason)
+void LCMExchanger::sendRobotModeResult(int8_t command, int8_t result, const string& reason)
 {
     mors_msgs::robot_mode_result_msg msg{};
     msg.command = command;
@@ -630,12 +445,12 @@ void LCMExchanger::sendRobotModeResult(const int8_t& command, const int8_t& resu
     robot_mode_publisher.publish(robot_mode_result_channel, &msg);
 }
 
-void LCMExchanger::sendRobotModeState(const int8_t& current_state,
-                                      const int8_t& target_state,
-                                      const int8_t& cur_algorithm,
-                                      const int8_t& cur_action,
-                                      const int8_t& cur_params,
-                                      const bool& fault,
+void LCMExchanger::sendRobotModeState(int8_t current_state,
+                                      int8_t target_state,
+                                      int8_t cur_algorithm,
+                                      int8_t cur_action,
+                                      int8_t cur_params,
+                                      bool fault,
                                       const string& fault_str)
 {
     mors_msgs::robot_mode_state_msg msg{};
@@ -651,12 +466,12 @@ void LCMExchanger::sendRobotModeState(const int8_t& current_state,
 
 LCMExchanger::~LCMExchanger()
 {
+    stop_exchanger();
+}
+
+void LCMExchanger::stop_exchanger()
+{
     stop_requested_.store(true, std::memory_order_relaxed);
-    if (initialized) {
-        JointVector12d zero;
-        zero.setZero();
-        sendServoCmd(zero, zero, zero, zero, zero);
-    }
 
     for (auto* receiver : {thRobotCmd.get(), thRobotState.get(), thGaitParams.get(),
                            thHeightmap.get(), thRobotMode.get()}) {

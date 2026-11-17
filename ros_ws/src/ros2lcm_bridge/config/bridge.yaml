@@ -1,7 +1,6 @@
 ros2lcm_bridge:
   ros__parameters:
-    # Default URL comes from LCM_LOCOMOTION_URL exported in ~/.bashrc.
-    # Use the lcm_url launch argument for an explicit test URL.
+    # By default, use LCM_LOCOMOTION_URL or LCM_DEFAULT_URL.
     poll_period: 0.005
     ack_timeout: 2.0
     result_timeout: 30.0

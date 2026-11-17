@@ -8,6 +8,7 @@
 namespace mors::fsm {
 
 class RobotFSM;
+struct LocomotionSetpoints;
 
 class State {
 public:
@@ -15,7 +16,7 @@ public:
     virtual ~State() = default;
 
     virtual void on_enter();
-    virtual std::optional<Event> on_update();
+    virtual std::optional<Event> on_update(const LocomotionSetpoints& setpoints);
     virtual bool can_exit(StateID next_state);
     virtual void on_exit();
     virtual void on_abort();

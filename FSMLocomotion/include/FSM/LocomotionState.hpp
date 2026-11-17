@@ -2,21 +2,21 @@
 
 #include "State.hpp"
 
+#include <cstdint>
+
 namespace mors::fsm {
 
 class LocomotionState : public State {
 public:
-    static constexpr double LINEAR_VEL_THRESHOLD = 0.05;  // м/с.
-    static constexpr double ANGULAR_VEL_THRESHOLD = 0.10; // рад/с.
-    static constexpr double STABLE_TIME = 0.30;          // с.
-
-    explicit LocomotionState(RobotFSM& fsm);
+    explicit LocomotionState(RobotFSM& fsm, GaitStopConfig gait_stop = {});
     void on_enter() override;
-    std::optional<Event> on_update() override;
+    std::optional<Event> on_update(const LocomotionSetpoints& setpoints) override;
     bool can_exit(StateID next_state) override;
     void on_exit() override;
 
 private:
+    const GaitStopConfig gait_stop_;
+    std::optional<std::uint8_t> applied_mode_;
     std::optional<double> stable_since_;
     bool stop_requested_ = false;
 };

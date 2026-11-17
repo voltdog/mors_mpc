@@ -66,3 +66,20 @@ emergency:
   contact_recovery_ms: 1000.0
 
   robot_state_timeout_ms: 50.0
+
+fsm_locomotion:
+  command_timeout_s: 0.50
+  start_linear_mps: 0.05
+  start_yaw_radps: 0.10
+  stop_linear_mps: 0.025
+  stop_yaw_radps: 0.05
+  stop_hold_s: 0.30
+  # Измеренные скорости и выдержка для подтверждения остановки походки.
+  gait_stop:
+    linear_mps: 0.05
+    yaw_radps: 0.10
+    hold_s: 0.30
+  # Нормы ошибок положения и скорости в мировой плоскости XY.
+  recovery_entry: {position_m: 0.10, velocity_mps: 0.20}
+  recovery_exit_walking: {position_m: 0.07, velocity_mps: 0.12}
+  recovery_exit_standing: {position_m: 0.04, velocity_mps: 0.08}

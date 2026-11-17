@@ -10,8 +10,9 @@ FailureState::FailureState(RobotFSM& fsm) : State(fsm, "FailureState") {}
 
 void FailureState::on_enter() {
     State::on_enter();
-    // Повторная блокировка идемпотентна, как и в Python-прототипе.
-    fsm.controller.disable_outputs();
+    fsm.status.ready_to_move = false;
+    fsm.status.gait_stopped = false;
+    fsm.readiness_checker.reset();
     std::cout << "FAILURE: движение запрещено\n";
 }
 

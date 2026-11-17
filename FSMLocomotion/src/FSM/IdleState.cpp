@@ -8,18 +8,12 @@ IdleState::IdleState(RobotFSM& fsm) : State(fsm, "IdleState") {}
 
 void IdleState::on_enter() {
     State::on_enter();
+    fsm.controller.disable_outputs();
     fsm.readiness_checker.reset();
 }
 
-std::optional<Event> IdleState::on_update() {
-    // Фоновая диагностика работает и без запроса смены состояния.
-    fsm.readiness_checker.is_ready(fsm.status);
-    return std::nullopt;
-}
-
 bool IdleState::can_exit(StateID next_state) {
-    return next_state == StateID::STANDUP && !fsm.controller.enable
-        && fsm.readiness_checker.is_ready(fsm.status);
+    return next_state == StateID::STANDUP && fsm.status.ready_to_move;
 }
 
 } // namespace mors::fsm

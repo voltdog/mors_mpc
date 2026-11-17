@@ -9,7 +9,7 @@ void StandupState::on_enter() {
     ticks_ = 0;
 }
 
-std::optional<Event> StandupState::on_update() {
+std::optional<Event> StandupState::on_update(const LocomotionSetpoints&) {
     // Заглушка завершения вставания после трёх обновлений.
     ++ticks_;
     if (ticks_ >= 3) {
