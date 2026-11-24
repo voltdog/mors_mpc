@@ -1,5 +1,6 @@
-#ifndef _lcm_data_exchange_hpp_
-#define _lcm_data_exchange_hpp_
+#pragma once
+
+#include <functional>
 
 #include <atomic>
 #include <cstdint>
@@ -34,13 +35,15 @@ using namespace Eigen;
 // #define LEG_CONTROL   1
 // #define SERVO_CONTROL 2
 
+namespace mors::fsm {
+
 class LCMExchanger
 {
     public:
         explicit LCMExchanger(const std::filesystem::path& config_path);
         ~LCMExchanger();
 
-        void start_exchanger();
+        void start_exchanger(std::function<void(const RobotStateSnapshot&)> receive_state);
         void stop_exchanger();
 
         void robotCmdHandler(const lcm::ReceiveBuffer* rbuf,
@@ -61,10 +64,9 @@ class LCMExchanger
                             const std::string& chan,
                             const mors_msgs::robot_mode_cmd_msg* msg);
 
-        std::optional<mors::fsm::RobotStateSnapshot> get_robot_state() const;
         mors::fsm::LocomotionSetpoints get_setpoints() const;
-        void get_heightmap_data(VisionBasedMap& vision_map);
-        void getHeightmapStatus(bool& heightmap_received) const;
+        bool read_heightmap(std::uint64_t& revision, VisionBasedMap& map);
+        void sendServoCmd(const JointCommand& command, const JointVector12d& actuator_torque);
         // Передаёт текущую очередь целиком, чтобы ESTOP мог прервать обычные команды.
         std::vector<mors_msgs::robot_mode_cmd_msg> take_mode_commands();
 
@@ -96,6 +98,7 @@ class LCMExchanger
         void robotModeThread();
 
         string robot_cmd_channel, robot_state_channel, gait_params_channel;
+        std::string servo_channel_;
         string heightmap_channel;
         string robot_mode_cmd_channel, robot_mode_result_channel, robot_mode_state_channel;
         string wbc_cmd_channel, wbc_state_channel, phase_signal_channel;
@@ -122,6 +125,7 @@ class LCMExchanger
         lcm::LCM footstep_sequence_publisher;
         lcm::LCM dcm_com_trajectory_publisher;
         lcm::LCM robot_mode_publisher;
+        lcm::LCM servo_publisher_;
 
         mors_msgs::mpc_cmd_msg mpcCmdMsg;
         mors_msgs::wbc_cmd_msg wbcCmdMsg;
@@ -130,7 +134,7 @@ class LCMExchanger
         mors_msgs::footsteps_msg footstepsMsg;
         mors_msgs::dcm_com_trajectory_msg dcmComTrajectoryMsg;
 
-        std::optional<mors::fsm::RobotStateSnapshot> observation;
+        std::function<void(const RobotStateSnapshot&)> receive_state_;
         mors::fsm::LocomotionSetpoints setpoints;
         std::vector<mors_msgs::robot_mode_cmd_msg> robot_mode_cmd_queue;
         VisionBasedMap vision_map;
@@ -138,13 +142,12 @@ class LCMExchanger
         float heightmap_height_resolution;
 
         std::atomic<bool> stop_requested_{false};
-        std::atomic<bool> heightmap_received_{false};
+        std::uint64_t map_revision_ = 0;
 
         mutable std::mutex robot_cmd_mutex;
-        mutable std::mutex robot_state_mutex;
         mutable std::mutex gait_params_mutex;
         mutable std::mutex heightmap_mutex;
         std::mutex robot_mode_cmd_mutex;
 };
 
-#endif //_lcm_data_exchange_hpp_
+} // namespace mors::fsm

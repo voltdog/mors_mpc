@@ -9,6 +9,9 @@
 #include <stdexcept>
 #include <yaml-cpp/yaml.h>
 
+#include "mors_msgs/servo_cmd_msg.hpp"
+
+namespace mors::fsm {
 namespace {
 
 std::string get_locomotion_url()
@@ -40,18 +43,24 @@ LCMExchanger::LCMExchanger(const std::filesystem::path& config_path)
       robot_ref_publisher(get_locomotion_url()),
       footstep_sequence_publisher(get_locomotion_url()),
       dcm_com_trajectory_publisher(get_locomotion_url()),
-      robot_mode_publisher(get_locomotion_url())
+      robot_mode_publisher(get_locomotion_url()),
+      servo_publisher_([] {
+          for (const char* name : {"LCM_SERVO_URL", "LCM_DEFAULT_URL"})
+              if (const char* url = std::getenv(name); url && *url) return std::string(url);
+          return get_locomotion_url();
+      }())
 {
     if (!(robot_cmd_subscriber.good() && robot_state_subscriber.good() &&
           gait_params_subscriber.good() && heightmap_subscriber.good() &&
           robot_mode_subscriber.good() && wbc_cmd_publisher.good() &&
           wbc_state_publisher.good() && phase_sig_publisher.good() &&
           robot_ref_publisher.good() && footstep_sequence_publisher.good() &&
-          dcm_com_trajectory_publisher.good() && robot_mode_publisher.good())) {
+          dcm_com_trajectory_publisher.good() && robot_mode_publisher.good() && servo_publisher_.good())) {
         throw std::runtime_error("LCMExchanger initialization failed");
     }
 
     const YAML::Node channel_config = YAML::LoadFile((config_path / "channels.yaml").string());
+    servo_channel_ = channel_config["servo_cmd"].as<string>();
     robot_cmd_channel = channel_config["robot_cmd"].as<string>();
     mpc_cmd_channel = channel_config["mpc_cmd"].as<string>();
     wbc_cmd_channel = channel_config["wbc_cmd"].as<string>();
@@ -107,11 +116,12 @@ LCMExchanger::LCMExchanger(const std::filesystem::path& config_path)
     dcmComTrajectoryMsg.dd_x_com_count = 0;
 }
 
-void LCMExchanger::start_exchanger()
+void LCMExchanger::start_exchanger(std::function<void(const RobotStateSnapshot&)> receive_state)
 {
     if (thRobotCmd) {
         return;
     }
+    receive_state_ = std::move(receive_state);
     const auto subscribe = [this](lcm::LCM& subscriber, const std::string& channel, auto handler) {
         if (!subscriber.subscribe(channel, handler, this)) {
             throw std::runtime_error("Failed to subscribe to " + channel);
@@ -190,8 +200,7 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer*,
     }
     std::copy_n(msg->readiness, state.readiness.size(), state.readiness.begin());
 
-    lock_guard<mutex> lock(robot_state_mutex);
-    observation = std::move(state);
+    receive_state_(state);
 }
 
 void LCMExchanger::gaitParamsHandler(const lcm::ReceiveBuffer*,
@@ -240,7 +249,7 @@ void LCMExchanger::heightmapHandler(const lcm::ReceiveBuffer*,
         }
     }
 
-    heightmap_received_.store(true, std::memory_order_release);
+    ++map_revision_;
 }
 
 void LCMExchanger::robotModeHandler(const lcm::ReceiveBuffer*,
@@ -286,12 +295,6 @@ void LCMExchanger::robotModeThread()
     }
 }
 
-std::optional<mors::fsm::RobotStateSnapshot> LCMExchanger::get_robot_state() const
-{
-    lock_guard<mutex> lock(robot_state_mutex);
-    return observation;
-}
-
 mors::fsm::LocomotionSetpoints LCMExchanger::get_setpoints() const
 {
     std::scoped_lock lock(robot_cmd_mutex, gait_params_mutex);
@@ -306,15 +309,26 @@ std::vector<mors_msgs::robot_mode_cmd_msg> LCMExchanger::take_mode_commands()
     return commands;
 }
 
-void LCMExchanger::getHeightmapStatus(bool& heightmap_received) const
+bool LCMExchanger::read_heightmap(std::uint64_t& revision, VisionBasedMap& map)
 {
-    heightmap_received = heightmap_received_.load(std::memory_order_acquire);
+    lock_guard lock(heightmap_mutex);
+    if (revision == map_revision_) return false;
+    map = vision_map;
+    revision = map_revision_;
+    return true;
 }
 
-void LCMExchanger::get_heightmap_data(VisionBasedMap& vision_map)
+void LCMExchanger::sendServoCmd(const JointCommand& command, const JointVector12d& actuator_torque)
 {
-    lock_guard<mutex> lock(heightmap_mutex);
-    vision_map = this->vision_map;
+    mors_msgs::servo_cmd_msg msg{};
+    for (int i = 0; i < 12; ++i) {
+        msg.position[i] = command.position[i];
+        msg.velocity[i] = command.velocity[i];
+        msg.torque[i] = actuator_torque[i];
+        msg.kp[i] = command.kp[i];
+        msg.kd[i] = command.kd[i];
+    }
+    servo_publisher_.publish(servo_channel_, &msg);
 }
 
 void LCMExchanger::sendWbcCmd(RobotData& robot_data, LegData& leg_data)
@@ -480,3 +494,5 @@ void LCMExchanger::stop_exchanger()
         }
     }
 }
+
+} // namespace mors::fsm

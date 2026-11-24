@@ -197,7 +197,7 @@ trap cleanup EXIT
 
 # run_experiment EXP RUN_NAME MAX_DURATION ROS_PARAM...
 #   EXP           executable of mors_experiments_sim, also the log folder prefix
-#   RUN_NAME      log subfolder: experiments_sim/<EXP>_logs/<RUN_NAME>
+#   RUN_NAME      base log subfolder name, followed by _kin_<scheme label>
 #   MAX_DURATION  upper bound of the scenario duration [s]
 #   ROS_PARAM     name:=value
 # SCENARIO (optional) overrides the executable, e.g. SCENARIO=exp1 run_experiment exp3 ...
@@ -205,7 +205,19 @@ run_experiment() {
     local exp="$1" run_name="$2" max_duration="$3" scenario="${SCENARIO:-$1}"
     shift 3
 
-    local log_dir="${EXP_DIR}/${exp}_logs/${run_name}"
+    local kin_scheme="${KIN_SCHEME:-}" kin_label
+    case "$kin_scheme" in
+        ">>") kin_label="m" ;;
+        "><") kin_label="x" ;;
+        "<<") kin_label="inv_m" ;;
+        "<>") kin_label="o" ;;
+        *)
+            echo "Unknown KIN_SCHEME: ${kin_scheme} (supported: >>, <<, ><, <>)" >&2
+            return 1
+            ;;
+    esac
+
+    local log_dir="${EXP_DIR}/${exp}_logs/${run_name}_kin_${kin_label}"
     local param ros_args=()
 
     for param in "$@"; do

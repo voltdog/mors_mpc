@@ -52,7 +52,8 @@ bool checks_joint_limits(StateID state) {
 } // namespace
 
 RobotFSM::RobotFSM(SafetyMonitor& safety_monitor, RobotStatus* status,
-                   LocomotionControlBase* controller, ReadinessChecker* readiness_checker, GaitStopConfig gait_stop)
+                   LocomotionControlBase* controller, ReadinessChecker* readiness_checker, GaitStopConfig gait_stop,
+                   StandupConfig standup)
     : owned_status_(status ? nullptr : std::make_unique<RobotStatus>()),
       owned_controller_(controller ? nullptr : std::make_unique<LocomotionControlBase>()),
       owned_readiness_checker_(readiness_checker ? nullptr
@@ -63,7 +64,7 @@ RobotFSM::RobotFSM(SafetyMonitor& safety_monitor, RobotStatus* status,
       readiness_checker(readiness_checker ? *readiness_checker : *owned_readiness_checker_) {
     this->controller.set_data_input_mode(LocomotionControlBase::robot_input);
     states_.emplace(StateID::IDLE, std::make_unique<IdleState>(*this));
-    states_.emplace(StateID::STANDUP, std::make_unique<StandupState>(*this));
+    states_.emplace(StateID::STANDUP, std::make_unique<StandupState>(*this, standup));
     states_.emplace(StateID::STANDING, std::make_unique<StandingState>(*this));
     states_.emplace(StateID::LOCOMOTION, std::make_unique<LocomotionState>(*this, gait_stop));
     states_.emplace(StateID::LAYDOWN, std::make_unique<LaydownState>(*this));
@@ -139,7 +140,7 @@ bool RobotFSM::transition_to(StateID next_state) {
         enter_failure(*status.safety.joint_fault);
         return false;
     }
-    if (next_state == StateID::STANDUP && !enable_actuator_commands()) {
+    if (next_state == StateID::STANDUP && safety_monitor.fault()) {
         return false;
     }
 
@@ -151,6 +152,7 @@ bool RobotFSM::transition_to(StateID next_state) {
         states_.at(state_id)->on_exit();
     }
     state_id = next_state;
+    if (state_id == StateID::STANDUP) controller.enable_outputs();
     states_.at(state_id)->on_enter();
     return true;
 }
@@ -190,7 +192,9 @@ void RobotFSM::enforce_safety() {
     if (state_id == StateID::IDLE || state_id == StateID::FAILURE) {
         return;
     }
-    if (status.safety.telemetry_fault) 
+    if (const auto fault = controller.controller_fault()) {
+        enter_failure(*fault);
+    } else if (status.safety.telemetry_fault)
     {
         enter_failure(*status.safety.telemetry_fault);
     } 
@@ -248,17 +252,7 @@ std::optional<std::string> RobotFSM::try_clear_fault() {
 
     safety_monitor.clear_fault();
     transition_to(StateID::IDLE);
-    // Вход в IDLE сбрасывает таймер, но готовность этого такта уже подтверждена.
-    enable_actuator_commands();
     return std::nullopt;
-}
-
-bool RobotFSM::enable_actuator_commands() {
-    if (state_id != StateID::IDLE || safety_monitor.fault() || !status.ready_to_move) {
-        return false;
-    }
-    controller.enable_outputs();
-    return true;
 }
 
 } // namespace mors::fsm

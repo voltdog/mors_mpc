@@ -8,12 +8,12 @@ ALGORITHM="dcm"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="local"   # local | global -> config/locomotion_controller.yaml
 
 # Initial state -> config/simulation.yaml
-KIN_SCHEME="<<"         # >> | << | >< | <> -> init_motor_angles
+KIN_SCHEME="><"         # >> | << | >< | <> -> init_motor_angles
 
 # ROS parameters of exp2c (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
 GAIT_OFFSETS="[0.0, 0.5, 0.5, 0.0]"
-T_SW=0.3 # ><: vision 0.3 | dcm 0.38 || <<: vision 0.3 | dcm 0.38 || >>: vision 0.3 | dcm 0.38
+T_SW=0.32 # ><: vision 0.3 | dcm 0.38 || <<: vision 0.3 | dcm 0.38 || >>: vision 0.3 | dcm 0.38
 T_ST=0.5
 STRIDE_HEIGHT=0.04
 REF_VELOCITY_X=0.3      # m/s

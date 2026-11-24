@@ -29,6 +29,7 @@
 
 #include "system_functions.hpp"
 #include <yaml-cpp/yaml.h>
+#include "ReferenceGenerator.hpp"
 #include "structs.hpp"
 
 using namespace std;
@@ -92,10 +93,8 @@ class LCMExchanger
         void sendFootstepSequence(
             const mors::wbic::FootSequence<PREVIEW_STRIDES_HORIZON>& foot_plan,
             double t);
-        void sendDcmComTrajectory(const std::vector<Eigen::Vector3d>& x_com,
-                                  const std::vector<Eigen::Vector3d>& d_x_com,
-                                  const std::vector<Eigen::Vector3d>& dd_x_com,
-                                  double t);
+        void sendDcmTrajectories(const ReferenceGenerator::DcmComTrajectories& trajectories,
+                                 double t);
         void sendServoCmd(const JointVector12d& position,
                           const JointVector12d& velocity,
                           const JointVector12d& torque,
@@ -119,6 +118,7 @@ class LCMExchanger
         string mpc_cmd_channel;
         string footstep_sequence_channel;
         string dcm_com_trajectory_channel;
+        string dcm_debug_channel;
         string servo_cmd_channel;
 
         lcm::LCM robot_cmd_subscriber;

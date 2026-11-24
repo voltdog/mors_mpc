@@ -20,10 +20,10 @@ KIN_SCHEME=">>"                  # >> | << | >< | <> -> init_motor_angles
 
 # ROS parameters of exp1 (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
-T_SW=0.32 # max: vision 0.23 | dcm 0.32
-T_ST=0.5
+T_SW=0.28 # max: vision 0.23 | dcm 0.32
+T_ST=0.4
 STRIDE_HEIGHT=0.04
-REF_VELOCITY_X=0.3
+REF_VELOCITY_X=0.25
 WALK_TIME=8.0 # vision 5.0 | dcm 8.0
 RAMP_TIME=1.0
 

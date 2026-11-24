@@ -4,7 +4,7 @@
 
 ## Сборка
 
-Из корня репозитория в окружении ROS 2 Jazzy. Нужны `lcm-gen`, библиотеки LCM, Eigen и yaml-cpp для FSM, а также Python-модули `lcm` и `yaml` для моста. После изменения `ModeState` пересоберите мост и ROS-клиентов, которые используют это сообщение.
+Из корня репозитория в окружении ROS 2 Jazzy. Нужны `lcm-gen`, библиотеки LCM, Eigen, yaml-cpp, vbcontrol, OsqpEigen, Pinocchio и eiquadprog для FSM, а также Python-модули `lcm` и `yaml` для моста. После изменения `ModeState` пересоберите мост и ROS-клиентов, которые используют это сообщение.
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -23,6 +23,7 @@ colcon build --base-paths ros_ws/src --packages-up-to ros2lcm_bridge \
 ```bash
 export CONFIGPATH="$PWD/config"
 export LCM_LOCOMOTION_URL='udpm://239.255.76.67:17673?ttl=0'
+export LCM_SERVO_URL='udpm://239.255.76.68:17674?ttl=0'
 ```
 
 Используйте отдельный LCM-порт для стенда. При использовании старых ROS-сервисов запустите мост отдельно от `robot_mode_controller`, который регистрирует те же сервисы.
@@ -78,12 +79,13 @@ PY
 ```bash
 ros2 service call /fsm/command mors_ros_msgs/srv/Command '{command: {command: 0, target: 2}}'
 ros2 service call /fsm/command mors_ros_msgs/srv/Command '{command: {command: 0, target: 3}}'
+ros2 topic pub --once /cmd_pose geometry_msgs/msg/Twist '{linear: {z: 0.20}}'
 ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.1}}'
 ros2 service call /fsm/command mors_ros_msgs/srv/Command '{command: {command: 4}}'
 ros2 service call /fsm/command mors_ros_msgs/srv/Command '{command: {command: 5}}'
 ```
 
-Ожидаемые состояния: `PASSIVE=0 → STANDUP=1 → STANDING=2 → LOCOMOTION=3 → FAILURE=7 → PASSIVE=0`. При `ESTOP` в статусе появятся `fault=true` и причина в `fault_str`. После `CLEAR_FAULT` флаг и описание очищаются. Физические выходы текущей FSM работают как заглушки.
+Ожидаемые состояния: `PASSIVE=0 → STANDUP=1 → STANDING=2 → LOCOMOTION=3 → FAILURE=7 → PASSIVE=0`. При `ESTOP` в статусе появятся `fault=true` и причина в `fault_str`. После `CLEAR_FAULT` флаг и описание очищаются. В режиме vision встроенный контроллер публикует SERVO_CMD. В PASSIVE и FAILURE все поля команды обнулены на каждом такте WBIC.
 
 ## ROS-интерфейс
 

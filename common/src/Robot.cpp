@@ -26,10 +26,11 @@ void Robot::set_timestep(double dt)
     this->dt = dt;
 }
 
-void Robot::BuildPinocchioModel()
+void Robot::BuildPinocchioModel(const std::string& urdf_path)
 {
     string config_address = mors_sys::GetEnv("CONFIGPATH");
-    const std::string urdf_filename = config_address + "/../common/urdf/mors.urdf";
+    const std::string urdf_filename = urdf_path.empty()
+        ? config_address + "/../common/urdf/mors.urdf" : urdf_path;
 
     pinocchio::JointModelFreeFlyer root_joint;
 
@@ -380,7 +381,7 @@ void Robot::ComputeAllLegDynamics(
     }
 }
 
-void Robot::update(RobotData& body_state,
+void Robot::update(const RobotData& body_state,
                    const wbic_types::Vector12d& joint_pos,
                    const wbic_types::Vector12d& joint_vel)
 {

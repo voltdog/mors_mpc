@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <unistd.h>
+#include <utility>
 
 // #define KT 0.74
 // #define GEAR_RATIO 10.0
@@ -91,6 +92,12 @@ LCMExchanger::LCMExchanger(bool debug_mode)
     robot_state_check_channel = "ROBOT_STATE_CHECK";
     
     gait_phase_sig_channel = channel_config["gait_phase"].as<string>();
+    if (debug_mode)
+    {
+        dcm_debug_channel = channel_config["dcm_debug"].as<string>("DCM_DEBUG");
+        dcm_trajectory_channel = channel_config["dcm_com_trajectory"].as<string>("DCM_COM_TRAJECTORY");
+        footstep_sequence_channel = channel_config["footstep_sequence"].as<string>("FOOTSTEP_SEQUENCE");
+    }
 
     leg_controller_enable = false;
     leg_controller_reset = true;
@@ -141,6 +148,7 @@ void LCMExchanger::start_exchanger()
         thMpcCmd = make_unique<thread> (&LCMExchanger::mpcCmdThread, this);
         thWbcCmd = make_unique<thread> (&LCMExchanger::wbcCmdThread, this);
         thGaitPhaseSig = make_unique<thread> (&LCMExchanger::phaseSigThread, this);
+        locomotion_debug_thread = std::jthread([this](std::stop_token stop) { locomotionDebugThread(stop); });
     }
     thImu = make_unique<thread> (&LCMExchanger::imuThread, this);
     thServoState = make_unique<thread> (&LCMExchanger::servoStateThread, this);
@@ -153,6 +161,58 @@ void LCMExchanger::start_exchanger()
     thRobotStateCheck = make_unique<thread> (&LCMExchanger::robotStateCheckThread, this);
     thRobotCmd = make_unique<thread> (&LCMExchanger::robotCmdThread, this);
     thContactSensor = make_unique<thread> (&LCMExchanger::contactSensorThread, this);
+}
+
+void LCMExchanger::locomotionDebugThread(std::stop_token stop)
+{
+    lcm::LCM subscriber(GetRequiredEnv("LCM_LOCOMOTION_URL"));
+    if (!subscriber.good() ||
+        !subscriber.subscribe(dcm_debug_channel, &LCMExchanger::dcmDebugHandler, this) ||
+        !subscriber.subscribe(dcm_trajectory_channel, &LCMExchanger::dcmTrajectoryHandler, this))
+    {
+        std::cerr << "[MorsLogger] Failed to subscribe to DCM channels\n";
+        return;
+    }
+    if (!subscriber.subscribe(footstep_sequence_channel, &LCMExchanger::footstepsHandler, this))
+    {
+        std::cerr << "[MorsLogger] Failed to subscribe to " << footstep_sequence_channel << '\n';
+    }
+
+    while (!stop.stop_requested())
+    {
+        if (subscriber.handleTimeout(20) < 0)
+        {
+            std::cerr << "[MorsLogger] Failed to receive locomotion debug messages\n";
+            return;
+        }
+    }
+}
+
+void LCMExchanger::dcmDebugHandler(const lcm::ReceiveBuffer*, const std::string&,
+                                  const mors_msgs::dcm_debug_msg* msg)
+{
+    const std::lock_guard lock(locomotion_debug_mutex);
+    locomotion_debug_messages.dcm_debug = *msg;
+}
+
+void LCMExchanger::dcmTrajectoryHandler(const lcm::ReceiveBuffer*, const std::string&,
+                                       const mors_msgs::dcm_com_trajectory_msg* msg)
+{
+    const std::lock_guard lock(locomotion_debug_mutex);
+    locomotion_debug_messages.dcm_trajectory = *msg;
+}
+
+void LCMExchanger::footstepsHandler(const lcm::ReceiveBuffer*, const std::string&,
+                                   const mors_msgs::footsteps_msg* msg)
+{
+    const std::lock_guard lock(locomotion_debug_mutex);
+    locomotion_debug_messages.footsteps = *msg;
+}
+
+LCMExchanger::LocomotionDebugMessages LCMExchanger::takeLocomotionDebugMessages()
+{
+    const std::lock_guard lock(locomotion_debug_mutex);
+    return std::exchange(locomotion_debug_messages, LocomotionDebugMessages{});
 }
 
 void LCMExchanger::contactSensorHandler(const lcm::ReceiveBuffer* rbuf,

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <chrono>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <Eigen/Dense>
 #include <lcm/lcm-cpp.hpp>
@@ -24,6 +25,9 @@
 #include "mors_msgs/contact_sensor_msg.hpp"
 
 #include "mors_msgs/phase_signal_msg.hpp"
+#include "mors_msgs/dcm_debug_msg.hpp"
+#include "mors_msgs/dcm_com_trajectory_msg.hpp"
+#include "mors_msgs/footsteps_msg.hpp"
 
 #include "system_functions.hpp"
 #include <yaml-cpp/yaml.h>
@@ -122,6 +126,13 @@ class LCMExchanger
         
         void getPhaseSig(Vector4i& phase, Vector4d& phi);
 
+        struct LocomotionDebugMessages {
+            std::optional<mors_msgs::dcm_debug_msg> dcm_debug;
+            std::optional<mors_msgs::dcm_com_trajectory_msg> dcm_trajectory;
+            std::optional<mors_msgs::footsteps_msg> footsteps;
+        };
+        LocomotionDebugMessages takeLocomotionDebugMessages();
+
         void getEnableData(bool &leg_controller_en, bool &leg_controller_reset,
                         bool &locomotion_en, bool &locomotion_reset,
                         bool &action_ctr_en, bool &action_ctr_reset);
@@ -129,6 +140,14 @@ class LCMExchanger
 
 
     private:
+        void locomotionDebugThread(std::stop_token stop);
+        void dcmDebugHandler(const lcm::ReceiveBuffer*, const std::string&,
+                             const mors_msgs::dcm_debug_msg* msg);
+        void dcmTrajectoryHandler(const lcm::ReceiveBuffer*, const std::string&,
+                                  const mors_msgs::dcm_com_trajectory_msg* msg);
+        void footstepsHandler(const lcm::ReceiveBuffer*, const std::string&,
+                              const mors_msgs::footsteps_msg* msg);
+
         string mpc_cmd_channel, wbc_cmd_channel, servo_state_channel, servo_cmd_channel, imu_channel;
         string enable_channel, odometry_channel, robot_state_channel, robot_state_check_channel;
         string robot_cmd_channel, gait_phase_sig_channel, contact_state_channel;
@@ -188,6 +207,11 @@ class LCMExchanger
         bool action_ctr_enable, action_ctr_reset;
         double gear_ratio;
         bool debug_mode;
+
+        std::string dcm_debug_channel, dcm_trajectory_channel, footstep_sequence_channel;
+        std::mutex locomotion_debug_mutex;
+        LocomotionDebugMessages locomotion_debug_messages;
+        std::jthread locomotion_debug_thread;
 };
 
 #endif //_lcm_data_exchange_ml_hpp_

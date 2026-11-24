@@ -5,7 +5,7 @@ set -e  # останавливает выполнение при первой о
 ROOT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 
 # Массив с именами проектов
-PROJECTS=("StateEstimator" "MorsLogger" "LocomotionController" "LocomotionControllerDCM" "HeightMapBuilder" "BHI360_IMU" "ContactSensor")
+PROJECTS=("StateEstimator" "MorsLogger" "LocomotionControllerDCM" "FSMLocomotion" "HeightMapBuilder" "BHI360_IMU" "ContactSensor")
 
 # Проверяем, запущено ли с аргументом -c (configure)
 WITH_CMAKE=false
@@ -39,7 +39,7 @@ build_project() {
 
 # echo "🚀 Сборка ROS2-пакетов..."
 cd "${ROOT_DIR}/ros_ws"
-colcon build --packages-select robot_mode_controller robot_state_viewer mors_radiolink_control mors_experiments_sim mors_keyboard_control mors_ros_msgs
+colcon build --packages-select ros2lcm_bridge robot_mode_controller robot_state_viewer mors_radiolink_control mors_experiments_sim mors_keyboard_control mors_ros_msgs
 
 # Основной цикл
 echo " "

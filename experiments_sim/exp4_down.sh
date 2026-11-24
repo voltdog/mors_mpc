@@ -8,14 +8,14 @@ ALGORITHM="dcm"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="local"   # local | global -> config/locomotion_controller.yaml
 
 # Ramp -> Simulator/MJCF/generate_ramp.py (width 2.0 m)
-RAMP_SLOPE_ANGLE=28.0   # max: vision 28.0 | dcm 28.0
+RAMP_SLOPE_ANGLE=24.0   # max: vision 28.0 | dcm 28.0
 RAMP_HEIGHT=0.6         # m
 RAMP_FLAT_LENGTH=2.0    # m, flat top section
 RAMP_CENTER_POS=0.0      # m, X of the ramp center
 
 # Initial state -> config/simulation.yaml
 INIT_BODY_POS="[0.0, 0.0, 0.6]"  # [x, y, z]
-KIN_SCHEME=">>"                  # >> | << | >< | <> -> init_motor_angles
+KIN_SCHEME="><"                  # >> | << | >< | <> -> init_motor_angles
 
 # ROS parameters of exp1 (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2

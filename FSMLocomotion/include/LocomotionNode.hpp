@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LcmDataExchange.hpp"
+#include "LocomotionControllerMPC/LocomotionControllerMPC.hpp"
 #include "LocomotionTransitionMonitor.hpp"
 #include "RobotFSM.hpp"
 
@@ -35,12 +36,13 @@ private:
     RobotStatus status_;
     SafetyMonitor safety_monitor_;
     ReadinessChecker readiness_checker_;
-    LocomotionControlBase controller_;
+    LCMExchanger exchanger_;
+    LocomotionControllerMPC controller_;
     LocomotionTransitionMonitor transition_monitor_;
     RobotFSM fsm_;
-    LCMExchanger exchanger_;
     std::optional<StateID> operator_request_;
     std::optional<StateID> pending_mode_request_;
+    double last_reset_s_ = 0.0;
     LocomotionMode locomotion_mode_ = LocomotionMode::WALKING;
 };
 

@@ -8,7 +8,7 @@ ALGORITHM="dcm"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="local"   # local | global -> config/locomotion_controller.yaml
 
 # Platform -> Simulator/MJCF/generate_platform.py [m]
-PLATFORM_HEIGHT=0.14 # max: vision 0.14 | dcm 0.14
+PLATFORM_HEIGHT=0.12 # max: vision 0.14 | dcm 0.14
 PLATFORM_LENGTH=2.0
 PLATFORM_WIDTH=2.0
 PLATFORM_START_DIST=1.0

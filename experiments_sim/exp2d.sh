@@ -8,7 +8,7 @@ ALGORITHM="vision"      # wbic | vision | dcm -> config/locomotion_controller.ya
 VEL_CMD_FRAME="global"   # local | global -> config/locomotion_controller.yaml
 
 # Initial state -> config/simulation.yaml
-KIN_SCHEME=">>"         # >> | << | >< | <> -> init_motor_angles
+KIN_SCHEME="><"         # >> | << | >< | <> -> init_motor_angles
 
 # ROS parameters of exp2d (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2

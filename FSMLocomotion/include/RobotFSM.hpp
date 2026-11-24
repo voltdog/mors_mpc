@@ -5,6 +5,7 @@
 #include "LocomotionControlBase.hpp"
 #include "ReadinessChecker.hpp"
 #include "SafetyMonitor.hpp"
+#include "actions/standup.hpp"
 
 #include <map>
 #include <memory>
@@ -24,7 +25,8 @@ public:
     // Внешние объекты не принадлежат FSM и должны существовать дольше неё.
     explicit RobotFSM(SafetyMonitor& safety_monitor, RobotStatus* status = nullptr,
                       LocomotionControlBase* controller = nullptr,
-                      ReadinessChecker* readiness_checker = nullptr, GaitStopConfig gait_stop = {});
+                      ReadinessChecker* readiness_checker = nullptr, GaitStopConfig gait_stop = {},
+                      StandupConfig standup = {});
     RobotFSM(const RobotFSM&) = delete;
     RobotFSM& operator=(const RobotFSM&) = delete;
     RobotFSM(RobotFSM&&) = delete;
@@ -37,7 +39,6 @@ public:
     void update(const LocomotionSetpoints& setpoints);
     // Возвращает причину отказа или пустое значение после успешного сброса.
     std::optional<std::string> try_clear_fault();
-    bool enable_actuator_commands();
 
     RobotStatus& status;
     LocomotionControlBase& controller;
@@ -47,6 +48,7 @@ public:
     StateID state_id = StateID::IDLE;
 
 private:
+    friend class StandupState;
     void enter_failure(const SafetyFault& fault);
     bool transition_to(StateID next_state);
 

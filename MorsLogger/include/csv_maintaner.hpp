@@ -11,11 +11,18 @@
 #include "structs.hpp"
 #include "CSVWriter.h"
 #include <filesystem>
+#include <fstream>
 #include <ctime>
 
 using namespace std;
 using namespace Eigen;
 using namespace YAML;
+
+namespace mors_msgs {
+class dcm_debug_msg;
+class dcm_com_trajectory_msg;
+class footsteps_msg;
+}
 
 class CSVMaintainer
 {
@@ -40,6 +47,9 @@ class CSVMaintainer
         void write_robot_cmd(double t, RobotData& body_cmd);
         void write_phase_sig(double t, Vector4i& phase, Vector4d& phi);
         void write_contact_sensor(double time, const ContactSensorData& contact_sensor_data);
+        void write_dcm_debug(double time, const mors_msgs::dcm_debug_msg& msg);
+        void write_dcm_com_trajectory(double time, const mors_msgs::dcm_com_trajectory_msg& msg);
+        void write_footstep_sequence(double time, const mors_msgs::footsteps_msg& msg);
 
     private:
         void create_csv(CSVWriter &csv, const vector<string> &head, string &addr);
@@ -55,6 +65,7 @@ class CSVMaintainer
         CSVWriter servo_state_filt_csv;
         CSVWriter robot_state_csv, robot_state_check_csv, robot_cmd_csv;
         CSVWriter phase_sig_csv;
+        std::ofstream dcm_debug_csv, dcm_com_trajectory_csv, footstep_sequence_csv;
 
         string log_root, log_folder;
         string servo_state_addr, servo_cmd_addr, imu_data_addr, mpc_cmd_addr, wbc_cmd_addr, grf_cmd_addr;

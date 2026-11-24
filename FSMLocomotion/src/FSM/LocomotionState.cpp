@@ -47,15 +47,15 @@ std::optional<Event> LocomotionState::on_update(const LocomotionSetpoints& setpo
         if (recovering) {
             command.lin_vel.setZero();
             command.ang_vel.setZero();
-        } else {
-            fsm.controller.set_gait_params(setpoints.t_st, setpoints.t_sw, setpoints.gait_type,
-                                           setpoints.stride_height);
         }
+        fsm.controller.set_gait_params(setpoints.t_st, setpoints.t_sw, setpoints.gait_type,
+                                       setpoints.stride_height);
         fsm.controller.set_active_legs(setpoints.active_legs);
-        if (!recovering) {
-            fsm.controller.set_adaptation_type(setpoints.adaptation_type);
-        }
-        fsm.controller.set_robot_cmd(command);
+        fsm.controller.set_adaptation_type(setpoints.adaptation_type);
+        if (setpoints.robot_cmd_received_at_s)
+            fsm.controller.set_robot_cmd(command);
+        else
+            fsm.controller.hold_measured_pose();
     }
 
     fsm.status.gait_stopped = fsm.controller.gait_stopped();

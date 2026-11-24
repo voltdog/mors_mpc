@@ -1,0 +1,9 @@
+package mors_msgs;
+
+struct dcm_debug_msg
+{
+    double t;
+    double dcm_d[3];
+    double r_vrp_d[3];
+    double r_f[3];
+}

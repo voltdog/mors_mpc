@@ -13,11 +13,12 @@ PATHS=(
   common
   config
   lcm_msgs
-  LocomotionController
+  FSMLocomotion
   MorsLogger
   HeightMapBuilder
   ros_ws/src/mors_keyboard_control
   ros_ws/src/robot_mode_controller
+  ros_ws/src/ros2lcm_bridge
   ros_ws/src/mors_ros_msgs
   ros_ws/src/robot_state_viewer
   Simulator

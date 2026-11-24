@@ -1,5 +1,9 @@
-algorithm: "dcm" # wbic vision dcm
+algorithm: "vision" # wbic vision dcm
 vel_cmd_frame: "local" # local global - СК, в которой задана команда линейной скорости
+
+recovery:
+  t_sw: 0.20  # с
+  t_st: 0.30  # с
 
 stance_controller_mpc:
   horizon: 16
@@ -21,6 +25,7 @@ stance_controller_mpc:
   R_gain: 0.002
 
 wbic:
+  handoff_timeout_ms: 50
   Qf_entry: 0.565 #5.0 #
   Qa_entry: 4.182
 
@@ -49,7 +54,7 @@ reference_generator:
 swing_controller:
   interleave_x: [0.0, 0.0, 0.0, 0.0]
   interleave_y: [0.09, 0.09, 0.09, 0.09]
-  dz_near_ground: -0.05
+  dz_near_ground: -0.05 #-0.05
   rising_proportion: 0.35   # доля времени переноса на подъём стопы
 
   # foot step planner

@@ -22,6 +22,8 @@ class NodeTest:
         self.node = node
         self.states = deque(maxlen=1000)
         self.results = deque()
+        self.nonzero_cmds = 0
+        self.last_servo_zero = False
         self.servo_cmds = 0
         self.bus.subscribe("ROBOT_MODE_STATE", lambda _, data: self.states.append(State.decode(data)))
         self.bus.subscribe("ROBOT_MODE_RESULT", lambda _, data: self.results.append(Result.decode(data)))
@@ -31,10 +33,24 @@ class NodeTest:
         self.last_publish = 0.0
         self.robot_state = RobotState()
         self.robot_state.body.orientation_quaternion = [0.0, 0.0, 0.0, 1.0]
+        self.robot_state.body.position[2] = 0.20
+        self.robot_state.joints.position = [
+            0.0, -1.57, 2.9, 0.0, 1.57, -2.9,
+            0.0, 1.57, -2.9, 0.0, -1.57, 2.9,
+        ]
+        self.robot_state.legs.r1_pos = [0.18, -0.13, 0.0]
+        self.robot_state.legs.l1_pos = [0.18, 0.13, 0.0]
+        self.robot_state.legs.r2_pos = [-0.18, -0.13, 0.0]
+        self.robot_state.legs.l2_pos = [-0.18, 0.13, 0.0]
         self.robot_state.legs.contact_states = [True] * 4
         self.robot_state.readiness = [True] * 18 + [False]
 
-    def receive_servo_cmd(self, _channel, _data):
+    def receive_servo_cmd(self, _channel, data):
+        cmd = ServoCommand.decode(data)
+        self.last_servo_zero = not any(any(getattr(cmd, field))
+                                       for field in ("position", "velocity", "torque", "kp", "kd"))
+        if not self.last_servo_zero:
+            self.nonzero_cmds += 1
         self.servo_cmds += 1
 
     def pump(self):
@@ -85,6 +101,7 @@ class NodeTest:
 
     def velocity(self, x=0.0, y=0.0, yaw=0.0):
         msg = RobotCommand()
+        msg.cmd_pose[2] = 0.20
         msg.cmd_vel = [x, y, 0.0, 0.0, 0.0, yaw]
         msg.active_legs = [True] * 4
         self.bus.publish("ROBOT_CMD", msg.encode())
@@ -96,7 +113,7 @@ class NodeTest:
         self.bus.publish("ROBOT_MODE_CMD", msg.encode())
 
     def result(self, command, expected, reason=None):
-        self.wait_for(lambda: self.results, f"result {expected} for command {command}")
+        self.wait_for(lambda: self.results, f"result {expected} for command {command}", timeout=4.0)
         result = self.results.popleft()
         assert (result.command, result.result) == (command, expected), (
             result.command, result.result, result.reason, command, expected
@@ -117,12 +134,15 @@ class NodeTest:
         self.result(Command.CLEAR_FAULT, Result.SUCCEEDED)
         state = self.state(State.PASSIVE)
         assert state.target_state == State.PASSIVE
+        before, nonzero = self.servo_cmds, self.nonzero_cmds
         self.remains_in(State.PASSIVE, 0.23)
+        assert self.last_servo_zero and self.servo_cmds > before + 10 and self.nonzero_cmds == nonzero
 
 
 def exercise(test):
     test.state(State.PASSIVE)
     test.remains_in(State.PASSIVE, 0.06)
+    assert test.servo_cmds >= 10 and test.last_servo_zero
     for command, target, reason in (
         (99, 0, "Unknown command"),
         (Command.SET_EXTERNAL, 0, "Unsupported command"),
@@ -230,7 +250,7 @@ def exercise(test):
     test.run_for(0.24)
     test.send(Command.CLEAR_FAULT)
     test.result(Command.CLEAR_FAULT, Result.REJECTED, "hip_joint_L2")
-    telemetry.joints.position[10] = 0.0
+    telemetry.joints.position[10] = -1.57
     test.run_for(0.03)
     test.clear_fault()
 
@@ -337,7 +357,7 @@ def run_node(executable, run_test, *, servo_url):
             assert process.wait(timeout=2) == 0, "Node failed to stop"
             while select.select([test.bus.fileno()], [], [], 0.04)[0]:
                 test.bus.handle()
-            assert test.servo_cmds == 0, "Node published SERVO_CMD"
+            assert test.servo_cmds and test.last_servo_zero, "Missing final zero SERVO_CMD"
         except BaseException:
             if process.poll() is None:
                 process.kill()
@@ -361,6 +381,7 @@ if __name__ == "__main__":
         from mors_msgs import robot_mode_cmd_msg as Command
         from mors_msgs import robot_mode_result_msg as Result
         from mors_msgs import robot_mode_state_msg as State
+        from mors_msgs import servo_cmd_msg as ServoCommand
         from mors_msgs import robot_state_msg as RobotState
 
         run_node(executable, exercise, servo_url=False)

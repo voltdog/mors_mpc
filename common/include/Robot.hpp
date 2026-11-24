@@ -33,7 +33,7 @@ public:
     ~Robot() = default;
 
     void set_timestep(double dt);
-    void BuildPinocchioModel();
+    void BuildPinocchioModel(const std::string& urdf_path = {});
     void ComputeForwardKinematics(const VectorXd &q, const VectorXd &v);
     std::vector<Eigen::Vector3d> GetToePositionsInBaseFrame();
     std::vector<Eigen::Vector3d> GetToePositionsInWorldFrame();
@@ -60,7 +60,7 @@ public:
                         std::vector<Eigen::Matrix3d>& M_legs,
                         std::vector<Eigen::Vector3d>& h_legs);
 
-    void update(RobotData& body_state,
+    void update(const RobotData& body_state,
                 const wbic_types::Vector12d& joint_pos,
                 const wbic_types::Vector12d& joint_vel);
     const wbic_types::Matrix3_18d& get_body_ori_jacobian();

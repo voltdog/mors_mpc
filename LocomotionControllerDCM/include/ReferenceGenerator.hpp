@@ -15,9 +15,12 @@ using namespace Eigen;
 class ReferenceGenerator {
 public:
     struct DcmComTrajectories {
-        std::vector<Eigen::Vector3d> x_com;
-        std::vector<Eigen::Vector3d> d_x_com;
-        std::vector<Eigen::Vector3d> dd_x_com;
+        const std::vector<Eigen::Vector3d>& x_com;
+        const std::vector<Eigen::Vector3d>& d_x_com;
+        const std::vector<Eigen::Vector3d>& dd_x_com;
+        const std::vector<Eigen::Vector3d>& dcm_d;
+        const std::vector<Eigen::Vector3d>& r_vrp_d;
+        const std::vector<Eigen::Vector3d>& r_f;
     };
 
     // Constructor

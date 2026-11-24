@@ -25,7 +25,7 @@ struct LocomotionSetpoints {
     std::uint8_t adaptation_type = INCL_ADAPT;
     double t_st = 0.3;
     double t_sw = 0.2;
-    std::vector<double> gait_type{0.0, 0.0, 0.0, 0.0};
+    std::vector<double> gait_type{0.0, 0.5, 0.5, 0.0};
     double stride_height = 0.06;
     std::optional<double> robot_cmd_received_at_s;
     LocomotionMode mode = LocomotionMode::WALKING;

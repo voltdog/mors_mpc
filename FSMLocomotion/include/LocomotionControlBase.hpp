@@ -9,26 +9,26 @@
 #include <string>
 #include <string_view>
 #include <thread>
-#include "structs.hpp"
+#include "LocomotionData.hpp"
+#include "FSM/FSMTypes.hpp"
 
 namespace mors::fsm {
 
 using JointVector = mors::wbic::Vector12d;
 
-// Демонстрационная заглушка контура управления локомоцией.
+// Интерфейс FSM. Реализация по умолчанию используется автономным демо и тестами.
 class LocomotionControlBase {
 public:
     virtual ~LocomotionControlBase() = default;
 
     static constexpr std::uint8_t robot_input = 1;
+    static constexpr std::uint8_t wbc_input = 2;
+    static constexpr std::uint8_t joints_input = 3;
     static constexpr std::uint8_t standing_mode = 1;
     static constexpr std::uint8_t walking_mode = 2;
     static constexpr std::uint8_t recovery_mode = 3;
 
-    // в зависимости от выбора режима, будут использоваться разные функции: 
-    // 1 - set_robot_cmd, 
-    // 2 - set_wbc_cmd, 
-    // 3 - set_joints_cmd
+    // Новый источник вступает в силу вместе с его первой уставкой.
     virtual void set_data_input_mode(const u_int8_t& input_mode); 
 
     // В зависимости от значения mode будут работать разные режимы:
@@ -38,27 +38,26 @@ public:
     // работает только в режиме input_mode = 1
     virtual void set_locomotion_mode(const u_int8_t& mode);
 
-    // установка заданных команд. 
-    // В зависимости от выбранного режима будут использоваться разные функции. 
-    // Если режим не соответствует вызываемой функции, то произойдет assertion failed.
     virtual void set_robot_cmd(const RobotData& robot_cmd);
     virtual void set_wbc_cmd(const WbcDesiredCommand& wbc_cmd);
-    virtual void set_joints_cmd(const JointVector& joints_cmd);
+    virtual void set_joints_cmd(const JointCommand& joints_cmd);
 
-    // works only in walking mode
     virtual void set_gait_params(const double& t_st,
                                  const double& t_sw,
                                  const vector<double>& gait_type,
                                  const double& stride_height);
     
-    // works only in walking mode
     // adaptation types declared in structs.hpp: INCL_ADAPT, HEIGHT_ADAPT, NOADAPT
     virtual void set_adaptation_type(const u_int8_t& adaptation_type);
 
-    // works in the all modes
     virtual void set_active_legs(const vector<bool>& active_legs);
-    virtual void set_robot_state(const RobotData& robot_state,
-                                 const LegData& leg_state);
+    virtual void set_robot_state(const RobotStateSnapshot& state);
+
+    std::optional<RobotStateSnapshot> robot_state() const;
+    virtual void hold_measured_pose() {}
+    virtual bool robot_control_ready() const { return outputs_enabled(); }
+    virtual void set_standing_xy(const Eigen::Vector2d&) {}
+    virtual std::optional<SafetyFault> controller_fault() { return {}; }
 
     // Запуск потока управления локомоцией.
     virtual void start_thread();
@@ -74,13 +73,16 @@ public:
     virtual void request_gait_stop();
     virtual bool gait_stopped() const;
 
+protected:
     std::optional<u_int8_t> input_mode;
 
 private:
 
+    mutable std::mutex state_mutex_;
+    std::optional<RobotStateSnapshot> observation_;
+
     // Контур управления должен завершаться по запросу stop_token.
     // Класс, переопределяющий run(), останавливает поток в своём деструкторе.
-    // в этой функции будет реализован контур управления локомоцией, как в LocomotionController/main.cpp
     virtual void run(std::stop_token stop_token);
 
     // Уставка и подтверждение остановки обновляются в потоке FSM.

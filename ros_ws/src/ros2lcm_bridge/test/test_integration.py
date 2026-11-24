@@ -141,7 +141,7 @@ class BridgeIntegration(unittest.TestCase):
         self.url = f'udpm://239.255.76.67:{number}?ttl=0'
         self.namespace = f'/bridge_test_{number}'
         self.config_dir = tempfile.TemporaryDirectory()
-        for name in ('channels.yaml', 'robot.yaml', 'timesteps.yaml', 'heightmap_builder.yaml'):
+        for name in ('channels.yaml', 'robot.yaml', 'timesteps.yaml', 'heightmap_builder.yaml', 'locomotion_controller.yaml'):
             shutil.copy(Path(os.environ['CONFIGPATH']) / name, self.config_dir.name)
         channels_path = Path(self.config_dir.name) / 'channels.yaml'
         self.channels = yaml.safe_load(channels_path.read_text())
@@ -150,7 +150,10 @@ class BridgeIntegration(unittest.TestCase):
                              robot_mode_result='MODE_REPLY', robot_cmd='MOTION_SETPOINT',
                              gait_params='GAIT_SETTINGS', robot_state='ROBOT_TELEMETRY')
         channels_path.write_text(yaml.safe_dump(self.channels))
-        self.env = {**os.environ, 'CONFIGPATH': self.config_dir.name,
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as port:
+            port.bind(('127.0.0.1', 0))
+            servo_url = f'udpm://239.255.76.68:{port.getsockname()[1]}?ttl=0'
+        self.env = {**os.environ, 'LCM_SERVO_URL': servo_url, 'CONFIGPATH': self.config_dir.name,
                     'LCM_LOCOMOTION_URL': '', 'LCM_DEFAULT_URL': self.url}
         self.bus = lcm.LCM(self.url)
         self.packets, self.unsafe, self.states, self.results = [], [], [], []

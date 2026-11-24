@@ -1,4 +1,5 @@
 #include "LcmDataExchange.hpp"
+#include "mors_msgs/dcm_debug_msg.hpp"
 
 #include <cmath>
 #include <cstdlib>
@@ -151,6 +152,7 @@ LCMExchanger::LCMExchanger()
     phase_signal_channel = channel_config["gait_phase"].as<string>();
     footstep_sequence_channel = channel_config["footstep_sequence"].as<string>();
     dcm_com_trajectory_channel = channel_config["dcm_com_trajectory"].as<string>();
+    dcm_debug_channel = channel_config["dcm_debug"].as<string>("DCM_DEBUG");
     heightmap_channel = channel_config["heightmap"].as<string>();
 
     t_sw = 0.2;
@@ -601,10 +603,8 @@ void LCMExchanger::sendFootstepSequence(
     footstep_sequence_publisher.publish(footstep_sequence_channel, &footstepsMsg);
 }
 
-void LCMExchanger::sendDcmComTrajectory(const std::vector<Eigen::Vector3d>& x_com,
-                                        const std::vector<Eigen::Vector3d>& d_x_com,
-                                        const std::vector<Eigen::Vector3d>& dd_x_com,
-                                        double t)
+void LCMExchanger::sendDcmTrajectories(const ReferenceGenerator::DcmComTrajectories& trajectories,
+                                      double t)
 {
     auto fillTrajectory = [](const std::vector<Eigen::Vector3d>& source,
                              std::vector<std::vector<double>>& destination) {
@@ -615,18 +615,31 @@ void LCMExchanger::sendDcmComTrajectory(const std::vector<Eigen::Vector3d>& x_co
                 destination[point][axis] = source[point](axis);
             }
         }
+        return static_cast<int32_t>(source.size());
     };
 
     dcmComTrajectoryMsg.t = t;
-    dcmComTrajectoryMsg.x_com_count = static_cast<int32_t>(x_com.size());
-    dcmComTrajectoryMsg.d_x_com_count = static_cast<int32_t>(d_x_com.size());
-    dcmComTrajectoryMsg.dd_x_com_count = static_cast<int32_t>(dd_x_com.size());
-
-    fillTrajectory(x_com, dcmComTrajectoryMsg.x_com);
-    fillTrajectory(d_x_com, dcmComTrajectoryMsg.d_x_com);
-    fillTrajectory(dd_x_com, dcmComTrajectoryMsg.dd_x_com);
+    dcmComTrajectoryMsg.x_com_count = fillTrajectory(trajectories.x_com, dcmComTrajectoryMsg.x_com);
+    dcmComTrajectoryMsg.d_x_com_count = fillTrajectory(trajectories.d_x_com, dcmComTrajectoryMsg.d_x_com);
+    dcmComTrajectoryMsg.dd_x_com_count = fillTrajectory(trajectories.dd_x_com, dcmComTrajectoryMsg.dd_x_com);
+    dcmComTrajectoryMsg.dcm_d_count = fillTrajectory(trajectories.dcm_d, dcmComTrajectoryMsg.dcm_d);
+    dcmComTrajectoryMsg.r_vrp_d_count = fillTrajectory(trajectories.r_vrp_d, dcmComTrajectoryMsg.r_vrp_d);
+    dcmComTrajectoryMsg.r_f_count = fillTrajectory(trajectories.r_f, dcmComTrajectoryMsg.r_f);
 
     dcm_com_trajectory_publisher.publish(dcm_com_trajectory_channel, &dcmComTrajectoryMsg);
+
+    if (trajectories.dcm_d.empty() || trajectories.r_vrp_d.empty() || trajectories.r_f.empty()) {
+        return;
+    }
+
+    mors_msgs::dcm_debug_msg debug_msg;
+    debug_msg.t = t;
+    for (int axis = 0; axis < 3; ++axis) {
+        debug_msg.dcm_d[axis] = trajectories.dcm_d.front()(axis);
+        debug_msg.r_vrp_d[axis] = trajectories.r_vrp_d.front()(axis);
+        debug_msg.r_f[axis] = trajectories.r_f.front()(axis);
+    }
+    dcm_com_trajectory_publisher.publish(dcm_debug_channel, &debug_msg);
 }
 
 void LCMExchanger::sendServoCmd(const JointVector12d& position,

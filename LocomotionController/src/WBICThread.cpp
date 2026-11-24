@@ -297,9 +297,9 @@ void WBICThread::callback()
             // ref_joint_torque_our.segment<3>(R2 * 3) = ref_joint_torque_pin.segment<3>(PIN_R2 * 3)*0.95;
             // ref_joint_torque_our.segment<3>(L2 * 3) = ref_joint_torque_pin.segment<3>(PIN_L2 * 3)*0.9*0.95;
             ref_joint_torque_our.segment<3>(R1 * 3) = ref_joint_torque_pin.segment<3>(PIN_R1 * 3);
-            ref_joint_torque_our.segment<3>(L1 * 3) = ref_joint_torque_pin.segment<3>(PIN_L1 * 3)*0.95;
+            ref_joint_torque_our.segment<3>(L1 * 3) = ref_joint_torque_pin.segment<3>(PIN_L1 * 3);//*0.95;
             ref_joint_torque_our.segment<3>(R2 * 3) = ref_joint_torque_pin.segment<3>(PIN_R2 * 3);//*1.05;
-            ref_joint_torque_our.segment<3>(L2 * 3) = ref_joint_torque_pin.segment<3>(PIN_L2 * 3)*0.95;//*0.9*0.95;
+            ref_joint_torque_our.segment<3>(L2 * 3) = ref_joint_torque_pin.segment<3>(PIN_L2 * 3);//*0.95;//*0.9*0.95;
 
             
             // set motor kp and kd gains depending on current leg state (swing or stance)

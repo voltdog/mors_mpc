@@ -178,6 +178,15 @@ struct ImuData
     Vector3d lin_accel;
 };
 
+// Суставной момент в Н·м до преобразования в единицы привода.
+struct JointCommand {
+    JointVector12d position = JointVector12d::Zero();
+    JointVector12d velocity = JointVector12d::Zero();
+    JointVector12d torque = JointVector12d::Zero();
+    JointVector12d kp = JointVector12d::Zero();
+    JointVector12d kd = JointVector12d::Zero();
+};
+
 struct ServoData
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

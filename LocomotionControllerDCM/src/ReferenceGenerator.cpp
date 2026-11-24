@@ -80,7 +80,14 @@ ReferenceGenerator::~ReferenceGenerator() {
 }
 
 ReferenceGenerator::DcmComTrajectories ReferenceGenerator::getDcmComTrajectories() const {
-    return {dcm_x_com_traj, dcm_d_x_com_traj, dcm_dd_x_com_traj};
+    if (dcm_x_com_traj.empty()) {
+        static const std::vector<Eigen::Vector3d> empty;
+        return {empty, empty, empty, empty, empty, empty};
+    }
+
+    return {dcm_x_com_traj, dcm_d_x_com_traj, dcm_dd_x_com_traj,
+            dcm_generator.getDcmTrajectory(), dcm_generator.getDesiredVrpPoints(),
+            dcm_generator.getSupportPoints()};
 }
 
 // Set adaptation mode

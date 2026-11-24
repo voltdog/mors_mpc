@@ -3,7 +3,7 @@
 # Experiment 1: straight-line walking along X with the given gait parameters.
 
 # ------------------------- experiment parameters -------------------------
-ALGORITHM="vision"      # wbic | vision | dcm -> config/locomotion_controller.yaml
+ALGORITHM="dcm"      # wbic | vision | dcm -> config/locomotion_controller.yaml
 VEL_CMD_FRAME="local"   # local | global -> config/locomotion_controller.yaml
 
 # Initial state -> config/simulation.yaml
@@ -11,7 +11,7 @@ KIN_SCHEME="><"         # >> | << | >< | <> -> init_motor_angles
 
 # ROS parameters of exp1 (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
-T_SW=0.32 # ><: vision 0.32 | dcm 0.43 || <<: vision 0.28 | dcm 0.3 || >>: vision 0.28 | dcm 0.3
+T_SW=0.4 # ><: vision 0.5 | dcm 0.56 || <<: vision 0.28 | dcm 0.3 || >>: vision 0.28 | dcm 0.3
 T_ST=0.5  # max: vision 0.7 | wbic 0.7 | dcm 0.7
 STRIDE_HEIGHT=0.04
 REF_VELOCITY_X=0.3
@@ -43,5 +43,5 @@ ros_params=(
 max_duration="$(awk -v w="$WALK_TIME" -v r="$RAMP_TIME" 'BEGIN { print 12.5 + w + r }')"
 
 run_experiment exp1 \
-    "${ALGORITHM}_${VEL_CMD_FRAME}_z${BODY_Z}_tsw${T_SW}_tst${T_ST}_h${STRIDE_HEIGHT}_vx${REF_VELOCITY_X}_walk${WALK_TIME}_ramp${RAMP_TIME}" \
+    "${ALGORITHM}_tsw${T_SW}_tst${T_ST}_h${STRIDE_HEIGHT}_vx${REF_VELOCITY_X}_z${BODY_Z}_walk${WALK_TIME}" \
     "$max_duration" "${ros_params[@]}"

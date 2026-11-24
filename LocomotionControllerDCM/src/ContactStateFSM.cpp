@@ -22,7 +22,7 @@ std::vector<int> ContactStateFSM::step(const std::vector<bool>& contact_flag,
         // "Подтверждённое" касание: наблюдатель силы сработал И стопа почти не движется по
         // вертикали. Это отсекает ложные всплески оценки силы в фазе переноса, когда стопа
         // ещё летит вниз (|vz| велик), а контакта с поверхностью фактически нет.
-        bool confirmed_contact = contact_flag[i];// && (std::fabs(foot_vz[i]) < vz_contact_thresh_);
+        bool confirmed_contact = contact_flag[i] && (std::fabs(foot_vz[i]) < vz_contact_thresh_);
 
         // Дебаунс: считаем подряд идущие подтверждённые касания; единичный шумовой выброс
         // не успевает накопить счётчик и не приводит к ложному раннему контакту.

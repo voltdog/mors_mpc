@@ -1,3 +1,5 @@
+from math import isfinite
+
 import rclpy
 from geometry_msgs.msg import Twist
 from mors_ros_msgs.msg import GaitParams
@@ -7,8 +9,8 @@ from rclpy.node import Node
 
 
 # Experiment 2b: open-loop walk along the X and Y axes without turning - a series
-# of SEGMENT_TIME segments, each with its own (vx, vy). Velocity changes linearly
-# over RAMP_TIME at segment boundaries.
+# of segments lasting segment_time, each with its own (vx, vy). Velocity changes
+# linearly over RAMP_TIME at segment boundaries.
 
 DO_NOTHING_MODE = 0
 LOCOMOTION_MODE = 1
@@ -24,6 +26,7 @@ T_ST = 0.35
 STRIDE_HEIGHT = 0.06
 REF_VELOCITY_X = 0.3
 REF_VELOCITY_Y = 0.3
+SEGMENT_TIME = 5.0
 
 # Segment velocities (vx, vy) in units of (ref_velocity_x, ref_velocity_y).
 SEGMENT_DIRECTIONS = [
@@ -40,24 +43,10 @@ LIE_TIME = 1.0
 STANDUP_TIME = 3.0
 STAND_TIME = 1.0
 STEP_IN_PLACE_TIME = 1.0
-SEGMENT_TIME = 5.0
 RAMP_TIME = 1.0         # linear transition between segment velocities and to 0 on stop
 LAY_DOWN_TIME = 3.5
 
 TIMER_PERIOD = 0.02
-
-PHASES = [
-    ("LIE", LIE_TIME),
-    ("STANDUP", STANDUP_TIME),
-    ("STAND_BEFORE", STAND_TIME),
-    ("STEP_BEFORE", STEP_IN_PLACE_TIME),
-    *[("WALK", SEGMENT_TIME)] * len(SEGMENT_DIRECTIONS),
-    ("STOP", RAMP_TIME),
-    ("STEP_AFTER", STEP_IN_PLACE_TIME),
-    ("STAND_AFTER", STAND_TIME),
-    ("LAY_DOWN", LAY_DOWN_TIME),
-    ("LIE_END", LIE_TIME),
-]
 
 
 class AxisWalkExperiment(Node):
@@ -72,6 +61,23 @@ class AxisWalkExperiment(Node):
         self.stride_height = self.declare_parameter("stride_height", STRIDE_HEIGHT).value
         self.ref_velocity_x = self.declare_parameter("ref_velocity_x", REF_VELOCITY_X).value
         self.ref_velocity_y = self.declare_parameter("ref_velocity_y", REF_VELOCITY_Y).value
+        segment_time = self.declare_parameter("segment_time", SEGMENT_TIME).value
+
+        if not isfinite(segment_time) or segment_time < RAMP_TIME:
+            raise ValueError(f"segment_time={segment_time} must be finite and >= RAMP_TIME ({RAMP_TIME})")
+
+        self.phases = [
+            ("LIE", LIE_TIME),
+            ("STANDUP", STANDUP_TIME),
+            ("STAND_BEFORE", STAND_TIME),
+            ("STEP_BEFORE", STEP_IN_PLACE_TIME),
+            *(("WALK", segment_time) for _ in SEGMENT_DIRECTIONS),
+            ("STOP", RAMP_TIME),
+            ("STEP_AFTER", STEP_IN_PLACE_TIME),
+            ("STAND_AFTER", STAND_TIME),
+            ("LAY_DOWN", LAY_DOWN_TIME),
+            ("LIE_END", LIE_TIME),
+        ]
 
         self.segment_velocities = [
             (kx * self.ref_velocity_x, ky * self.ref_velocity_y) for kx, ky in SEGMENT_DIRECTIONS
@@ -105,7 +111,7 @@ class AxisWalkExperiment(Node):
         self.get_logger().info(
             f"Experiment 2b: axis walk | body_z={self.body_z} gait={self.gait_offsets} "
             f"t_sw={self.t_sw} t_st={self.t_st} stride_h={self.stride_height} "
-            f"segments={self.segment_velocities} segment_time={SEGMENT_TIME}"
+            f"segments={self.segment_velocities} segment_time={segment_time}"
         )
         self._enter_phase()
 
@@ -117,7 +123,7 @@ class AxisWalkExperiment(Node):
         cli.call_async(req)
 
     def _enter_phase(self):
-        name = PHASES[self.phase_idx][0]
+        name = self.phases[self.phase_idx][0]
 
         if name == "WALK":
             self.segment_idx += 1
@@ -147,7 +153,7 @@ class AxisWalkExperiment(Node):
         return tuple(a + k * (b - a) for a, b in zip(v_from, v_to))
 
     def timer_callback(self):
-        name, duration = PHASES[self.phase_idx]
+        name, duration = self.phases[self.phase_idx]
 
         self.cmd_vel_msg.linear.x, self.cmd_vel_msg.linear.y = self._ref_velocity(name)
         self.gait_params_msg.standing = name not in ("STEP_BEFORE", "WALK", "STOP", "STEP_AFTER")
@@ -162,7 +168,7 @@ class AxisWalkExperiment(Node):
 
         self.phase_time = 0.0
         self.phase_idx += 1
-        if self.phase_idx == len(PHASES):
+        if self.phase_idx == len(self.phases):
             self.get_logger().info("Experiment finished")
             self.timer.cancel()
             self.finished = True

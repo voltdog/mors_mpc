@@ -149,6 +149,13 @@ std::string fault_text(const std::optional<SafetyFault>& fault) {
     return fault ? fault->code + ": " + fault->description : std::string{};
 }
 
+StandupConfig load_standup_config(const std::filesystem::path& config_path) {
+    const auto path = config_path / "action_controller.yaml";
+    if (!std::filesystem::exists(path)) return {};
+    const auto config = YAML::LoadFile(path.string());
+    return {config["action1_kp"].as<double>(), config["action1_kd"].as<double>()};
+}
+
 } // namespace
 
 LocomotionNode::LocomotionNode() : LocomotionNode(config_directory()) {}
@@ -159,18 +166,24 @@ LocomotionNode::LocomotionNode(const std::filesystem::path& config_path)
 LocomotionNode::LocomotionNode(const std::filesystem::path& config_path, const YAML::Node& robot_config)
     : period_(load_period(config_path)),
       safety_monitor_(load_safety_monitor(robot_config)),
+      exchanger_(config_path),
+      controller_(config_path, exchanger_),
       transition_monitor_(load_transition_config(robot_config["fsm_locomotion"])),
       fsm_(safety_monitor_, &status_, &controller_, &readiness_checker_,
-           load_gait_stop_config(robot_config["fsm_locomotion"])),
-      exchanger_(config_path) 
+           load_gait_stop_config(robot_config["fsm_locomotion"]), load_standup_config(config_path))
 {
-    exchanger_.start_exchanger();
     controller_.start_thread();
+    try {
+        exchanger_.start_exchanger([this](const RobotStateSnapshot& state) { controller_.set_robot_state(state); });
+    } catch (...) {
+        exchanger_.stop_exchanger();
+        throw;
+    }
 }
 
 LocomotionNode::~LocomotionNode() {
-    exchanger_.stop_exchanger();
     controller_.stop_thread();
+    exchanger_.stop_exchanger();
 }
 
 std::chrono::steady_clock::duration LocomotionNode::period() const 
@@ -327,6 +340,7 @@ void LocomotionNode::select_effective_mode(LocomotionSetpoints& setpoints, const
         }
         // Во время остановки походки сохраняем текущий режим вплоть до выхода из LOCOMOTION.
         setpoints.mode = locomotion_mode_;
+        if (transition_monitor_.standing_xy()) controller_.set_standing_xy(*transition_monitor_.standing_xy());
     }
     if (target && target != fsm_.target_state) {
         fsm_.request_state(*target);
@@ -336,22 +350,22 @@ void LocomotionNode::select_effective_mode(LocomotionSetpoints& setpoints, const
 void LocomotionNode::step() {
     const auto previous_state = fsm_.state_id;
     const auto mode_commands = exchanger_.take_mode_commands();
-    const auto observation = exchanger_.get_robot_state();
+    const auto observation = controller_.robot_state();
     auto setpoints = exchanger_.get_setpoints();
     const double now_s = monotonic_seconds();
 
+    if (setpoints.robot_cmd_received_at_s && *setpoints.robot_cmd_received_at_s <= last_reset_s_)
+        setpoints.robot_cmd_received_at_s.reset();
     update_status(observation, now_s);
     process_mode_commands(mode_commands);
 
     const bool telemetry_valid = observation && !status_.safety.telemetry_fault;
     const auto* estimate = telemetry_valid && !status_.safety.joint_fault ? &observation->body : nullptr;
-    if (telemetry_valid) {
-        controller_.set_robot_state(observation->body, observation->legs);
-    }
 
     select_effective_mode(setpoints, estimate, now_s);
     fsm_.update(setpoints);
     if (fsm_.state_id != previous_state) {
+        if (fsm_.state_id == StateID::IDLE) last_reset_s_ = now_s;
         transition_monitor_.on_state_entered(fsm_.state_id, estimate);
         if (fsm_.state_id != StateID::LOCOMOTION) {
             locomotion_mode_ = LocomotionMode::WALKING;

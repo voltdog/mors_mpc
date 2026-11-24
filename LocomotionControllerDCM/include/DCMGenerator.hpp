@@ -28,6 +28,9 @@ public:
                   std::vector<Eigen::Vector3d>& d_x_com_traj,
                   std::vector<Eigen::Vector3d>& dd_x_com_traj);
 
+    const std::vector<Eigen::Vector3d>& getDcmTrajectory() const { return dcm_d; }
+    const std::vector<Eigen::Vector3d>& getDesiredVrpPoints() const { return r_vrp_d; }
+    const std::vector<Eigen::Vector3d>& getSupportPoints() const { return r_f; }
 
 private:
     std::optional<Eigen::Vector2d> segment_intersection(const Eigen::Vector2d& p1,

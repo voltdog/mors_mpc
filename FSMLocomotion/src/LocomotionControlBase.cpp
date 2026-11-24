@@ -36,7 +36,7 @@ void LocomotionControlBase::set_wbc_cmd(const WbcDesiredCommand&)
     // Заглушка передачи команды WBC-контроллеру.
 }
 
-void LocomotionControlBase::set_joints_cmd(const JointVector&) 
+void LocomotionControlBase::set_joints_cmd(const JointCommand&)
 {
     assert(input_mode == 3);
     // Заглушка передачи команды приводам.
@@ -58,9 +58,16 @@ void LocomotionControlBase::set_active_legs(const std::vector<bool>&)
     // Заглушка выбора активных ног.
 }
 
-void LocomotionControlBase::set_robot_state(const RobotData&, const LegData&) 
+void LocomotionControlBase::set_robot_state(const RobotStateSnapshot& state)
 {
-    // Заглушка передачи состояния робота.
+    const std::lock_guard lock(state_mutex_);
+    observation_ = state;
+}
+
+std::optional<RobotStateSnapshot> LocomotionControlBase::robot_state() const
+{
+    const std::lock_guard lock(state_mutex_);
+    return observation_;
 }
 
 void LocomotionControlBase::start_thread()

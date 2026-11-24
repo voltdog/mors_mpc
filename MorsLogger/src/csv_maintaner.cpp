@@ -1,4 +1,33 @@
 #include "csv_maintaner.hpp"
+#include "mors_msgs/dcm_debug_msg.hpp"
+#include "mors_msgs/dcm_com_trajectory_msg.hpp"
+#include "mors_msgs/footsteps_msg.hpp"
+
+#include <algorithm>
+#include <array>
+#include <iomanip>
+#include <limits>
+#include <locale>
+#include <sstream>
+#include <utility>
+
+namespace {
+
+constexpr int debug_csv_precision = std::numeric_limits<double>::max_digits10;
+
+void openDebugCsv(std::ofstream& csv, const std::string& path, const char* header)
+{
+    csv.open(path);
+    if (!csv)
+    {
+        std::cerr << "[MorsLogger] Failed to open " << path << '\n';
+        return;
+    }
+    csv.imbue(std::locale::classic());
+    csv << std::setprecision(debug_csv_precision) << header << '\n' << std::flush;
+}
+
+} // namespace
 
 CSVMaintainer::CSVMaintainer(bool debug_mode, const string& log_root)
     : log_root(log_root), debug_mode(debug_mode)
@@ -153,7 +182,79 @@ void CSVMaintainer::init()
     if (debug_mode)
     {
         create_csv(phase_sig_csv, phase_sig_head, phase_sig_addr);
+        openDebugCsv(dcm_debug_csv, log_folder + "dcm_debug.csv",
+                     "time,t,dcm_d_x,dcm_d_y,dcm_d_z,r_vrp_d_x,r_vrp_d_y,r_vrp_d_z,r_f_x,r_f_y,r_f_z");
+        openDebugCsv(dcm_com_trajectory_csv, log_folder + "dcm_com_trajectory.csv",
+                     "time,t,point_index,x_com_x,x_com_y,x_com_z,d_x_com_x,d_x_com_y,d_x_com_z,"
+                     "dd_x_com_x,dd_x_com_y,dd_x_com_z,dcm_d_x,dcm_d_y,dcm_d_z,"
+                     "r_vrp_d_x,r_vrp_d_y,r_vrp_d_z,r_f_x,r_f_y,r_f_z");
+        openDebugCsv(footstep_sequence_csv, log_folder + "footstep_sequence.csv",
+                     "time,t,stride_index,r1_pos_x,r1_pos_y,r1_pos_z,l1_pos_x,l1_pos_y,l1_pos_z,"
+                     "r2_pos_x,r2_pos_y,r2_pos_z,l2_pos_x,l2_pos_y,l2_pos_z");
     }
+}
+
+void CSVMaintainer::write_dcm_debug(double time, const mors_msgs::dcm_debug_msg& msg)
+{
+    dcm_debug_csv << time << ',' << msg.t;
+    for (const auto* point : {msg.dcm_d, msg.r_vrp_d, msg.r_f})
+    {
+        dcm_debug_csv << ',' << point[0] << ',' << point[1] << ',' << point[2];
+    }
+    dcm_debug_csv << '\n' << std::flush;
+}
+
+void CSVMaintainer::write_dcm_com_trajectory(double time, const mors_msgs::dcm_com_trajectory_msg& msg)
+{
+    const std::array trajectories{&msg.x_com, &msg.d_x_com, &msg.dd_x_com,
+                                  &msg.dcm_d, &msg.r_vrp_d, &msg.r_f};
+    std::size_t point_count = 0;
+    for (const auto* trajectory : trajectories)
+    {
+        point_count = std::max(point_count, trajectory->size());
+    }
+
+    std::ostringstream rows;
+    rows.imbue(std::locale::classic());
+    rows << std::setprecision(debug_csv_precision);
+    const std::size_t row_count = std::max(point_count, std::size_t{1});
+    for (std::size_t index = 0; index < row_count; ++index)
+    {
+        rows << time << ',' << msg.t << ',';
+        if (point_count > 0)
+        {
+            rows << index;
+        }
+        for (const auto* trajectory : trajectories)
+        {
+            if (index < trajectory->size())
+            {
+                const auto& point = (*trajectory)[index];
+                rows << ',' << point[0] << ',' << point[1] << ',' << point[2];
+            }
+            else
+            {
+                rows << ",,,";
+            }
+        }
+        rows << '\n';
+    }
+    dcm_com_trajectory_csv << std::move(rows).str() << std::flush;
+}
+
+void CSVMaintainer::write_footstep_sequence(double time, const mors_msgs::footsteps_msg& msg)
+{
+    std::size_t stride_index = 0;
+    for (const auto& stride : msg.positions)
+    {
+        footstep_sequence_csv << time << ',' << msg.t << ',' << stride_index++;
+        for (const auto& point : stride)
+        {
+            footstep_sequence_csv << ',' << point[0] << ',' << point[1] << ',' << point[2];
+        }
+        footstep_sequence_csv << '\n';
+    }
+    footstep_sequence_csv.flush();
 }
 
 void CSVMaintainer::create_csv(CSVWriter &csv, const vector<string> &head, string &addr)

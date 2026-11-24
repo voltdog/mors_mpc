@@ -12,4 +12,13 @@ struct dcm_com_trajectory_msg
 
     int32_t dd_x_com_count;
     double dd_x_com[dd_x_com_count][3];
+
+    int32_t dcm_d_count;
+    double dcm_d[dcm_d_count][3];
+
+    int32_t r_vrp_d_count;
+    double r_vrp_d[r_vrp_d_count][3];
+
+    int32_t r_f_count;
+    double r_f[r_f_count][3];
 }

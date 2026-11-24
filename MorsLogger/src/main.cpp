@@ -117,9 +117,22 @@ int main(int argc, char* argv[]) {
         csv.write_robot_cmd(t, body_cmd);
         if (debug_mode)
         {
+            const auto debug = lcmExch.takeLocomotionDebugMessages();
             csv.write_mpc_cmd(t, mpc_robot_cmd);
             csv.write_wbc_cmd(t, wbc_leg_cmd, wbc_robot_cmd);
             csv.write_phase_sig(t, phase, phi);
+            if (debug.dcm_debug)
+            {
+                csv.write_dcm_debug(t, *debug.dcm_debug);
+            }
+            if (debug.dcm_trajectory)
+            {
+                csv.write_dcm_com_trajectory(t, *debug.dcm_trajectory);
+            }
+            if (debug.footsteps)
+            {
+                csv.write_footstep_sequence(t, *debug.footsteps);
+            }
         }
         
         t += module_dt;

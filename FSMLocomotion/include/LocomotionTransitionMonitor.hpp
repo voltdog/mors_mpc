@@ -26,6 +26,7 @@ class LocomotionTransitionMonitor {
 public:
     explicit LocomotionTransitionMonitor(LocomotionTransitionConfig config = {});
 
+    const auto& standing_xy() const { return standing_xy_; }
     bool velocity_is_fresh(const LocomotionSetpoints& setpoints, double now_s) const;
     void on_state_entered(StateID state, const RobotData* estimate);
     // Вызывается в STANDING и LOCOMOTION. Скорость просроченной команды уже обнулена.

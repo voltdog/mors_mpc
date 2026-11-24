@@ -267,16 +267,16 @@ build_ros_workspace() {
 
   (
     cd "$REPO_ROOT/ros_ws"
-    colcon build --symlink-install --packages-select mors_ros_msgs robot_mode_controller mors_keyboard_control robot_state_viewer --cmake-args -Wno-deprecated
+    colcon build --symlink-install --packages-select ros2lcm_bridge mors_ros_msgs robot_mode_controller mors_keyboard_control robot_state_viewer --cmake-args -Wno-deprecated
   )
 }
 
 build_cpp_modules() {
-  log "Building C++ modules (LocomotionController, MorsLogger)..."
+  log "Building C++ modules (FSMLocomotion, MorsLogger, HeightMapBuilder)..."
   log "Using $CPP_NUM_JOBS of $AVAILABLE_CORES available CPU cores for C++ compilation."
 
-  cmake -Wno-deprecated -S "$REPO_ROOT/LocomotionController" -B "$REPO_ROOT/LocomotionController/build" -DCMAKE_BUILD_TYPE=Release
-  cmake --build "$REPO_ROOT/LocomotionController/build" -j "$CPP_NUM_JOBS"
+  cmake -S "$REPO_ROOT/FSMLocomotion" -B "$REPO_ROOT/FSMLocomotion/build" -DCMAKE_BUILD_TYPE=Release
+  cmake --build "$REPO_ROOT/FSMLocomotion/build" -j "$CPP_NUM_JOBS"
 
   cmake -Wno-deprecated -S "$REPO_ROOT/MorsLogger" -B "$REPO_ROOT/MorsLogger/build" -DCMAKE_BUILD_TYPE=Release
   cmake --build "$REPO_ROOT/MorsLogger/build" -j "$CPP_NUM_JOBS"

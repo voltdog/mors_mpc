@@ -490,6 +490,7 @@ int main() {
             // ------------------
             // FOOT STEP GENERATOR
             // ------------------
+            footstep_generator.set_gait_params(t_sw, t_st);
             footstep_generator.generate(phase_signal, 
                                         leg_phi, 
                                         mpc_cmd(8),
@@ -549,16 +550,16 @@ int main() {
 
                 if ((phase_signal[R1] == STANCE || phase_signal[R1] == EARLY_CONTACT) &&
                     (pre_phase_signal[R1] == SWING || pre_phase_signal[R1] == LATE_CONTACT))
-                    p_ref_stance[R1] = leg_cmd.r1_pos;
+                    p_ref_stance[R1] = leg_state.r1_pos;
                 if ((phase_signal[L1] == STANCE || phase_signal[L1] == EARLY_CONTACT) &&
                     (pre_phase_signal[L1] == SWING || pre_phase_signal[L1] == LATE_CONTACT))
-                    p_ref_stance[L1] = leg_cmd.l1_pos;
+                    p_ref_stance[L1] = leg_state.l1_pos;
                 if ((phase_signal[R2] == STANCE || phase_signal[R2] == EARLY_CONTACT) &&
                     (pre_phase_signal[R2] == SWING || pre_phase_signal[R2] == LATE_CONTACT))
-                    p_ref_stance[R2] = leg_cmd.r2_pos;
+                    p_ref_stance[R2] = leg_state.r2_pos;
                 if ((phase_signal[L2] == STANCE || phase_signal[L2] == EARLY_CONTACT) &&
                     (pre_phase_signal[L2] == SWING || pre_phase_signal[L2] == LATE_CONTACT))
-                    p_ref_stance[L2] = leg_cmd.l2_pos;
+                    p_ref_stance[L2] = leg_state.l2_pos;
             }
             else
             {
@@ -695,11 +696,7 @@ int main() {
                 lcmExch.sendWbcCmd(robot_ref, leg_cmd);
                 lcmExch.sendPhaseSig(phase_signal, leg_phi, t);
                 lcmExch.sendFootstepSequence(foot_plan.foot_sequence, t);
-                const auto dcm_com_trajectories = ref_generator.getDcmComTrajectories();
-                lcmExch.sendDcmComTrajectory(dcm_com_trajectories.x_com,
-                                             dcm_com_trajectories.d_x_com,
-                                             dcm_com_trajectories.dd_x_com,
-                                             t);
+                lcmExch.sendDcmTrajectories(ref_generator.getDcmComTrajectories(), t);
             }
 
             t += module_dt;
