@@ -5,6 +5,7 @@
 #include "LocomotionControlBase.hpp"
 #include "ReadinessChecker.hpp"
 #include "SafetyMonitor.hpp"
+#include "actions/laydown.hpp"
 #include "actions/standup.hpp"
 
 #include <map>
@@ -26,7 +27,8 @@ public:
     explicit RobotFSM(SafetyMonitor& safety_monitor, RobotStatus* status = nullptr,
                       LocomotionControlBase* controller = nullptr,
                       ReadinessChecker* readiness_checker = nullptr, GaitStopConfig gait_stop = {},
-                      StandupConfig standup = {});
+                      StandupConfig standup = {}, LaydownConfig laydown = {},
+                      LocomotionAccelerationConfig acceleration = {});
     RobotFSM(const RobotFSM&) = delete;
     RobotFSM& operator=(const RobotFSM&) = delete;
     RobotFSM(RobotFSM&&) = delete;
@@ -48,6 +50,7 @@ public:
     StateID state_id = StateID::IDLE;
 
 private:
+    friend class LaydownState;
     friend class StandupState;
     void enter_failure(const SafetyFault& fault);
     bool transition_to(StateID next_state);

@@ -7,7 +7,8 @@
 namespace mors::fsm {
 namespace {
 
-constexpr double fold_s = 0.5;
+constexpr double gain_ramp_s = 0.4;
+constexpr double prepare_hold_s = 0.2;
 constexpr double contact_motion_s = 0.5;
 constexpr double contact_timeout_s = 1.0;
 constexpr double contact_hold_s = 0.03;
@@ -27,6 +28,20 @@ bool all_contacts(const RobotStateSnapshot& state) {
            std::ranges::all_of(state.legs.contacts, [](bool contact) { return contact; });
 }
 
+bool belly_down(const Eigen::Vector3d& orientation) {
+    return std::cos(orientation.x()) * std::cos(orientation.y()) > 1e-6;
+}
+
+bool is_x_pose(const JointVector& position) {
+    for (int leg = 0; leg < NUM_LEGS; ++leg) {
+        const double sign = hip_sign[leg];
+        if (!(sign * position(3 * leg + 1) > 0.0 && sign * position(3 * leg + 2) < 0.0)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 struct Ramp { double position, velocity; };
 
 Ramp cubic(double elapsed, double duration) {
@@ -42,6 +57,9 @@ StandupAction::StandupAction(LocomotionControlBase& controller, StandupConfig co
         !std::isfinite(config_.kd) || config_.kd < 0.0) {
         throw std::invalid_argument("Invalid standup joint gains");
     }
+    if (!std::isfinite(config_.max_joint_speed_rad_s) || config_.max_joint_speed_rad_s <= 0.0) {
+        throw std::invalid_argument("Invalid standup joint speed limit");
+    }
 }
 
 void StandupAction::reset() {
@@ -51,6 +69,7 @@ void StandupAction::reset() {
     stable_since_s_.reset();
     contact_confirmed_at_s_.reset();
     lost_support_at_s_.reset();
+    prep_segment_ = 0;
     extension_s_.fill(0.0);
 }
 
@@ -81,58 +100,103 @@ StandupAction::Result StandupAction::step(const LocomotionSetpoints& setpoints,
         return SafetyFault{"STANDUP_STATE", "Invalid standup observation", now};
     }
 
-    if (phase_ == Phase::start || phase_ == Phase::fold || phase_ == Phase::contact) {
+    if (phase_ == Phase::start) {
+        if (!entry_state_->joints.position.allFinite() || !belly_down(entry_state_->body.orientation)) {
+            return SafetyFault{"STANDUP_POSE", "Standup requires a belly-down pose with valid joint angles", now};
+        }
+
+        auto& [initial, abad_raised, hips_rotated, abad_lowered, folded] = prep_poses_;
+        initial = entry_state_->joints.position;
+        for (int leg = 0; leg < NUM_LEGS; ++leg) {
+            const int joint = 3 * leg;
+            const double sign = hip_sign[leg];
+            const double abad = sign * STANDUP_ABAD_RAISED_RAD;
+            const double hip = sign * STANDUP_HIP_RAISED_RAD;
+            const double knee = -sign * STANDUP_KNEE_RAISED_RAD;
+            abad_raised.segment<3>(joint) << abad, initial(joint + 1), knee;
+            hips_rotated.segment<3>(joint) << abad, hip, knee;
+            abad_lowered.segment<3>(joint) << 0.0, hip, knee;
+            folded.segment<3>(joint) << 0.0, sign * STANDUP_HIP_FOLDED_RAD, -sign * STANDUP_KNEE_FOLDED_RAD;
+        }
+
+        JointCommand command;
+        command.position = initial;
+        controller_.set_data_input_mode(LocomotionControlBase::joints_input);
+        controller_.set_joints_cmd(command);
+        phase_ = Phase::gains;
+        phase_start_s_ = now;
+        return Progress::running;
+    }
+
+    if (phase_ == Phase::gains) {
+        const double gain = std::min(elapsed / gain_ramp_s, 1.0);
+        JointCommand command;
+        command.position = prep_poses_.front();
+        command.kp.setConstant(gain * config_.kp);
+        command.kd.setConstant(gain * config_.kd);
+        controller_.set_joints_cmd(command);
+        if (elapsed >= gain_ramp_s) {
+            if (is_x_pose(command.position)) {
+                prep_poses_.back() = command.position;
+                phase_ = Phase::contact;
+            } else {
+                phase_ = Phase::prepare;
+            }
+            phase_start_s_ = now;
+        }
+        return Progress::running;
+    }
+
+    if (phase_ == Phase::prepare_hold) {
+        if (elapsed >= prepare_hold_s) {
+            phase_ = Phase::prepare;
+            phase_start_s_ = now;
+        }
+        return Progress::running;
+    }
+
+    if (phase_ == Phase::prepare) {
+        const auto& from = prep_poses_[prep_segment_];
+        const auto& target = prep_poses_[prep_segment_ + 1];
+        const JointVector delta = target - from;
+        const double duration = 1.5 * (delta.cwiseAbs().maxCoeff() / config_.max_joint_speed_rad_s);
+        if (!std::isfinite(duration)) {
+            return SafetyFault{"STANDUP_STATE", "Invalid standup trajectory duration", now};
+        }
+
         JointCommand command;
         command.kp.setConstant(config_.kp);
         command.kd.setConstant(config_.kd);
-        JointVector folded;
-        for (int leg = 0; leg < NUM_LEGS; ++leg) {
-            const double direction = hip_sign[leg];
-            folded.segment<3>(3 * leg) << 0.0, direction * 1.57, -direction * 2.9;
-        }
-
-        if (phase_ == Phase::start) {
-            const auto& q = entry_state_->joints.position;
-            const auto& tilt = entry_state_->body.orientation;
-            if (!q.allFinite() || !(std::cos(tilt.x()) * std::cos(tilt.y()) > 0.0)) {
-                return SafetyFault{"STANDUP_POSE", "Standup requires an upright X pose", now};
-            }
-            for (int leg = 0; leg < NUM_LEGS; ++leg) {
-                if (hip_sign[leg] * q(3 * leg + 1) <= 0.0 || hip_sign[leg] * q(3 * leg + 2) >= 0.0) {
-                    return SafetyFault{"STANDUP_POSE", "Standup requires an upright X pose", now};
-                }
-            }
-            controller_.set_data_input_mode(LocomotionControlBase::joints_input);
-            command.position = q;
-            controller_.set_joints_cmd(command);
-            phase_ = Phase::fold;
-            phase_start_s_ = now;
-            return Progress::running;
-        }
-
-        if (phase_ == Phase::fold) {
-            const Ramp ramp = cubic(elapsed, fold_s);
-            const JointVector delta = folded - entry_state_->joints.position;
-            command.position = entry_state_->joints.position + ramp.position * delta;
+        if (elapsed < duration) {
+            const Ramp ramp = cubic(elapsed, duration);
+            command.position = from + ramp.position * delta;
             command.velocity = ramp.velocity * delta;
-            controller_.set_joints_cmd(command);
-            if (elapsed >= fold_s) {
-                phase_ = Phase::contact;
-                phase_start_s_ = now;
-            }
-            return Progress::running;
+        } else {
+            command.position = target;
+            ++prep_segment_;
+            phase_ = prep_segment_ + 1 < prep_poses_.size() ? Phase::prepare_hold : Phase::contact;
+            phase_start_s_ = now;
         }
+        controller_.set_joints_cmd(command);
+        return Progress::running;
+    }
 
+    if (phase_ == Phase::contact) {
         if (elapsed >= contact_timeout_s) {
             return SafetyFault{"STANDUP_CONTACT_TIMEOUT", "Four support contacts were not confirmed", now};
         }
-        command.position = folded;
+        JointCommand command;
+        command.kp.setConstant(config_.kp);
+        command.kd.setConstant(config_.kd);
+        command.position = prep_poses_.back();
         for (int leg = 0; leg < NUM_LEGS; ++leg) {
             const bool touching = state->legs.contacts[leg];
             if (!touching) extension_s_[leg] = std::min(extension_s_[leg] + dt, contact_motion_s);
             const Ramp ramp = cubic(extension_s_[leg], contact_motion_s);
-            const Eigen::Vector2d delta = hip_sign[leg] * Eigen::Vector2d(-0.17, 0.10);
-            command.position.segment<2>(3 * leg + 1) += ramp.position * delta;
+            auto angles = command.position.segment<2>(3 * leg + 1);
+            const Eigen::Vector2d extension = (0.5 * angles.cwiseAbs()).cwiseMin(Eigen::Vector2d(0.17, 0.10));
+            const Eigen::Vector2d delta = hip_sign[leg] * Eigen::Vector2d(-extension.x(), extension.y());
+            angles += ramp.position * delta;
             if (!touching) command.velocity.segment<2>(3 * leg + 1) = ramp.velocity * delta;
         }
         controller_.set_joints_cmd(command);
@@ -148,6 +212,9 @@ StandupAction::Result StandupAction::step(const LocomotionSetpoints& setpoints,
         const auto support = supported_state(*contact_confirmed_at_s_);
         if (!support) return Progress::running;
         if (joint_fault) return *joint_fault;
+        if (!belly_down(support->body.orientation) || !is_x_pose(support->joints.position)) {
+            return SafetyFault{"STANDUP_POSE", "Standup requires a belly-down X pose before body lift", now};
+        }
 
         double support_z = 0.0;
         for (auto foot : feet) {

@@ -114,6 +114,18 @@ GaitStopConfig load_gait_stop_config(const YAML::Node& section) {
         config.linear_mps = read_setting(stop, "linear_mps", config.linear_mps);
         config.yaw_radps = read_setting(stop, "yaw_radps", config.yaw_radps);
         config.hold_s = read_setting(stop, "hold_s", config.hold_s);
+        config.linear_decel_mps2 = read_setting(stop, "linear_decel_mps2", config.linear_decel_mps2);
+        config.yaw_decel_radps2 = read_setting(stop, "yaw_decel_radps2", config.yaw_decel_radps2);
+    }
+    return config;
+}
+
+LocomotionAccelerationConfig load_acceleration_config(const YAML::Node& section) {
+    LocomotionAccelerationConfig config;
+    if (section) {
+        const auto limits = section["acceleration_limits"];
+        config.linear_mps2 = read_setting(limits, "linear_mps2", config.linear_mps2);
+        config.yaw_radps2 = read_setting(limits, "yaw_radps2", config.yaw_radps2);
     }
     return config;
 }
@@ -150,10 +162,28 @@ std::string fault_text(const std::optional<SafetyFault>& fault) {
 }
 
 StandupConfig load_standup_config(const std::filesystem::path& config_path) {
+    StandupConfig standup;
     const auto path = config_path / "action_controller.yaml";
-    if (!std::filesystem::exists(path)) return {};
-    const auto config = YAML::LoadFile(path.string());
-    return {config["action1_kp"].as<double>(), config["action1_kd"].as<double>()};
+    if (std::filesystem::exists(path)) {
+        const auto config = YAML::LoadFile(path.string());
+        standup.kp = config["action1_kp"].as<double>();
+        standup.kd = config["action1_kd"].as<double>();
+    }
+    const auto config = YAML::LoadFile((config_path / "locomotion_controller.yaml").string());
+    standup.max_joint_speed_rad_s = read_setting(config["standup"], "max_joint_speed_rad_s",
+                                                standup.max_joint_speed_rad_s);
+    return standup;
+}
+
+LaydownConfig load_laydown_config(const std::filesystem::path& config_path) {
+    LaydownConfig laydown;
+    const auto path = config_path / "action_controller.yaml";
+    if (std::filesystem::exists(path)) {
+        const auto config = YAML::LoadFile(path.string());
+        laydown.kp = read_setting(config, "action2_kp", laydown.kp);
+        laydown.kd = read_setting(config, "action2_kd", laydown.kd);
+    }
+    return laydown;
 }
 
 } // namespace
@@ -170,7 +200,8 @@ LocomotionNode::LocomotionNode(const std::filesystem::path& config_path, const Y
       controller_(config_path, exchanger_),
       transition_monitor_(load_transition_config(robot_config["fsm_locomotion"])),
       fsm_(safety_monitor_, &status_, &controller_, &readiness_checker_,
-           load_gait_stop_config(robot_config["fsm_locomotion"]), load_standup_config(config_path))
+           load_gait_stop_config(robot_config["fsm_locomotion"]), load_standup_config(config_path),
+           load_laydown_config(config_path), load_acceleration_config(robot_config["fsm_locomotion"]))
 {
     controller_.start_thread();
     try {
@@ -195,6 +226,7 @@ void LocomotionNode::update_status(const std::optional<RobotStateSnapshot>& obse
 {
     status_.safety = safety_monitor_.evaluate(observation, now_s);
     status_.ready_to_move = readiness_checker_.is_ready(status_, now_s);
+    status_.robot_state_received_at_s = observation ? std::optional{observation->received_at_s} : std::nullopt;
     if (!observation)
         return;
 

@@ -9,6 +9,7 @@
 #include <optional>
 #include <mutex>
 #include <thread>
+#include <vector>
 #include <Eigen/Dense>
 #include <lcm/lcm-cpp.hpp>
  
@@ -135,6 +136,8 @@ class LCMExchanger
         mors_msgs::dcm_com_trajectory_msg dcmComTrajectoryMsg;
 
         std::function<void(const RobotStateSnapshot&)> receive_state_;
+        // Исходные углы колен в порядке R1, L1, R2, L2.
+        std::vector<double> raw_knee_positions_;
         mors::fsm::LocomotionSetpoints setpoints;
         std::vector<mors_msgs::robot_mode_cmd_msg> robot_mode_cmd_queue;
         VisionBasedMap vision_map;
@@ -148,6 +151,7 @@ class LCMExchanger
         mutable std::mutex gait_params_mutex;
         mutable std::mutex heightmap_mutex;
         std::mutex robot_mode_cmd_mutex;
+        std::mutex raw_knee_positions_mutex_;
 };
 
 } // namespace mors::fsm

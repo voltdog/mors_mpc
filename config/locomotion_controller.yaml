@@ -1,5 +1,9 @@
 algorithm: "vision" # wbic vision dcm
 vel_cmd_frame: "local" # local global - СК, в которой задана команда линейной скорости
+kd_idle: 0.4
+
+standup:
+  max_joint_speed_rad_s: 1.0  # лимит суставной траектории подготовки, рад/с
 
 recovery:
   t_sw: 0.20  # с

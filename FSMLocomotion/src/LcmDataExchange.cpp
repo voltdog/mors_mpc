@@ -3,6 +3,7 @@
 #include "FSM/FSMTypes.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <Eigen/Geometry>
 #include <limits>
@@ -28,6 +29,15 @@ constexpr uint16_t kHeightCellValidMask = static_cast<uint16_t>(1u << 15);
 constexpr uint16_t kHeightCellClassMask = static_cast<uint16_t>(0x3u << 13);
 constexpr uint16_t kHeightCellHeightMask = static_cast<uint16_t>(0x1FFFu);
 constexpr int kReceiveTimeoutMs = 50;
+constexpr int kKneeOffset = 2;
+
+double normalize_angle(double angle)
+{
+    angle = std::remainder(angle, 2.0 * M_PI);
+    if (angle >= M_PI)
+        angle -= 2.0 * M_PI;
+    return angle;
+}
 
 } // namespace
 
@@ -48,7 +58,8 @@ LCMExchanger::LCMExchanger(const std::filesystem::path& config_path)
           for (const char* name : {"LCM_SERVO_URL", "LCM_DEFAULT_URL"})
               if (const char* url = std::getenv(name); url && *url) return std::string(url);
           return get_locomotion_url();
-      }())
+      }()),
+      raw_knee_positions_(NUM_LEGS, std::numeric_limits<double>::quiet_NaN())
 {
     if (!(robot_cmd_subscriber.good() && robot_state_subscriber.good() &&
           gait_params_subscriber.good() && heightmap_subscriber.good() &&
@@ -198,6 +209,15 @@ void LCMExchanger::robotStateHandler(const lcm::ReceiveBuffer*,
         servo_state.velocity(i) = msg->joints.velocity[i];
         servo_state.torque(i) = msg->joints.torque[i];
     }
+    {
+        std::lock_guard lock(raw_knee_positions_mutex_);
+        for (std::size_t leg = 0; leg < raw_knee_positions_.size(); ++leg) {
+            const Eigen::Index joint = leg * mors::wbic::kLegDofs + kKneeOffset;
+            const double angle = servo_state.position(joint);
+            raw_knee_positions_[leg] = angle;
+            servo_state.position(joint) = normalize_angle(angle);
+        }
+    }
     std::copy_n(msg->readiness, state.readiness.size(), state.readiness.begin());
 
     receive_state_(state);
@@ -327,6 +347,23 @@ void LCMExchanger::sendServoCmd(const JointCommand& command, const JointVector12
         msg.torque[i] = actuator_torque[i];
         msg.kp[i] = command.kp[i];
         msg.kd[i] = command.kd[i];
+    }
+    {
+        std::lock_guard lock(raw_knee_positions_mutex_);
+        for (std::size_t leg = 0; leg < raw_knee_positions_.size(); ++leg) {
+            const Eigen::Index joint = leg * mors::wbic::kLegDofs + kKneeOffset;
+            if (msg.kp[joint] == 0.0f)
+                continue;
+
+            const double measured = raw_knee_positions_[leg];
+            const double target = command.position[joint];
+            if (std::isfinite(measured) && std::isfinite(target)) {
+                msg.position[joint] = measured + normalize_angle(target - measured);
+            } else {
+                msg.position[joint] = 0.0f;
+                msg.kp[joint] = 0.0f;
+            }
+        }
     }
     servo_publisher_.publish(servo_channel_, &msg);
 }

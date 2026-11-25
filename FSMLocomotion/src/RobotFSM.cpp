@@ -53,7 +53,7 @@ bool checks_joint_limits(StateID state) {
 
 RobotFSM::RobotFSM(SafetyMonitor& safety_monitor, RobotStatus* status,
                    LocomotionControlBase* controller, ReadinessChecker* readiness_checker, GaitStopConfig gait_stop,
-                   StandupConfig standup)
+                   StandupConfig standup, LaydownConfig laydown, LocomotionAccelerationConfig acceleration)
     : owned_status_(status ? nullptr : std::make_unique<RobotStatus>()),
       owned_controller_(controller ? nullptr : std::make_unique<LocomotionControlBase>()),
       owned_readiness_checker_(readiness_checker ? nullptr
@@ -66,8 +66,8 @@ RobotFSM::RobotFSM(SafetyMonitor& safety_monitor, RobotStatus* status,
     states_.emplace(StateID::IDLE, std::make_unique<IdleState>(*this));
     states_.emplace(StateID::STANDUP, std::make_unique<StandupState>(*this, standup));
     states_.emplace(StateID::STANDING, std::make_unique<StandingState>(*this));
-    states_.emplace(StateID::LOCOMOTION, std::make_unique<LocomotionState>(*this, gait_stop));
-    states_.emplace(StateID::LAYDOWN, std::make_unique<LaydownState>(*this));
+    states_.emplace(StateID::LOCOMOTION, std::make_unique<LocomotionState>(*this, gait_stop, acceleration));
+    states_.emplace(StateID::LAYDOWN, std::make_unique<LaydownState>(*this, laydown));
     states_.emplace(StateID::ACTION, std::make_unique<ActionState>(*this));
     states_.emplace(StateID::EXTERNAL, std::make_unique<ExternalState>(*this));
     states_.emplace(StateID::FAILURE, std::make_unique<FailureState>(*this));

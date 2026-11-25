@@ -11,6 +11,7 @@ struct VisionConfig {
 
     RobotPhysicalParams robot{};
     WBICThreadConfig wbic;
+    float kd_idle;
     double touchdown_phase, contact_velocity, transition_s;
     int contact_debounce;
     double filter_hz, zero_velocity, foot_radius;

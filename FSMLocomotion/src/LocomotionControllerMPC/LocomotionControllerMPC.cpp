@@ -75,6 +75,7 @@ struct LocomotionControllerMPC::Impl {
         mpc.set_physical_params(config.robot);
         mpc.set_mpc_params(config.mpc_dt, config.horizon, config.friction, config.f_min, config.f_max,
                            config.Q, config.R);
+        idle_command.kd.setConstant(config.kd_idle);
     }
 
     void publish(const JointCommand& command) {
@@ -92,6 +93,7 @@ struct LocomotionControllerMPC::Impl {
     std::uint64_t generation = 0;
     std::optional<WbcDesiredCommand> desired;
     JointCommand joints;
+    JointCommand idle_command;
     std::optional<Clock::time_point> handoff_deadline;
     std::optional<SafetyFault> fault;
     bool stopped = false;
@@ -142,7 +144,7 @@ void LocomotionControllerMPC::disable_outputs() {
     c.fault.reset();
     c.mpc.reset();
     // Тот же mutex охватывает последнюю проверку разрешения и реальный publish().
-    c.publish({});
+    c.publish(c.idle_command);
 }
 
 void LocomotionControllerMPC::enable_outputs() {
@@ -269,7 +271,7 @@ void LocomotionControllerMPC::check_deadline() {
         LocomotionControlBase::disable_outputs();
         c.handoff_deadline.reset();
         c.fault = SafetyFault{"WBIC_HANDOFF_TIMEOUT", "First WBIC command timed out", monotonic_seconds()};
-        c.publish({});
+        c.publish(c.idle_command);
     }
 }
 
@@ -313,7 +315,9 @@ void LocomotionControllerMPC::wbic_tick() {
         c.handoff_deadline.reset();
         c.publish(*result);
         if (c.config.wbic.debug_mode) c.exchange.sendWbcState(c.wbic.forces());
-    } else if (outputs_enabled() && (c.source == joints_input || c.handoff_deadline)) {
+    } else if (!outputs_enabled()) {
+        c.publish(c.idle_command);
+    } else if (c.source == joints_input || c.handoff_deadline) {
         c.publish(c.joints);
     } else {
         c.publish({});

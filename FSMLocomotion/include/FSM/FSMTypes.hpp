@@ -63,6 +63,13 @@ struct GaitStopConfig {
     double linear_mps = 0.05;
     double yaw_radps = 0.10;
     double hold_s = 0.30;
+    double linear_decel_mps2 = 0.5;
+    double yaw_decel_radps2 = 1.0;
+};
+
+struct LocomotionAccelerationConfig {
+    double linear_mps2 = 0.5;
+    double yaw_radps2 = 1.0;
 };
 
 struct RobotStatus {
@@ -72,6 +79,7 @@ struct RobotStatus {
     double vx = 0.0;        // м/с, в системе координат корпуса.
     double vy = 0.0;        // м/с.
     double yaw_rate = 0.0;  // рад/с.
+    std::optional<double> robot_state_received_at_s;
     std::array<bool, 4> contacts{};
     bool gait_stopped = false;
 };

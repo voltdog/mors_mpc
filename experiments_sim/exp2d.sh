@@ -13,8 +13,8 @@ KIN_SCHEME="><"         # >> | << | >< | <> -> init_motor_angles
 # ROS parameters of exp2d (must be float literals, e.g. 1.0, not 1)
 BODY_Z=0.2
 GAIT_OFFSETS="[0.0, 0.5, 0.5, 0.0]"
-T_SW=0.26 # ><: vision 0.28 | dcm 0.32  || <<: vision 0.26 | dcm 0.32  || >>: vision 0.26 | dcm 0.32
-T_ST=0.5
+T_SW=0.23 # ><: vision 0.23 | dcm 0.28  || <<: vision 0.26 | dcm 0.32  || >>: vision 0.26 | dcm 0.32
+T_ST=0.4
 STRIDE_HEIGHT=0.04
 REF_VELOCITY_X=0.3      # m/s
 REF_VELOCITY_Y=0.0      # m/s
@@ -53,5 +53,5 @@ max_duration="$(awk -v w="$WALK_TIME" -v r="$RAMP_TIME" 'BEGIN { print 12.5 + w 
 gait="$(tr -d '[] ' <<< "$GAIT_OFFSETS" | tr ',' '_')"
 
 run_experiment exp2d \
-    "${ALGORITHM}_${VEL_CMD_FRAME}_z${BODY_Z}_g${gait}_tsw${T_SW}_tst${T_ST}_h${STRIDE_HEIGHT}_vx${REF_VELOCITY_X}_vy${REF_VELOCITY_Y}_wz${REF_VELOCITY_Z}_walk${WALK_TIME}_ramp${RAMP_TIME}" \
+    "${ALGORITHM}_tsw${T_SW}_tst${T_ST}_z${BODY_Z}_h${STRIDE_HEIGHT}_vx${REF_VELOCITY_X}_wz${REF_VELOCITY_Z}_walk${WALK_TIME}_ramp${RAMP_TIME}" \
     "$max_duration" "${ros_params[@]}"

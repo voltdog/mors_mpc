@@ -1,3 +1,4 @@
+import math
 import os
 import select
 import signal
@@ -16,15 +17,23 @@ except ModuleNotFoundError:
     sys.exit(77)
 
 
+STANDUP_TIMEOUT = 8.0
+STANDUP_POSE = (
+    0.0, -1.57, 2.9, 0.0, 1.57, -2.9,
+    0.0, 1.57, -2.9, 0.0, -1.57, 2.9,
+)
+
+
 class NodeTest:
     def __init__(self, url, node):
         self.bus = lcm.LCM(url)
         self.node = node
         self.states = deque(maxlen=1000)
         self.results = deque()
-        self.nonzero_cmds = 0
-        self.last_servo_zero = False
+        self.non_damping_cmds = 0
+        self.last_servo_damped = False
         self.servo_cmds = 0
+        self.servo_trace = None
         self.bus.subscribe("ROBOT_MODE_STATE", lambda _, data: self.states.append(State.decode(data)))
         self.bus.subscribe("ROBOT_MODE_RESULT", lambda _, data: self.results.append(Result.decode(data)))
         self.bus.subscribe("SERVO_CMD", self.receive_servo_cmd)
@@ -34,10 +43,7 @@ class NodeTest:
         self.robot_state = RobotState()
         self.robot_state.body.orientation_quaternion = [0.0, 0.0, 0.0, 1.0]
         self.robot_state.body.position[2] = 0.20
-        self.robot_state.joints.position = [
-            0.0, -1.57, 2.9, 0.0, 1.57, -2.9,
-            0.0, 1.57, -2.9, 0.0, -1.57, 2.9,
-        ]
+        self.robot_state.joints.position = list(STANDUP_POSE)
         self.robot_state.legs.r1_pos = [0.18, -0.13, 0.0]
         self.robot_state.legs.l1_pos = [0.18, 0.13, 0.0]
         self.robot_state.legs.r2_pos = [-0.18, -0.13, 0.0]
@@ -47,10 +53,14 @@ class NodeTest:
 
     def receive_servo_cmd(self, _channel, data):
         cmd = ServoCommand.decode(data)
-        self.last_servo_zero = not any(any(getattr(cmd, field))
-                                       for field in ("position", "velocity", "torque", "kp", "kd"))
-        if not self.last_servo_zero:
-            self.nonzero_cmds += 1
+        if self.servo_trace is not None:
+            self.servo_trace.append((time.monotonic(), cmd))
+        self.last_servo_damped = (
+            not any(any(getattr(cmd, field)) for field in ("position", "velocity", "torque", "kp"))
+            and all(math.isclose(kd, 0.4, rel_tol=0.0, abs_tol=1e-6) for kd in cmd.kd)
+        )
+        if not self.last_servo_damped:
+            self.non_damping_cmds += 1
         self.servo_cmds += 1
 
     def pump(self):
@@ -92,6 +102,13 @@ class NodeTest:
         assert self.states, "No mode state messages"
         assert all(state.current_state == expected for state in self.states)
 
+    def remains_damped(self, state, seconds):
+        self.wait_for(lambda: self.last_servo_damped, "damping SERVO_CMD")
+        before, non_damping = self.servo_cmds, self.non_damping_cmds
+        self.remains_in(state, seconds)
+        assert self.servo_cmds > before + 10
+        assert self.non_damping_cmds == non_damping
+
     def effective(self, current, target):
         self.wait_for(
             lambda: self.states and
@@ -112,8 +129,8 @@ class NodeTest:
         msg.target = target
         self.bus.publish("ROBOT_MODE_CMD", msg.encode())
 
-    def result(self, command, expected, reason=None):
-        self.wait_for(lambda: self.results, f"result {expected} for command {command}", timeout=4.0)
+    def result(self, command, expected, reason=None, *, timeout=4.0):
+        self.wait_for(lambda: self.results, f"result {expected} for command {command}", timeout=timeout)
         result = self.results.popleft()
         assert (result.command, result.result) == (command, expected), (
             result.command, result.result, result.reason, command, expected
@@ -123,10 +140,10 @@ class NodeTest:
         if reason:
             assert reason in result.reason, result.reason
 
-    def mode(self, target, expected):
+    def mode(self, target, expected, *, timeout=4.0):
         self.send(Command.SET_MODE, target)
         self.result(Command.SET_MODE, Result.ACCEPTED)
-        self.result(Command.SET_MODE, Result.SUCCEEDED)
+        self.result(Command.SET_MODE, Result.SUCCEEDED, timeout=timeout)
         self.state(expected)
 
     def clear_fault(self):
@@ -134,15 +151,12 @@ class NodeTest:
         self.result(Command.CLEAR_FAULT, Result.SUCCEEDED)
         state = self.state(State.PASSIVE)
         assert state.target_state == State.PASSIVE
-        before, nonzero = self.servo_cmds, self.nonzero_cmds
-        self.remains_in(State.PASSIVE, 0.23)
-        assert self.last_servo_zero and self.servo_cmds > before + 10 and self.nonzero_cmds == nonzero
+        self.remains_damped(State.PASSIVE, 0.23)
 
 
 def exercise(test):
     test.state(State.PASSIVE)
-    test.remains_in(State.PASSIVE, 0.06)
-    assert test.servo_cmds >= 10 and test.last_servo_zero
+    test.remains_damped(State.PASSIVE, 0.06)
     for command, target, reason in (
         (99, 0, "Unknown command"),
         (Command.SET_EXTERNAL, 0, "Unsupported command"),
@@ -169,7 +183,7 @@ def exercise(test):
     telemetry.readiness[0] = True
     test.state(State.STANDUP)
     telemetry.joints.position[0] = 0.0
-    test.result(Command.SET_MODE, Result.SUCCEEDED)
+    test.result(Command.SET_MODE, Result.SUCCEEDED, timeout=STANDUP_TIMEOUT)
     test.state(State.STANDING)
     telemetry.readiness[18] = True
     test.remains_in(State.STANDING, 0.05)
@@ -222,7 +236,7 @@ def exercise(test):
     test.state(State.LOCOMOTION)  # Разрешение сохраняется после автоостановки.
     test.mode(Command.STANDING, State.STANDING)
     recovery_transitions(test)
-    test.mode(Command.STANDING, State.STANDING)
+    test.mode(Command.STANDING, State.STANDING, timeout=STANDUP_TIMEOUT)
 
     test.streaming = False
     test.state(State.FAILURE, "ROBOT_STATE_STALE")
@@ -237,14 +251,14 @@ def exercise(test):
     test.run_for(0.24)
     test.clear_fault()
 
-    test.mode(Command.STANDING, State.STANDING)
+    test.mode(Command.STANDING, State.STANDING, timeout=STANDUP_TIMEOUT)
     telemetry.readiness[17] = False
     test.state(State.FAILURE, "ROBOT_STATE_NOT_READY")
     telemetry.readiness[17] = True
     test.run_for(0.24)
     test.clear_fault()
 
-    test.mode(Command.STANDING, State.STANDING)
+    test.mode(Command.STANDING, State.STANDING, timeout=STANDUP_TIMEOUT)
     telemetry.joints.position[10] = -2.61
     test.state(State.FAILURE, "JOINT_LIMIT: hip_joint_L2")
     test.run_for(0.24)
@@ -254,7 +268,7 @@ def exercise(test):
     test.run_for(0.03)
     test.clear_fault()
 
-    test.mode(Command.STANDING, State.STANDING)
+    test.mode(Command.STANDING, State.STANDING, timeout=STANDUP_TIMEOUT)
     telemetry.body.position[0] = 0.14
     telemetry.body.lin_vel[0] = 0.25
     test.state(State.LOCOMOTION)
@@ -270,7 +284,7 @@ def exercise(test):
     test.result(Command.SET_MODE, Result.REJECTED, "FAILURE")
     test.state(State.FAILURE, "ESTOP")
     telemetry.body.position[0] = telemetry.body.lin_vel[0] = 0.0
-    test.run_for(0.24)
+    test.remains_damped(State.FAILURE, 0.24)
     test.clear_fault()
     test.velocity(x=0.2)
     test.remains_in(State.PASSIVE, 0.08)
@@ -327,11 +341,147 @@ def recovery_transitions(test):
     estimate(0.08, 0.02)
     test.remains_in(State.LOCOMOTION, 0.34)
     assert test.states[-1].target_state == State.LOCOMOTION and not test.results
+    initial = [0.12, -0.8, 1.9, -0.13, 0.7, -1.8, 0.14, 0.8, -1.7, -0.16, -0.7, 1.6]
+    folded = [0.12, -1.57, 2.9, -0.13, 1.57, -2.9, 0.14, 1.57, -2.9, -0.16, -1.57, 2.9]
+    test.robot_state.joints.position = initial
+    test.servo_trace = []
     estimate(0.0, 0.0)
     test.effective(State.LOCOMOTION, State.PASSIVE)
-    test.result(Command.SET_MODE, Result.SUCCEEDED)
+    check_laydown(test, initial, folded)
+    test.robot_state.joints.position = list(STANDUP_POSE)
+
+
+def check_laydown(test, initial, folded):
+    test.state(State.LAYDOWN)
+    assert not test.results, "IDLE was confirmed before laydown finished"
+    test.result(Command.SET_MODE, Result.SUCCEEDED, timeout=5.0)
     test.state(State.PASSIVE)
-    assert any(state.current_state == State.LAYDOWN for state in test.states)
+    trace = test.servo_trace
+    test.servo_trace = None
+    test.remains_damped(State.PASSIVE, 0.06)
+
+    def matches(actual, expected):
+        return all(math.isclose(a, b, rel_tol=0.0, abs_tol=1e-5)
+                   for a, b in zip(actual, expected))
+
+    def gains(cmd, kp, kd):
+        return matches(cmd.kp, [kp] * 12) and matches(cmd.kd, [kd] * 12)
+
+    def find_sample(description, predicate, start=0):
+        for i in range(start, len(trace)):
+            if predicate(trace[i][1]):
+                return i
+        raise AssertionError(f"Missing laydown command for {description}")
+
+    centered = folded.copy()
+    centered[0::3] = [0.0] * 4
+    start = find_sample("first position command", lambda cmd: gains(cmd, 12.0, 0.4))
+    assert matches(trace[start][1].position, initial)
+    fold = find_sample("folded pose", lambda cmd: matches(cmd.position, folded), start + 1)
+    center = find_sample("centered pose", lambda cmd: matches(cmd.position, centered), fold + 1)
+    damp = find_sample("increased damping", lambda cmd: gains(cmd, 0.0, 0.8), center + 1)
+    release = find_sample("zero gains", lambda cmd: gains(cmd, 0.0, 0.0), damp + 1)
+
+    for _, cmd in trace[start:fold + 1]:
+        assert matches(cmd.position[0::3], initial[0::3])
+    for _, cmd in trace[fold:center + 1]:
+        assert matches(cmd.position[1::3], folded[1::3])
+        assert matches(cmd.position[2::3], folded[2::3])
+    for _, cmd in trace[start:damp]:
+        assert gains(cmd, 12.0, 0.4)
+    for _, cmd in trace[damp:release]:
+        assert gains(cmd, 0.0, 0.8) and matches(cmd.position, folded)
+    for _, cmd in trace[start:release + 1]:
+        assert not any(cmd.velocity) and not any(cmd.torque)
+
+    for first, last, expected in ((start, fold, 2.0), (fold, center, 0.5), (damp, release, 0.5)):
+        actual = trace[last][0] - trace[first][0]
+        assert math.isclose(actual, expected, abs_tol=0.1), (actual, expected)
+
+
+def exercise_stopping(test):
+    test.state(State.PASSIVE)
+    test.streaming = True
+    test.mode(Command.STANDING, State.STANDING, timeout=STANDUP_TIMEOUT)
+    test.mode(Command.LOCOMOTION, State.STANDING)
+
+    # При нулевой измеренной скорости всё равно нужны 50 снимков после входа.
+    test.velocity(x=0.06)
+    test.state(State.LOCOMOTION)
+    test.send(Command.SET_MODE, Command.STANDING)
+    test.result(Command.SET_MODE, Result.ACCEPTED)
+    test.remains_in(State.LOCOMOTION, 0.45)
+    assert not test.results, "STANDING was confirmed before the speed window filled"
+    test.result(Command.SET_MODE, Result.SUCCEEDED)
+    test.state(State.STANDING)
+
+    test.mode(Command.LOCOMOTION, State.STANDING)
+    test.velocity(x=0.2)
+    test.state(State.LOCOMOTION)
+    body = test.robot_state.body
+    body.lin_vel[0] = 0.8
+    test.send(Command.SET_MODE, Command.STANDING)
+    test.result(Command.SET_MODE, Result.ACCEPTED)
+    test.remains_in(State.LOCOMOTION, 0.60)
+    assert not test.results, "STANDING was confirmed at high measured speed"
+
+    body.lin_vel[0] = 0.0
+    test.robot_state.legs.contact_states[0] = False
+    test.remains_in(State.LOCOMOTION, 0.60)
+    assert not test.results, "STANDING was confirmed without four contacts"
+    test.robot_state.legs.contact_states[0] = True
+    test.remains_in(State.LOCOMOTION, 0.12)
+    body.lin_vel[0] = 0.2
+    test.remains_in(State.LOCOMOTION, 0.10)
+    body.lin_vel[0] = 0.0
+    test.remains_in(State.LOCOMOTION, 0.20)
+    assert not test.results, "Acceleration did not reset the stability hold"
+    test.result(Command.SET_MODE, Result.SUCCEEDED)
+    test.state(State.STANDING)
+
+    test.mode(Command.LOCOMOTION, State.STANDING)
+    test.velocity(x=1.0)
+    test.state(State.LOCOMOTION)
+    body.lin_vel[0] = 1.0
+    test.send(Command.SET_MODE, Command.STANDING)
+    test.result(Command.SET_MODE, Result.ACCEPTED)
+    test.remains_in(State.LOCOMOTION, 0.10)
+    test.send(Command.ESTOP)
+    test.result(Command.SET_MODE, Result.FAILED, "ESTOP")
+    test.result(Command.ESTOP, Result.SUCCEEDED)
+    test.state(State.FAILURE, "ESTOP")
+    test.remains_damped(State.FAILURE, 0.10)
+
+
+def exercise_laydown(test):
+    test.state(State.PASSIVE)
+    test.streaming = True
+    # M переопределяет знак колена L1. В нестандартной позе сохраняются знаки и нули.
+    for initial, folded in (
+        ([0.12, -0.8, 1.9, -0.13, 0.7, 0.1, 0.14, -0.8, 1.7, -0.16, 0.7, -1.6],
+         [0.12, -1.57, 2.9, -0.13, 1.57, -2.9, 0.14, -1.57, 2.9, -0.16, 1.57, -2.9]),
+        ([0.12, 0.8, 1.9, -0.13, 0.0, -1.8, 0.14, -0.8, 0.0, -0.16, 0.7, 1.6],
+         [0.12, 1.57, 2.9, -0.13, 0.0, -2.9, 0.14, -1.57, 0.0, -0.16, 1.57, 2.9]),
+    ):
+        test.mode(Command.STANDING, State.STANDING, timeout=STANDUP_TIMEOUT)
+        test.robot_state.joints.position = initial
+        test.run_for(0.05)
+        test.servo_trace = []
+        test.send(Command.SET_MODE, Command.IDLE)
+        test.result(Command.SET_MODE, Result.ACCEPTED)
+        check_laydown(test, initial, folded)
+        test.robot_state.joints.position = list(STANDUP_POSE)
+
+    test.mode(Command.STANDING, State.STANDING, timeout=STANDUP_TIMEOUT)
+    test.send(Command.SET_MODE, Command.IDLE)
+    test.result(Command.SET_MODE, Result.ACCEPTED)
+    test.state(State.LAYDOWN)
+    test.remains_in(State.LAYDOWN, 0.12)
+    test.send(Command.ESTOP)
+    test.result(Command.SET_MODE, Result.FAILED, "ESTOP")
+    test.result(Command.ESTOP, Result.SUCCEEDED)
+    test.state(State.FAILURE, "ESTOP")
+    test.remains_damped(State.FAILURE, 0.24)
 
 
 def run_node(executable, run_test, *, servo_url):
@@ -353,11 +503,12 @@ def run_node(executable, run_test, *, servo_url):
         try:
             test = NodeTest(url, process)
             run_test(test)
+            before = test.servo_cmds
             process.send_signal(signal.SIGINT if servo_url else signal.SIGTERM)
             assert process.wait(timeout=2) == 0, "Node failed to stop"
             while select.select([test.bus.fileno()], [], [], 0.04)[0]:
                 test.bus.handle()
-            assert test.servo_cmds and test.last_servo_zero, "Missing final zero SERVO_CMD"
+            assert test.servo_cmds > before and test.last_servo_damped, "Missing final damping SERVO_CMD"
         except BaseException:
             if process.poll() is None:
                 process.kill()
@@ -385,4 +536,5 @@ if __name__ == "__main__":
         from mors_msgs import robot_state_msg as RobotState
 
         run_node(executable, exercise, servo_url=False)
-        run_node(executable, lambda test: test.state(State.PASSIVE), servo_url=True)
+        run_node(executable, exercise_laydown, servo_url=True)
+        run_node(executable, exercise_stopping, servo_url=False)

@@ -1,6 +1,7 @@
 #include "VisionConfig.hpp"
 #include <yaml-cpp/yaml.h>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 
 namespace mors::fsm {
@@ -19,6 +20,12 @@ VisionConfig::VisionConfig(const std::filesystem::path& directory) {
         if (!std::isfinite(value) || value <= 0) throw std::invalid_argument(key);
         return value;
     };
+    const auto idle_gain = config["kd_idle"];
+    const double kd_idle_value = idle_gain ? idle_gain.as<double>() : 0.4;
+    if (!std::isfinite(kd_idle_value) || kd_idle_value < 0.0 || kd_idle_value > std::numeric_limits<float>::max()) {
+        throw std::invalid_argument("kd_idle");
+    }
+    kd_idle = static_cast<float>(kd_idle_value);
     touchdown_phase = gait["start_td_detecting"].as<double>();
     contact_velocity = gait["vz_contact_thresh"].as<double>(0.1);
     contact_debounce = gait["contact_debounce"].as<int>(3);
