@@ -75,15 +75,15 @@ fsm_locomotion:
   stop_yaw_radps: 0.05
   stop_hold_s: 0.30
   acceleration_limits:
-    linear_mps2: 0.5  # ограничение изменения уставки XY при ходьбе, м/с²
-    yaw_radps2: 1.0  # ограничение изменения уставки yaw при ходьбе, рад/с²
+    linear_mps2: 1.0  # ограничение изменения уставки XY при ходьбе, м/с²
+    yaw_radps2: 4.0  # ограничение изменения уставки yaw при ходьбе, рад/с²
   # Измеренные скорости и выдержка для подтверждения остановки походки.
   gait_stop:
     linear_mps: 0.05
     yaw_radps: 0.10
     hold_s: 0.30
-    linear_decel_mps2: 0.5  # ограничение замедления уставки XY, м/с²
-    yaw_decel_radps2: 1.0  # ограничение замедления уставки yaw, рад/с²
+    linear_decel_mps2: 8.0  # ограничение замедления уставки XY, м/с²
+    yaw_decel_radps2: 16.0  # ограничение замедления уставки yaw, рад/с²
   # Нормы ошибок положения и скорости в мировой плоскости XY.
   recovery_entry: {position_m: 0.01, velocity_mps: 0.06} 
   recovery_exit_walking: {position_m: 0.007, velocity_mps: 0.05}

@@ -6,11 +6,11 @@ standup:
   max_joint_speed_rad_s: 1.0  # лимит суставной траектории подготовки, рад/с
 
 switch_kin_sch:
-  kp: 12.0
+  kp: 24.0
   kd: 0.4
   max_joint_speed_rad_s: 1.0
   handoff_s: 0.4  # минимальное время передачи управления, с
-  preparation_height_m: 0.28
+  preparation_height_m: 0.29
   max_body_height_speed_mps: 0.05
   height_motion_min_s: 1.5
 
@@ -71,7 +71,7 @@ swing_controller:
   rising_proportion: 0.35   # доля времени переноса на подъём стопы
 
   # foot step planner
-  k1_fsp: 0.01
+  k1_fsp: 0.002 # 0.01
 
   # line hold controller
   # External world-frame lateral velocity correction before footstep/DCM generation.
