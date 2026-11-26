@@ -186,6 +186,21 @@ LaydownConfig load_laydown_config(const std::filesystem::path& config_path) {
     return laydown;
 }
 
+SwitchKinSchConfig load_switch_kin_sch_config(const std::filesystem::path& config_path) {
+    const auto config = YAML::LoadFile((config_path / "locomotion_controller.yaml").string());
+    const auto section = config["switch_kin_sch"];
+    if (section && !section.IsMap()) throw std::invalid_argument("switch_kin_sch must be a mapping");
+    SwitchKinSchConfig result;
+    result.kp = read_setting(section, "kp", result.kp);
+    result.kd = read_setting(section, "kd", result.kd);
+    result.max_joint_speed_rad_s = read_setting(section, "max_joint_speed_rad_s", result.max_joint_speed_rad_s);
+    result.handoff_s = read_setting(section, "handoff_s", result.handoff_s);
+    result.preparation_height_m = read_setting(section, "preparation_height_m", result.preparation_height_m);
+    result.max_body_height_speed_mps = read_setting(section, "max_body_height_speed_mps", result.max_body_height_speed_mps);
+    result.height_motion_min_s = read_setting(section, "height_motion_min_s", result.height_motion_min_s);
+    return result;
+}
+
 } // namespace
 
 LocomotionNode::LocomotionNode() : LocomotionNode(config_directory()) {}
@@ -201,7 +216,8 @@ LocomotionNode::LocomotionNode(const std::filesystem::path& config_path, const Y
       transition_monitor_(load_transition_config(robot_config["fsm_locomotion"])),
       fsm_(safety_monitor_, &status_, &controller_, &readiness_checker_,
            load_gait_stop_config(robot_config["fsm_locomotion"]), load_standup_config(config_path),
-           load_laydown_config(config_path), load_acceleration_config(robot_config["fsm_locomotion"]))
+           load_laydown_config(config_path), load_acceleration_config(robot_config["fsm_locomotion"]),
+           load_switch_kin_sch_config(config_path))
 {
     controller_.start_thread();
     try {
@@ -256,6 +272,8 @@ void LocomotionNode::request_mode(std::int8_t target_code, bool fault_cleared) {
         exchanger_.sendRobotModeResult(ModeCommand::SET_MODE, ModeResult::REJECTED, "Unsupported mode target");
     } else if (fault_cleared) {
         exchanger_.sendRobotModeResult(ModeCommand::SET_MODE, ModeResult::REJECTED, "Send a new SET_MODE after CLEAR_FAULT");
+    } else if (pending_action_params_) {
+        exchanger_.sendRobotModeResult(ModeCommand::SET_MODE, ModeResult::REJECTED, "Action is running");
     } else if (fsm_.state_id == StateID::FAILURE) {
         exchanger_.sendRobotModeResult(ModeCommand::SET_MODE, ModeResult::REJECTED, "Cannot change mode in FAILURE");
     } else {
@@ -293,6 +311,49 @@ void LocomotionNode::finish_mode_request() {
     pending_mode_request_.reset();
 }
 
+void LocomotionNode::start_action(const ModeCommand& command, bool fault_cleared) {
+    if (command.target != ModeCommand::CHANGE_KINEMATICS) {
+        exchanger_.sendRobotModeResult(command.command, ModeResult::REJECTED, "Unsupported action target");
+        return;
+    }
+    KneeScheme scheme;
+    switch (command.params) {
+    case ModeCommand::KNEE_INSIDE: scheme = KneeScheme::inside; break;
+    case ModeCommand::KNEE_OUTSIDE: scheme = KneeScheme::outside; break;
+    case ModeCommand::KNEE_BACK: scheme = KneeScheme::back; break;
+    case ModeCommand::KNEE_FRONT: scheme = KneeScheme::front; break;
+    default:
+        exchanger_.sendRobotModeResult(command.command, ModeResult::REJECTED, "Invalid knee scheme parameter");
+        return;
+    }
+    if (fault_cleared) {
+        exchanger_.sendRobotModeResult(command.command, ModeResult::REJECTED, "Send a new START_ACTION after CLEAR_FAULT");
+    } else if (pending_action_params_) {
+        exchanger_.sendRobotModeResult(command.command, ModeResult::BUSY, "Action is running");
+    } else if (pending_mode_request_) {
+        exchanger_.sendRobotModeResult(command.command, ModeResult::REJECTED, "Mode request is pending");
+    } else if (const auto reason = fsm_.start_switch_kinematics(scheme)) {
+        exchanger_.sendRobotModeResult(command.command, ModeResult::REJECTED, *reason);
+    } else {
+        operator_request_ = StateID::STANDING;
+        pending_action_params_ = command.params;
+        exchanger_.sendRobotModeResult(command.command, ModeResult::ACCEPTED, "");
+    }
+}
+
+void LocomotionNode::finish_action_request() {
+    if (!pending_action_params_) return;
+    if (fsm_.state_id == StateID::FAILURE) {
+        exchanger_.sendRobotModeResult(ModeCommand::START_ACTION, ModeResult::FAILED,
+                                      fault_text(safety_monitor_.fault()));
+    } else if (fsm_.state_id == StateID::STANDING && controller_.robot_control_ready()) {
+        exchanger_.sendRobotModeResult(ModeCommand::START_ACTION, ModeResult::SUCCEEDED, "");
+    } else {
+        return;
+    }
+    pending_action_params_.reset();
+}
+
 void LocomotionNode::process_mode_commands(const std::vector<ModeCommand>& commands) 
 {
     const bool had_fault = (fsm_.state_id == StateID::FAILURE);
@@ -304,8 +365,10 @@ void LocomotionNode::process_mode_commands(const std::vector<ModeCommand>& comma
         fsm_.handle_event(Event::ESTOP);
 
     const bool failed = (fsm_.state_id == StateID::FAILURE);
-    if (failed)
+    if (failed) {
         finish_mode_request();
+        finish_action_request();
+    }
 
     bool fault_cleared = false;
     for (const auto& command : commands) 
@@ -334,6 +397,8 @@ void LocomotionNode::process_mode_commands(const std::vector<ModeCommand>& comma
                 }
                 break;
             case ModeCommand::START_ACTION:
+                start_action(command, fault_cleared);
+                break;
             case ModeCommand::CANCEL_ACTION:
             case ModeCommand::SET_ALGORITHM:
             case ModeCommand::SET_EXTERNAL:
@@ -349,7 +414,7 @@ void LocomotionNode::process_mode_commands(const std::vector<ModeCommand>& comma
 void LocomotionNode::select_effective_mode(LocomotionSetpoints& setpoints, const RobotData* estimate, double now_s) {
     const auto state = fsm_.state_id;
     // ESTOP и проверки телеметрии уже обработаны, поэтому автоматика не переопределяет аварию.
-    if (state == StateID::FAILURE) {
+    if (state == StateID::FAILURE || state == StateID::ACTION) {
         return;
     }
     if (!transition_monitor_.velocity_is_fresh(setpoints, now_s)) {
@@ -365,7 +430,8 @@ void LocomotionNode::select_effective_mode(LocomotionSetpoints& setpoints, const
     if ((state == StateID::STANDING && target != StateID::IDLE) || state == StateID::LOCOMOTION) {
         const bool recovering = state == StateID::LOCOMOTION && locomotion_mode_ == LocomotionMode::RECOVERY;
         const auto recommended = transition_monitor_.recommend(state, walking_allowed, recovering,
-                                                                estimate, setpoints.robot_cmd, now_s);
+                                                                estimate, status_.robot_state_received_at_s,
+                                                                setpoints.robot_cmd, now_s);
         if (recommended != LocomotionMode::STANDING) {
             target = StateID::LOCOMOTION;
             locomotion_mode_ = recommended;
@@ -404,11 +470,13 @@ void LocomotionNode::step() {
         }
     }
     finish_mode_request();
+    finish_action_request();
 
     const auto& fault = safety_monitor_.fault();
     exchanger_.sendRobotModeState(mode_code(fsm_.state_id),
                                   mode_code(fsm_.target_state.value_or(fsm_.state_id)),
-                                  -1, -1, -1, fault.has_value(), fault_text(fault));
+                                  -1, pending_action_params_ ? ModeCommand::CHANGE_KINEMATICS : -1,
+                                  pending_action_params_.value_or(-1), fault.has_value(), fault_text(fault));
 }
 
 } // namespace mors::fsm

@@ -31,6 +31,10 @@ public:
     // Новый источник вступает в силу вместе с его первой уставкой.
     virtual void set_data_input_mode(const u_int8_t& input_mode); 
 
+    // Opt-in transition; committed atomically with the first command of this source.
+    virtual void begin_input_handoff(std::uint8_t mode, double duration_s, double max_joint_speed_rad_s);
+    virtual bool joints_control_ready() const;
+
     // В зависимости от значения mode будут работать разные режимы:
     // 1 - standing mode
     // 2 - walking mode 
@@ -39,6 +43,8 @@ public:
     virtual void set_locomotion_mode(const u_int8_t& mode);
 
     virtual void set_robot_cmd(const RobotData& robot_cmd);
+    // Overrides only world Z/Vz in standing; committed with the next robot command.
+    virtual void set_body_height_override(std::optional<BodyHeightCommand>) {}
     virtual void set_wbc_cmd(const WbcDesiredCommand& wbc_cmd);
     virtual void set_joints_cmd(const JointCommand& joints_cmd);
 

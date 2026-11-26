@@ -15,8 +15,11 @@ public:
     ~LocomotionControllerMPC() override;
 
     void set_data_input_mode(const uint8_t& mode) override;
+    void begin_input_handoff(std::uint8_t mode, double duration_s, double max_joint_speed_rad_s) override;
+    bool joints_control_ready() const override;
     void set_locomotion_mode(const uint8_t& mode) override;
     void set_robot_cmd(const RobotData& cmd) override;
+    void set_body_height_override(std::optional<BodyHeightCommand> height) override;
     void hold_measured_pose() override;
     bool robot_control_ready() const override;
     void set_wbc_cmd(const WbcDesiredCommand& cmd) override;

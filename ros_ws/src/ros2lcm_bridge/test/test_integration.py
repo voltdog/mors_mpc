@@ -119,11 +119,13 @@ class BridgeIntegration(unittest.TestCase):
         bindings = tempfile.TemporaryDirectory()
         cls.addClassCleanup(bindings.cleanup)
         schema = Path(__file__).resolve().parents[4] / 'lcm_msgs' / 'robot_state_msg.lcm'
-        subprocess.run(['lcm-gen', '-p', '--ppath', bindings.name, str(schema)], check=True)
+        subprocess.run(['lcm-gen', '-p', '--ppath', bindings.name,
+                        str(schema), str(schema.with_name('mpc_cmd_msg.lcm'))], check=True)
         sys.path.insert(0, bindings.name)
         try:
-            from mors_msgs import robot_state_msg
+            from mors_msgs import robot_state_msg, mpc_cmd_msg
             cls.robot_state_type = robot_state_msg
+            cls.mpc_command_type = mpc_cmd_msg
         finally:
             sys.path.remove(bindings.name)
         rclpy.init()
@@ -150,6 +152,10 @@ class BridgeIntegration(unittest.TestCase):
                              robot_mode_result='MODE_REPLY', robot_cmd='MOTION_SETPOINT',
                              gait_params='GAIT_SETTINGS', robot_state='ROBOT_TELEMETRY')
         channels_path.write_text(yaml.safe_dump(self.channels))
+        robot_path = Path(self.config_dir.name) / 'robot.yaml'
+        robot_config = yaml.safe_load(robot_path.read_text())
+        robot_config['robot_config']['debug_mode'] = True
+        robot_path.write_text(yaml.safe_dump(robot_config))
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as port:
             port.bind(('127.0.0.1', 0))
             servo_url = f'udpm://239.255.76.68:{port.getsockname()[1]}?ttl=0'
@@ -158,6 +164,8 @@ class BridgeIntegration(unittest.TestCase):
         self.bus = lcm.LCM(self.url)
         self.packets, self.unsafe, self.states, self.results = [], [], [], []
         self.commands, self.gait_packets = [], []
+        self.follow_body_height = False
+        self.bus.subscribe(self.channels['mpc_cmd'], self.follow_height_reference)
         self.bus.subscribe(self.channels['robot_cmd'], lambda _, data: self.packets.append(robot_cmd_msg.decode(data)))
         self.bus.subscribe(self.channels['robot_mode_cmd'],
                            lambda _, data: self.commands.append(robot_mode_cmd_msg.decode(data)))
@@ -177,6 +185,13 @@ class BridgeIntegration(unittest.TestCase):
         self.gait_pub = self.node.create_publisher(GaitParams, 'gait_params', 10)
         self.telemetry = self.robot_state_type()
         self.telemetry.body.orientation_quaternion = [0., 0., 0., 1.]
+        self.telemetry.body.position[2] = .20
+        self.telemetry.joints.position = [0., -1.57, 2.9, 0., 1.57, -2.9,
+                                         0., 1.57, -2.9, 0., -1.57, 2.9]
+        self.telemetry.legs.r1_pos = [.18, -.13, 0.]
+        self.telemetry.legs.l1_pos = [.18, .13, 0.]
+        self.telemetry.legs.r2_pos = [-.18, -.13, 0.]
+        self.telemetry.legs.l2_pos = [-.18, .13, 0.]
         self.telemetry.legs.contact_states = [True] * 4
         self.telemetry.readiness = [True] * 18 + [False]
         self.streaming = False
@@ -227,6 +242,12 @@ class BridgeIntegration(unittest.TestCase):
                 log.seek(0)
                 self.fail(log.read())
 
+    def follow_height_reference(self, _channel, data):
+        if self.follow_body_height:
+            command = self.mpc_command_type.decode(data)
+            self.telemetry.body.position[2] = command.cmd_pose[2]
+            self.telemetry.body.lin_vel[2] = command.cmd_vel[2]
+
     def wait(self, condition, timeout=6.):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
@@ -248,9 +269,10 @@ class BridgeIntegration(unittest.TestCase):
         self.wait(future.done)
         return future.result()
 
-    def command(self, code=0, target=2):
+    def command(self, code=0, target=2, params=0):
         request = Command.Request()
         request.command.command, request.command.target = code, target
+        request.command.params = params
         return self.complete(self.client.call_async(request)).result
 
     def wait_for_mode(self, state):
@@ -299,6 +321,81 @@ class BridgeIntegration(unittest.TestCase):
         self.assertEqual(invalid_mode.result, ModeResult.REJECTED)
         self.run_for(.1)
         self.assertFalse(self.commands)
+
+    def test_invalid_action_params_are_not_forwarded(self):
+        for target, params in ((1, 0), (2, 1), (255, 0), (0, 4), (0, 255)):
+            result = self.command(ModeCommand.START_ACTION, target, params)
+            self.assertEqual(result.result, ModeResult.REJECTED)
+            self.assertEqual(result.reason, 'INVALID_ACTION_OR_PARAMS')
+        self.run_for(.05)
+        self.assertFalse(self.commands)
+
+    def prepare_action(self):
+        self.standing()
+        self.follow_body_height = True
+        self.telemetry.joints.position = [0., -.3, .6, 0., .3, -.6,
+                                         0., .3, -.6, 0., -.3, .6]
+        self.run_for(.08)
+        self.results.clear()
+
+    def test_action_schemes_state_and_completion(self):
+        result = self.command(ModeCommand.START_ACTION, ModeCommand.CHANGE_KINEMATICS,
+                              ModeCommand.KNEE_BACK)
+        self.assertEqual(result.result, ModeResult.REJECTED)
+        self.assertIn('STANDING', result.reason)
+        self.prepare_action()
+        for params in (ModeCommand.KNEE_INSIDE, ModeCommand.KNEE_BACK,
+                       ModeCommand.KNEE_FRONT, ModeCommand.KNEE_OUTSIDE):
+            self.results.clear()
+            count = len(self.commands)
+            response = self.command(ModeCommand.START_ACTION, ModeCommand.CHANGE_KINEMATICS, params)
+            self.assertEqual(response.result, ModeResult.ACCEPTED)
+            self.wait(lambda: len(self.commands) == count + 1)
+            wire = self.commands[-1]
+            self.assertEqual((wire.command, wire.target, wire.params),
+                             (ModeCommand.START_ACTION, ModeCommand.CHANGE_KINEMATICS, params))
+            if params != ModeCommand.KNEE_INSIDE:
+                self.wait(lambda: self.states[-1].current_state == ModeState.ACTION)
+                self.assertEqual((self.states[-1].cur_action, self.states[-1].cur_params),
+                                 (ModeCommand.CHANGE_KINEMATICS, params))
+                self.assertEqual(self.states[-1].target_state, ModeState.STANDING)
+                for command, target in ((ModeCommand.START_ACTION, ModeCommand.CHANGE_KINEMATICS),
+                                        (ModeCommand.SET_MODE, ModeCommand.PASSIVE)):
+                    busy = self.command(command, target)
+                    self.assertEqual((busy.result, busy.reason), (ModeResult.BUSY, 'BRIDGE_BUSY'))
+                self.assertEqual(len(self.commands), count + 1)
+            self.wait(lambda: any(r.result == ModeResult.SUCCEEDED for r in self.results), timeout=18.)
+            self.wait(lambda: self.states[-1].current_state == ModeState.STANDING)
+            self.assertEqual((self.states[-1].cur_action, self.states[-1].cur_params), (-1, -1))
+            self.assertFalse(any(r.result in (ModeResult.FAILED, ModeResult.UNKNOWN) for r in self.results))
+        self.assertEqual(self.command().result, ModeResult.ACCEPTED)
+
+    def test_estop_interrupts_action(self):
+        self.prepare_action()
+        result = self.command(ModeCommand.START_ACTION, ModeCommand.CHANGE_KINEMATICS,
+                              ModeCommand.KNEE_OUTSIDE)
+        self.assertEqual(result.result, ModeResult.ACCEPTED)
+        self.wait(lambda: self.states[-1].current_state == ModeState.ACTION)
+        self.assertEqual(self.command(ModeCommand.ESTOP).result, ModeResult.SUCCEEDED)
+        self.wait(lambda: self.states[-1].current_state == ModeState.FAILURE)
+        self.wait(lambda: any(r.result == ModeResult.FAILED for r in self.results))
+        failed = next(r for r in self.results if r.result == ModeResult.FAILED)
+        self.assertIn('ESTOP', failed.reason)
+
+    def test_disconnect_during_action_does_not_replay(self):
+        self.prepare_action()
+        result = self.command(ModeCommand.START_ACTION, ModeCommand.CHANGE_KINEMATICS,
+                              ModeCommand.KNEE_BACK)
+        self.assertEqual(result.result, ModeResult.ACCEPTED)
+        self.wait(lambda: self.states[-1].current_state == ModeState.ACTION)
+        count = len(self.commands)
+        self.fsm.terminate()
+        self.assertEqual(self.fsm.wait(timeout=3), 0)
+        self.wait(lambda: any(r.result == ModeResult.UNKNOWN for r in self.results))
+        self.assertEqual(self.results[-1].reason, 'FSM_UNAVAILABLE')
+        self.assertEqual(self.command(ModeCommand.START_ACTION, ModeCommand.CHANGE_KINEMATICS,
+                                      ModeCommand.KNEE_BACK).result, ModeResult.UNKNOWN)
+        self.assertEqual(len(self.commands), count)
 
     def test_estop_interrupts_pending_mode_and_clear_fault_leaves_passive(self):
         self.assertEqual(self.command().result, ModeResult.ACCEPTED)

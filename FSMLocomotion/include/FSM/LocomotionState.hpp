@@ -2,9 +2,8 @@
 
 #include "State.hpp"
 #include "LocomotionData.hpp"
+#include "SpeedAverage.hpp"
 
-#include <array>
-#include <cstddef>
 #include <cstdint>
 
 namespace mors::fsm {
@@ -28,11 +27,7 @@ private:
     std::optional<double> stable_since_;
     std::optional<RobotData> last_command_;
     double last_update_s_ = 0.0;
-    std::array<double, 50> speed_samples_{};
-    std::size_t speed_index_ = 0;
-    std::size_t speed_count_ = 0;
-    double speed_sum_ = 0.0;
-    std::optional<double> last_sample_s_;
+    SpeedAverage speed_average_;
     bool stop_requested_ = false;
 };
 

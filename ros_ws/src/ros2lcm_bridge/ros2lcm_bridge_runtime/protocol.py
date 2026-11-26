@@ -54,12 +54,18 @@ class Protocol:
     def on_state(self):
         self.state_received = self.clock()
 
-    def command(self, command, target=0):
+    def command(self, command, target=0, params=0):
         first = Future()
         mode_targets = (WireCommand.IDLE, WireCommand.STANDING, WireCommand.LOCOMOTION)
-        if (command not in (WireCommand.SET_MODE, WireCommand.ESTOP, WireCommand.CLEAR_FAULT)
+        if (command not in (WireCommand.SET_MODE, WireCommand.START_ACTION,
+                            WireCommand.ESTOP, WireCommand.CLEAR_FAULT)
                 or (command == WireCommand.SET_MODE and target not in mode_targets)):
             return self._resolve(first, Outcome(ModeResult.REJECTED, 'INVALID_COMMAND_OR_MODE'))
+        if command == WireCommand.START_ACTION and (
+                target != WireCommand.CHANGE_KINEMATICS or params not in (
+                    WireCommand.KNEE_INSIDE, WireCommand.KNEE_OUTSIDE,
+                    WireCommand.KNEE_BACK, WireCommand.KNEE_FRONT)):
+            return self._resolve(first, Outcome(ModeResult.REJECTED, 'INVALID_ACTION_OR_PARAMS'))
         if not self.fresh():
             return self._resolve(first, Outcome(ModeResult.UNKNOWN, 'FSM_UNAVAILABLE'))
         if self.uncertain and command != WireCommand.ESTOP:
@@ -71,8 +77,8 @@ class Protocol:
 
         wire = WireCommand()
         wire.command = command
-        wire.target = target if command == WireCommand.SET_MODE else 0
-        wire.params = 0
+        wire.target = target if command in (WireCommand.SET_MODE, WireCommand.START_ACTION) else 0
+        wire.params = params if command == WireCommand.START_ACTION else 0
         self.publish(wire)
         if self.uncertain:
             # ESTOP remains available, but its uncorrelated reply cannot restore certainty.

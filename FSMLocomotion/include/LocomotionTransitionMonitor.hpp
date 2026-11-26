@@ -2,6 +2,7 @@
 
 #include "FSM/FSMTypes.hpp"
 #include "LocomotionData.hpp"
+#include "SpeedAverage.hpp"
 
 namespace mors::fsm {
 
@@ -31,7 +32,8 @@ public:
     void on_state_entered(StateID state, const RobotData* estimate);
     // Вызывается в STANDING и LOCOMOTION. Скорость просроченной команды уже обнулена.
     LocomotionMode recommend(StateID state, bool walking_allowed, bool recovering,
-                             const RobotData* estimate, const RobotData& command, double now_s);
+                             const RobotData* estimate, std::optional<double> estimate_received_at_s,
+                             const RobotData& command, double now_s);
 
 private:
     void capture_standing_xy(const RobotData* estimate);
@@ -39,6 +41,8 @@ private:
     const LocomotionTransitionConfig config_;
     std::optional<Eigen::Vector2d> standing_xy_;
     std::optional<double> below_stop_since_s_;
+    SpeedAverage recovery_speed_average_;
+    bool was_recovering_ = false;
     bool stopping_ = false;
 };
 

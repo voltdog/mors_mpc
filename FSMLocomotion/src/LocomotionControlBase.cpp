@@ -13,6 +13,14 @@ void LocomotionControlBase::set_data_input_mode(const u_int8_t& input_mode)
     this->input_mode = input_mode;
 }
 
+void LocomotionControlBase::begin_input_handoff(std::uint8_t mode, double, double) {
+    set_data_input_mode(mode);
+}
+
+bool LocomotionControlBase::joints_control_ready() const {
+    return outputs_enabled() && input_mode == joints_input;
+}
+
 void LocomotionControlBase::set_locomotion_mode(const u_int8_t& mode) {
     assert(input_mode == robot_input);
     assert(mode == standing_mode || mode == walking_mode || mode == recovery_mode);

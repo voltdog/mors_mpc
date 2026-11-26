@@ -85,6 +85,6 @@ fsm_locomotion:
     linear_decel_mps2: 0.5  # ограничение замедления уставки XY, м/с²
     yaw_decel_radps2: 1.0  # ограничение замедления уставки yaw, рад/с²
   # Нормы ошибок положения и скорости в мировой плоскости XY.
-  recovery_entry: {position_m: 0.10, velocity_mps: 0.20}
-  recovery_exit_walking: {position_m: 0.07, velocity_mps: 0.12}
-  recovery_exit_standing: {position_m: 0.04, velocity_mps: 0.08}
+  recovery_entry: {position_m: 0.01, velocity_mps: 0.06} 
+  recovery_exit_walking: {position_m: 0.007, velocity_mps: 0.05}
+  recovery_exit_standing: {position_m: 0.007, velocity_mps: 0.05}

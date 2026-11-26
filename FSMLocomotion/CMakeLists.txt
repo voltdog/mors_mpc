@@ -74,6 +74,7 @@ add_library(fsm_locomotion STATIC
   ${mpc_src}/VisionConfig.cpp
   src/actions/laydown.cpp
   src/actions/standup.cpp
+  src/actions/switch_kin_sch.cpp
   src/FSM/ActionState.cpp
   src/FSM/ExternalState.cpp
   src/FSM/FailureState.cpp
@@ -113,6 +114,12 @@ if(BUILD_TESTING)
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic>)
   add_test(NAME fsm_locomotion_stop COMMAND test_locomotion_stop)
   set_tests_properties(fsm_locomotion_stop PROPERTIES TIMEOUT 10)
+  add_executable(test_switch_kin_sch tests/test_switch_kin_sch.cpp)
+  target_link_libraries(test_switch_kin_sch PRIVATE fsm_locomotion)
+  target_compile_options(test_switch_kin_sch PRIVATE
+    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic>)
+  add_test(NAME fsm_switch_kin_sch COMMAND test_switch_kin_sch)
+  set_tests_properties(fsm_switch_kin_sch PROPERTIES TIMEOUT 10)
   find_package(Python3 COMPONENTS Interpreter QUIET)
   if(Python3_Interpreter_FOUND)
     add_test(NAME fsm_lcm COMMAND "${Python3_EXECUTABLE}"
@@ -120,6 +127,11 @@ if(BUILD_TESTING)
       "$<TARGET_FILE:fsm_locomotion_node>"
       "$<TARGET_FILE:${LCM_NAMESPACE}lcm-gen>" "${LCM_MSGS_DIR}")
     set_tests_properties(fsm_lcm PROPERTIES TIMEOUT 70 SKIP_RETURN_CODE 77)
+    add_test(NAME fsm_switch_kin_sch_lcm COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_lcm.py"
+      "$<TARGET_FILE:fsm_locomotion_node>"
+      "$<TARGET_FILE:${LCM_NAMESPACE}lcm-gen>" "${LCM_MSGS_DIR}" switch_kin_sch)
+    set_tests_properties(fsm_switch_kin_sch_lcm PROPERTIES TIMEOUT 90 SKIP_RETURN_CODE 77)
   endif()
 endif()
 

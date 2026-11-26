@@ -58,6 +58,8 @@ void LocomotionTransitionMonitor::on_state_entered(StateID state, const RobotDat
     stopping_ = false;
     if (state != StateID::LOCOMOTION) {
         standing_xy_.reset();
+        recovery_speed_average_.reset();
+        was_recovering_ = false;
     }
     if (state == StateID::STANDING) {
         capture_standing_xy(estimate);
@@ -65,13 +67,25 @@ void LocomotionTransitionMonitor::on_state_entered(StateID state, const RobotDat
 }
 
 LocomotionMode LocomotionTransitionMonitor::recommend(StateID state, bool walking_allowed, bool recovering,
-                                                       const RobotData* estimate, const RobotData& command,
+                                                       const RobotData* estimate,
+                                                       std::optional<double> estimate_received_at_s,
+                                                       const RobotData& command,
                                                        double now_s) {
     using enum LocomotionMode;
     const double linear_mps = command.lin_vel.head<2>().norm();
     const double yaw_radps = std::abs(command.ang_vel.z());
     const bool active = walking_allowed
         && (linear_mps > config_.start_linear_mps || yaw_radps > config_.start_yaw_radps);
+
+    if (!recovering || !was_recovering_) recovery_speed_average_.reset();
+    was_recovering_ = recovering;
+    if (recovering) {
+        if (valid_planar_estimate(estimate)) {
+            recovery_speed_average_.update(estimate->lin_vel.head<2>().norm(), estimate_received_at_s);
+        } else {
+            recovery_speed_average_.reset(estimate_received_at_s);
+        }
+    }
 
     if (state == StateID::STANDING) {
         capture_standing_xy(estimate);
@@ -80,9 +94,11 @@ LocomotionMode LocomotionTransitionMonitor::recommend(StateID state, bool walkin
         const double position_m = (estimate->pos.head<2>() - *standing_xy_).norm();
         const double velocity_mps = estimate->lin_vel.head<2>().norm(); // Опорная скорость в мире равна нулю.
         if (recovering) {
-            // Выход требует устойчивости по обеим ошибкам для запрошенного режима.
+            // Среднее не должно скрывать новый толчок или отклонение от опорной позиции.
             const auto& exit = active ? config_.recovery_exit_walking : config_.recovery_exit_standing;
-            if (position_m < exit.position_m && velocity_mps < exit.velocity_mps) {
+            const auto average = recovery_speed_average_.value();
+            if (average && *average < exit.velocity_mps
+                && position_m < exit.position_m && velocity_mps < exit.velocity_mps) {
                 return active ? WALKING : STANDING;
             }
         } else if (position_m > config_.recovery_entry.position_m

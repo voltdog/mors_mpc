@@ -40,7 +40,7 @@ constexpr std::array edges{
     Edge{StateID::EXTERNAL, StateID::STANDING, Event::START_STANDING},
 };
 
-constexpr std::array transient{StateID::STANDUP, StateID::LAYDOWN};
+constexpr std::array transient{StateID::STANDUP, StateID::LAYDOWN, StateID::ACTION};
 constexpr std::array targets{
     StateID::IDLE, StateID::STANDING, StateID::LOCOMOTION, StateID::ACTION, StateID::EXTERNAL,
 };
@@ -53,7 +53,8 @@ bool checks_joint_limits(StateID state) {
 
 RobotFSM::RobotFSM(SafetyMonitor& safety_monitor, RobotStatus* status,
                    LocomotionControlBase* controller, ReadinessChecker* readiness_checker, GaitStopConfig gait_stop,
-                   StandupConfig standup, LaydownConfig laydown, LocomotionAccelerationConfig acceleration)
+                   StandupConfig standup, LaydownConfig laydown, LocomotionAccelerationConfig acceleration,
+                   SwitchKinSchConfig switch_kin_sch)
     : owned_status_(status ? nullptr : std::make_unique<RobotStatus>()),
       owned_controller_(controller ? nullptr : std::make_unique<LocomotionControlBase>()),
       owned_readiness_checker_(readiness_checker ? nullptr
@@ -68,7 +69,7 @@ RobotFSM::RobotFSM(SafetyMonitor& safety_monitor, RobotStatus* status,
     states_.emplace(StateID::STANDING, std::make_unique<StandingState>(*this));
     states_.emplace(StateID::LOCOMOTION, std::make_unique<LocomotionState>(*this, gait_stop, acceleration));
     states_.emplace(StateID::LAYDOWN, std::make_unique<LaydownState>(*this, laydown));
-    states_.emplace(StateID::ACTION, std::make_unique<ActionState>(*this));
+    states_.emplace(StateID::ACTION, std::make_unique<ActionState>(*this, switch_kin_sch));
     states_.emplace(StateID::EXTERNAL, std::make_unique<ExternalState>(*this));
     states_.emplace(StateID::FAILURE, std::make_unique<FailureState>(*this));
     states_.at(state_id)->on_enter();
@@ -103,7 +104,8 @@ bool RobotFSM::request_state(StateID target) {
         throw std::invalid_argument("Недопустимое целевое состояние: "
                                     + std::string(state_name(target)));
     }
-    if (state_id == StateID::FAILURE || safety_monitor.fault()) {
+    if (target == StateID::ACTION || state_id == StateID::ACTION ||
+        state_id == StateID::FAILURE || safety_monitor.fault()) {
         return false;
     }
     const auto path = find_path(state_id, target);
@@ -118,6 +120,17 @@ bool RobotFSM::request_state(StateID target) {
     }
     std::cout << '\n';
     return true;
+}
+
+std::optional<std::string> RobotFSM::start_switch_kinematics(KneeScheme scheme) {
+    enforce_safety();
+    if (state_id != StateID::STANDING || safety_monitor.fault()) return "Action requires STANDING";
+    if (!controller.robot_control_ready()) return "Standing controller is not ready";
+    auto& action = static_cast<ActionState&>(*states_.at(StateID::ACTION));
+    if (auto reason = action.prepare(scheme)) return reason;
+    if (!handle_event(Event::START_ACTION)) return "Cannot enter ACTION";
+    target_state = StateID::STANDING;
+    return std::nullopt;
 }
 
 bool RobotFSM::transition_to(StateID next_state) {
@@ -165,6 +178,8 @@ bool RobotFSM::handle_event(Event event) {
     if (event == Event::CLEAR_FAULT) {
         return !try_clear_fault();
     }
+    if (event == Event::START_ACTION &&
+        !static_cast<ActionState&>(*states_.at(StateID::ACTION)).take_prepared()) return false;
     enforce_safety();
     if (state_id == StateID::FAILURE) {
         return false;

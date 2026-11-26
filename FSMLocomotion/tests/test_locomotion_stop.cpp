@@ -1,4 +1,5 @@
 #include "RobotFSM.hpp"
+#include "LocomotionTransitionMonitor.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -112,6 +113,57 @@ struct Fixture {
     double received_s = 0.0;
     double last_tick_before_s = 0.0;
     double last_tick_after_s = 0.0;
+};
+
+struct RecoveryFixture {
+    explicit RecoveryFixture(bool walking = false) : walking_allowed(walking) {
+        command.lin_vel.y() = 0.2;
+        enter_recovery();
+    }
+
+    void enter_recovery() {
+        monitor.on_state_entered(StateID::STANDING, &estimate);
+        const Eigen::Vector3d standing_position = estimate.pos;
+        estimate.pos.x() += 0.14;
+        estimate.lin_vel.x() = 0.25;
+        require(monitor.recommend(StateID::STANDING, false, false, &estimate, received_s,
+                                  command, received_s) == LocomotionMode::RECOVERY,
+                "Cannot enter recovery");
+        monitor.on_state_entered(StateID::LOCOMOTION, &estimate);
+        estimate.pos = standing_position + Eigen::Vector3d{0.02, 0.0, 0.0};
+        estimate.lin_vel = Eigen::Vector3d{0.02, 0.0, 0.0};
+    }
+
+    LocomotionMode recommend(const RobotData* observation, std::optional<double> received) {
+        return monitor.recommend(StateID::LOCOMOTION, walking_allowed, true, observation, received,
+                                 command, received_s);
+    }
+
+    LocomotionMode tick(bool fresh = true) {
+        if (fresh) received_s += 0.01;
+        return recommend(&estimate, received_s);
+    }
+
+    LocomotionMode samples(int count) {
+        auto mode = LocomotionMode::RECOVERY;
+        for (int i = 0; i < count; ++i) mode = tick();
+        return mode;
+    }
+
+    void remains_recovering(int count) {
+        for (int i = 0; i < count; ++i)
+            require(tick() == LocomotionMode::RECOVERY, "Recovery exited before the window settled");
+    }
+
+    LocomotionMode target_mode() const {
+        return walking_allowed ? LocomotionMode::WALKING : LocomotionMode::STANDING;
+    }
+
+    LocomotionTransitionMonitor monitor;
+    RobotData estimate;
+    RobotData command;
+    bool walking_allowed;
+    double received_s = 1.0;
 };
 
 void check_acceleration_step(Fixture& test, LocomotionAccelerationConfig limits) {
@@ -397,6 +449,98 @@ void cancellation_and_recovery() {
             "Recovery received nonzero velocities");
 }
 
+void recovery_window_and_duplicates() {
+    for (bool walking : {false, true}) {
+        RecoveryFixture test(walking);
+        test.remains_recovering(49);
+        for (int i = 0; i < 100; ++i)
+            require(test.tick(false) == LocomotionMode::RECOVERY, "Repeated snapshot filled the recovery window");
+        require(test.recommend(&test.estimate, test.received_s - 0.01) == LocomotionMode::RECOVERY,
+                "Old snapshot filled the recovery window");
+        require(test.tick() == test.target_mode(), "Full recovery window did not allow exit");
+        // STANDING остаётся рекомендацией до завершения походки; окно не должно сбрасываться.
+        for (int i = 0; i < 10; ++i)
+            require(test.tick() == test.target_mode(), "Recovery exit reset the speed history");
+        test.enter_recovery();
+        test.remains_recovering(49);
+        require(test.tick() == test.target_mode(), "New recovery window did not fill");
+    }
+}
+
+void recovery_average_speed_magnitudes() {
+    for (bool walking : {false, true}) {
+        RecoveryFixture test(walking);
+        for (int i = 0; i < 50; ++i) {
+            const double sign = i % 2 == 0 ? 1.0 : -1.0;
+            test.estimate.lin_vel << sign * 0.18, sign * 0.24, 0.0;
+            require(test.tick() == LocomotionMode::RECOVERY, "High speed allowed recovery exit");
+        }
+        test.estimate.lin_vel.setZero();
+        test.remains_recovering(25);
+        require(test.samples(25) == test.target_mode(), "Old speeds did not leave the recovery window");
+    }
+}
+
+void recovery_exit_guards() {
+    const LocomotionTransitionConfig config;
+    for (bool walking : {false, true}) {
+        RecoveryFixture test(walking);
+        const auto& exit = walking ? config.recovery_exit_walking : config.recovery_exit_standing;
+        test.estimate.pos.x() = exit.position_m;
+        test.remains_recovering(50);
+        test.estimate.pos.x() = exit.position_m / 2.0;
+        require(test.tick() == test.target_mode(), "Small position error did not allow recovery exit");
+        test.estimate.lin_vel.x() = exit.velocity_mps;
+        require(test.tick() == LocomotionMode::RECOVERY, "Average hid a new longitudinal speed increase");
+        test.estimate.lin_vel << 0.0, exit.velocity_mps, 0.0;
+        require(test.tick() == LocomotionMode::RECOVERY, "Average hid a new lateral speed increase");
+        test.estimate.lin_vel.setZero();
+        require(test.tick() == test.target_mode(), "Low current speed did not restore recovery exit");
+        test.estimate.pos << 0.03, 0.03, 0.0;
+        require(test.tick() == (walking ? LocomotionMode::WALKING : LocomotionMode::RECOVERY),
+                "Recovery used the wrong position norm or exit thresholds");
+    }
+
+    RecoveryFixture test(true);
+    test.estimate.pos.x() = 0.055;
+    test.estimate.lin_vel.x() = 0.095;
+    require(test.samples(50) == LocomotionMode::WALKING, "Walking exit thresholds were not applied");
+    test.command.lin_vel.setZero();
+    require(test.tick() == LocomotionMode::RECOVERY, "Inactive command used walking exit thresholds");
+}
+
+void recovery_invalid_measurements() {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double infinity = std::numeric_limits<double>::infinity();
+    for (auto component : {&RobotData::pos, &RobotData::lin_vel}) {
+        for (double value : {nan, infinity}) {
+            RecoveryFixture test;
+            require(test.samples(50) == LocomotionMode::STANDING, "Recovery window did not fill");
+            const auto valid = test.estimate;
+            (test.estimate.*component).y() = value;
+            require(test.tick() == LocomotionMode::RECOVERY, "Invalid estimate allowed recovery exit");
+            test.estimate = valid;
+            require(test.tick(false) == LocomotionMode::RECOVERY, "Invalid snapshot was reused");
+            test.remains_recovering(49);
+            require(test.tick() == LocomotionMode::STANDING, "Window did not refill after invalid estimate");
+        }
+    }
+    for (auto received : {std::optional<double>{}, std::optional{nan}, std::optional{infinity}}) {
+        RecoveryFixture test;
+        test.samples(50);
+        require(test.recommend(&test.estimate, received) == LocomotionMode::RECOVERY,
+                "Invalid timestamp allowed recovery exit");
+        test.remains_recovering(49);
+        require(test.tick() == LocomotionMode::STANDING, "Window did not refill after invalid timestamp");
+    }
+    RecoveryFixture test;
+    test.samples(50);
+    require(test.recommend(nullptr, test.received_s) == LocomotionMode::RECOVERY,
+            "Missing estimate allowed recovery exit");
+    test.remains_recovering(49);
+    require(test.tick() == LocomotionMode::STANDING, "Window did not refill after missing estimate");
+}
+
 void faults_interrupt_braking() {
     for (bool estop : {false, true}) {
         Fixture test;
@@ -469,6 +613,10 @@ int main() {
         stopping_without_robot_command();
         resume_and_hold();
         cancellation_and_recovery();
+        recovery_window_and_duplicates();
+        recovery_average_speed_magnitudes();
+        recovery_exit_guards();
+        recovery_invalid_measurements();
         faults_interrupt_braking();
         config_validation();
     } catch (const std::exception& error) {

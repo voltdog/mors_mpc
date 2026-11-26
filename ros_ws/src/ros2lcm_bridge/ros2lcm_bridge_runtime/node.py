@@ -126,7 +126,7 @@ class Bridge(Node):
 
     async def command(self, request, response):
         msg = request.command
-        outcome = await self.protocol.command(msg.command, msg.target)
+        outcome = await self.protocol.command(msg.command, msg.target, msg.params)
         response.result = self.ros_result(outcome)
         return response
 

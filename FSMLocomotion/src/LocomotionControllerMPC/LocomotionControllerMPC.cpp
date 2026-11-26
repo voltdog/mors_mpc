@@ -6,6 +6,7 @@
 #include "GaitTransition.hpp"
 #include "ReferenceGenerator.hpp"
 #include "SwingController.hpp"
+#include "JointCommandHandoff.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -59,6 +60,7 @@ struct RobotInput {
     LocomotionSetpoints setpoints;
     std::optional<RobotStateSnapshot> standing_pose;
     std::optional<Eigen::Vector2d> standing_xy;
+    std::optional<BodyHeightCommand> height;
     bool hold = false;
     bool stop = false;
 };
@@ -66,6 +68,7 @@ struct RobotInput {
 } // namespace
 
 struct LocomotionControllerMPC::Impl {
+    struct HandoffConfig { double duration_s, max_speed; };
     Impl(const std::filesystem::path& path, LCMExchanger& exchange)
         : exchange(exchange), config(path) {
         auto model = path / "../common/urdf/mors.urdf";
@@ -80,6 +83,42 @@ struct LocomotionControllerMPC::Impl {
 
     void publish(const JointCommand& command) {
         exchange.sendServoCmd(command, wbic.actuator_torque(command.torque));
+        last_command = command;
+    }
+
+    void cancel_handoff() {
+        requested_handoff.reset();
+        handoff_config.reset();
+        handoff.reset();
+    }
+
+    void publish_control(const JointCommand& target) {
+        try {
+            JointCommand command = target;
+            if (handoff_config) {
+                const double now = monotonic_seconds();
+                if (!handoff) {
+                    handoff.emplace(handoff_from, target, handoff_config->duration_s, handoff_config->max_speed);
+                    handoff_started_at_s = now;
+                }
+                const double elapsed = now - handoff_started_at_s;
+                command = handoff->sample(target, elapsed);
+                if (!command.position.allFinite() || !command.velocity.allFinite() ||
+                    !command.kp.allFinite() || !command.kd.allFinite() || !command.torque.allFinite() ||
+                    command.velocity.cwiseAbs().maxCoeff() > handoff_config->max_speed * (1.0 + 1e-9)) {
+                    throw std::runtime_error("Invalid or excessive joint velocity during input handoff");
+                }
+                if (elapsed >= handoff->duration()) {
+                    handoff.reset();
+                    handoff_config.reset();
+                }
+            }
+            publish(command);
+        } catch (const std::exception& error) {
+            cancel_handoff();
+            fault = SafetyFault{"INPUT_HANDOFF", error.what(), monotonic_seconds()};
+            // The caller inhibits outputs under the same mutex before publishing damping.
+        }
     }
 
     LCMExchanger& exchange;
@@ -94,6 +133,11 @@ struct LocomotionControllerMPC::Impl {
     std::optional<WbcDesiredCommand> desired;
     JointCommand joints;
     JointCommand idle_command;
+    JointCommand last_command;
+    JointCommand handoff_from;
+    std::optional<HandoffConfig> requested_handoff, handoff_config;
+    std::optional<JointCommandHandoff> handoff;
+    double handoff_started_at_s = 0.0;
     std::optional<Clock::time_point> handoff_deadline;
     std::optional<SafetyFault> fault;
     bool stopped = false;
@@ -138,6 +182,7 @@ void LocomotionControllerMPC::disable_outputs() {
     c.source.reset();
     c.desired.reset();
     c.handoff_deadline.reset();
+    c.cancel_handoff();
     c.joints = {};
     c.active = c.pending = {};
     c.stopped = false;
@@ -156,6 +201,24 @@ void LocomotionControllerMPC::set_data_input_mode(const uint8_t& mode) {
     if (mode < robot_input || mode > joints_input) throw std::invalid_argument("input mode");
     std::lock_guard lock(impl_->mutex);
     input_mode = mode;
+    impl_->requested_handoff.reset();
+}
+
+void LocomotionControllerMPC::begin_input_handoff(std::uint8_t mode, double duration_s, double max_speed) {
+    if ((mode != robot_input && mode != joints_input) ||
+        !std::isfinite(duration_s) || duration_s <= 0.0 ||
+        !std::isfinite(max_speed) || max_speed <= 0.0) {
+        throw std::invalid_argument("Invalid input handoff request");
+    }
+    std::lock_guard lock(impl_->mutex);
+    input_mode = mode;
+    impl_->requested_handoff = Impl::HandoffConfig{duration_s, max_speed};
+}
+
+bool LocomotionControllerMPC::joints_control_ready() const {
+    const auto& c = *impl_;
+    std::lock_guard lock(c.mutex);
+    return outputs_enabled() && c.source == joints_input && !c.handoff_config && !c.fault;
 }
 
 // Вызывается под mutex вместе с записью первой уставки выбранного типа.
@@ -165,6 +228,10 @@ bool LocomotionControllerMPC::accept_input(uint8_t mode) {
     if (!outputs_enabled() || c.fault) return false;
     if (input_mode != mode) throw std::logic_error("Command does not match requested input mode");
     if (c.source != mode) {
+        if (mode != robot_input) c.pending.height = c.active.height = std::nullopt;
+        c.handoff.reset();
+        c.handoff_config = c.requested_handoff;
+        c.handoff_from = c.last_command;
         if (c.source == joints_input) {
             c.handoff_deadline = Clock::now() + std::chrono::duration_cast<Clock::duration>(
                 std::chrono::duration<double>(c.config.handoff_s));
@@ -175,6 +242,7 @@ bool LocomotionControllerMPC::accept_input(uint8_t mode) {
         c.mpc.reset();
         c.source = mode;
     }
+    c.requested_handoff.reset();
     return true;
 }
 
@@ -233,13 +301,20 @@ void LocomotionControllerMPC::set_adaptation_type(const uint8_t& mode) {
     impl_->pending.setpoints.adaptation_type = mode;
 }
 
+void LocomotionControllerMPC::set_body_height_override(std::optional<BodyHeightCommand> height) {
+    if (height && (!std::isfinite(height->world_z_m) || !std::isfinite(height->velocity_mps)))
+        throw std::invalid_argument("Invalid body height override");
+    std::lock_guard lock(impl_->mutex);
+    impl_->pending.height = height;
+}
+
 void LocomotionControllerMPC::hold_measured_pose() { commit_robot_command(nullptr); }
 void LocomotionControllerMPC::set_robot_cmd(const RobotData& cmd) { commit_robot_command(&cmd); }
 
 bool LocomotionControllerMPC::robot_control_ready() const {
     const auto& c = *impl_;
     std::lock_guard lock(c.mutex);
-    return outputs_enabled() && c.source == robot_input && !c.handoff_deadline && !c.fault;
+    return outputs_enabled() && c.source == robot_input && !c.handoff_deadline && !c.handoff_config && !c.fault;
 }
 
 void LocomotionControllerMPC::commit_robot_command(const RobotData* cmd) {
@@ -270,6 +345,7 @@ void LocomotionControllerMPC::check_deadline() {
     if (c.handoff_deadline && Clock::now() >= *c.handoff_deadline) {
         LocomotionControlBase::disable_outputs();
         c.handoff_deadline.reset();
+        c.cancel_handoff();
         c.fault = SafetyFault{"WBIC_HANDOFF_TIMEOUT", "First WBIC command timed out", monotonic_seconds()};
         c.publish(c.idle_command);
     }
@@ -297,7 +373,8 @@ void LocomotionControllerMPC::wbic_tick() {
     if (desired && state) {
         try {
             result = c.wbic.step(state->body, state->joints, *desired);
-            if (!result->torque.allFinite() || !result->position.allFinite() || !result->velocity.allFinite())
+            if (!result->torque.allFinite() || !result->position.allFinite() || !result->velocity.allFinite() ||
+                !result->kp.allFinite() || !result->kd.allFinite())
                 throw std::runtime_error("Non-finite WBIC command");
         } catch (const std::exception& e) {
             result.reset();
@@ -310,17 +387,24 @@ void LocomotionControllerMPC::wbic_tick() {
     if (current && !error.empty() && !c.handoff_deadline) {
         c.fault = SafetyFault{"WBIC", error, monotonic_seconds()};
         LocomotionControlBase::disable_outputs();
+        c.cancel_handoff();
     }
     if (current && result) {
         c.handoff_deadline.reset();
-        c.publish(*result);
+        c.publish_control(*result);
         if (c.config.wbic.debug_mode) c.exchange.sendWbcState(c.wbic.forces());
     } else if (!outputs_enabled()) {
         c.publish(c.idle_command);
     } else if (c.source == joints_input || c.handoff_deadline) {
-        c.publish(c.joints);
+        if (c.source == joints_input) c.publish_control(c.joints);
+        else c.publish(c.last_command);
     } else {
         c.publish({});
+    }
+    if (c.fault && outputs_enabled()) {
+        LocomotionControlBase::disable_outputs();
+        c.cancel_handoff();
+        c.publish(c.idle_command);
     }
 }
 
@@ -417,6 +501,10 @@ void LocomotionControllerMPC::run(std::stop_token stop) {
         }
         if (recovery && input.standing_xy) ref.segment<2>(3) = *input.standing_xy;
         if (recovery || input.hold) ref.segment<6>(6).setZero();
+        if (standing && input.height) {
+            ref(5) = input.height->world_z_m;
+            ref(11) = input.height->velocity_mps;
+        }
 
         std::optional<Eigen::VectorXd> grf;
         {

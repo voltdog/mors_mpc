@@ -11,6 +11,11 @@ namespace mors::fsm {
 
 enum class LocomotionMode { STANDING, WALKING, RECOVERY };
 
+struct BodyHeightCommand {
+    double world_z_m;
+    double velocity_mps;
+};
+
 struct RobotStateSnapshot {
     RobotData body;
     LegData legs;

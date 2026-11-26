@@ -1,10 +1,10 @@
 # ros2lcm_bridge
 
-Мост передаёт команды режимов и уставки из ROS 2 в `FSMLocomotion`, а статус и результаты FSM публикует в ROS 2. Имена LCM-каналов обе стороны читают из `$CONFIGPATH/channels.yaml`.
+Мост передаёт команды режимов, переключения кинематической схемы и уставки из ROS 2 в `FSMLocomotion`, а статус и результаты FSM публикует в ROS 2. Имена LCM-каналов обе стороны читают из `$CONFIGPATH/channels.yaml`.
 
 ## Сборка
 
-Из корня репозитория в окружении ROS 2 Jazzy. Нужны `lcm-gen`, библиотеки LCM, Eigen, yaml-cpp, vbcontrol, OsqpEigen, Pinocchio и eiquadprog для FSM, а также Python-модули `lcm` и `yaml` для моста. После изменения `ModeState` пересоберите мост и ROS-клиентов, которые используют это сообщение.
+Из корня репозитория в окружении ROS 2 Jazzy. Нужны `lcm-gen`, библиотеки LCM, Eigen, yaml-cpp, vbcontrol, OsqpEigen, Pinocchio и eiquadprog для FSM, а также Python-модули `lcm` и `yaml` для моста. После добавления `params` в `ModeCommand` пересоберите `mors_ros_msgs`, мост и ROS-клиентов. В текстовых вызовах сервиса без `params` это поле равно `0`.
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -62,6 +62,13 @@ channels = yaml.safe_load((Path(os.environ['CONFIGPATH']) / 'channels.yaml').rea
 bus = lcm.LCM(os.environ['LCM_LOCOMOTION_URL'])
 state = robot_state_msg()
 state.body.orientation_quaternion = [0., 0., 0., 1.]
+state.body.position[2] = .20
+state.joints.position = [0., -1.57, 2.9, 0., 1.57, -2.9,
+                        0., 1.57, -2.9, 0., -1.57, 2.9]
+state.legs.r1_pos = [.18, -.13, 0.]
+state.legs.l1_pos = [.18, .13, 0.]
+state.legs.r2_pos = [-.18, -.13, 0.]
+state.legs.l2_pos = [-.18, .13, 0.]
 state.legs.contact_states = [True] * 4
 state.readiness = [True] * 18 + [False]
 try:
@@ -91,7 +98,7 @@ ros2 service call /fsm/command mors_ros_msgs/srv/Command '{command: {command: 5}
 
 | Имя | Тип | Назначение |
 |---|---|---|
-| `fsm/command` | `mors_ros_msgs/srv/Command` | `SET_MODE=0` с целью `PASSIVE=0`, `STANDING=2` или `LOCOMOTION=3`, `ESTOP=4`, `CLEAR_FAULT=5` |
+| `fsm/command` | `mors_ros_msgs/srv/Command` | `SET_MODE=0` с целью `PASSIVE=0`, `STANDING=2` или `LOCOMOTION=3`; `START_ACTION=1` для `CHANGE_KINEMATICS`; `ESTOP=4`, `CLEAR_FAULT=5` |
 | `fsm/state` | `mors_ros_msgs/msg/ModeState` | Текущее и целевое состояния, `cur_algorithm`, `cur_action`, `cur_params`, `fault` и `fault_str` |
 | `fsm/result` | `mors_ros_msgs/msg/ModeResult` | Подтверждения, конечные результаты и ошибки связи |
 | `cmd_vel` | `geometry_msgs/msg/Twist` | Скорость → `ROBOT_CMD` |
@@ -100,6 +107,47 @@ ros2 service call /fsm/command mors_ros_msgs/srv/Command '{command: {command: 5}
 | `gait_params` | `mors_ros_msgs/msg/GaitParams` | Параметры походки → `GAIT_PARAMS` |
 
 `ACCEPTED=0` в ответе сервиса означает, что FSM приняла запрос. Окончательный результат приходит в `fsm/result`. Если исход неизвестен из-за потери связи или таймаута моста, публикуется `UNKNOWN=255`. После такого сбоя с незавершённым запросом обычные команды требуют перезапуска моста: в LCM-ответах нет идентификатора запроса. При свежем статусе FSM `ESTOP` можно послать во время перехода или после потери подтверждения. `fsm/run_action` пока не предоставляется.
+
+### Переключение кинематической схемы
+
+Для запуска используйте `command=START_ACTION (1)`, `target=CHANGE_KINEMATICS (0)` и поле `params`:
+
+| `params` | Константа | Схема |
+|---|---|---|
+| 0 | `KNEE_INSIDE` | `><` |
+| 1 | `KNEE_OUTSIDE` | `<>` |
+| 2 | `KNEE_BACK` | `<<` |
+| 3 | `KNEE_FRONT` | `>>` |
+
+Из `STANDING` переключите колени назад:
+
+```bash
+ros2 service call /fsm/command mors_ros_msgs/srv/Command \
+  '{command: {command: 1, target: 0, params: 2}}'
+```
+
+Дождитесь `SUCCEEDED=1` в `/fsm/result` перед следующей обычной командой. Во время выполнения `/fsm/state` содержит `current_state=ACTION (4)`, `cur_action=0` и выбранный `cur_params`; после завершения FSM возвращается в `STANDING`. При уже достигнутой цели действие завершается без движения, и промежуточный статус `ACTION` может не публиковаться.
+
+Перед движением суставов FSM плавно задаёт высоту 0,27 м через `robot_input` и ждёт подтверждения по телеметрии. Высота трактуется как обычная `cmd_pose.linear.z`: мировой Z для `NOADAPT`, высота над опорами для режимов адаптации. Углы для переключения измеряются заново после подготовки.
+
+После переключения FSM возвращает управление в `robot_input` и плавно переходит к актуальной команде высоты. Если команды нет, восстанавливается фактическая высота перед действием. Новая цель, поступившая во время возврата, применяется следующим плавным участком после окончания текущего. `SUCCEEDED` выдаётся после стабилизации на последней цели.
+
+Настройки находятся в `config/locomotion_controller.yaml`, секция `switch_kin_sch`: `preparation_height_m: 0.27`, `max_body_height_speed_mps: 0.05`, `height_motion_min_s: 1.5`. Изменения требуют перезапуска FSM. Ошибка высоты не более 5 мм, вертикальная скорость не более 0,02 м/с и четыре контакта должны сохраняться 0,1 с. На стабилизацию после траектории отводится 2 с; потеря опоры более 0,08 с на высотном этапе приводит к ошибке.
+
+Для сравнения подготовки в MuJoCo без графического окна из корня репозитория:
+
+```bash
+.mpc_venv/bin/python FSMLocomotion/tests/compare_switch_height_sim.py \
+  FSMLocomotion/build/fsm_locomotion_node --heights 0.20 0.27 --adaptation 2
+```
+
+Стенд использует реальные FSM/MPC, модель и суставной PD-контур симулятора; наблюдения поступают непосредственно из MuJoCo. В проверенном прогоне `NOADAPT=2` цикл `<< → <> → <<` с подготовкой 0,27 м завершился без касаний коленями пола, максимальный `pitch` составил около 3,5°. Отдельный прогон `INCL_ADAPT=0` с тем же числом 0,27 завершился по ограничению `abad_R2`: в этом режиме целевой мировой Z выше на высоту опор. Эти результаты не подтверждают устойчивость для всех режимов адаптации и исходных поз.
+
+Мост допускает одну обычную незавершённую команду: повторный запуск и `SET_MODE` во время действия получают `BUSY`. `ESTOP` прерывает действие, результат действия приходит как `FAILED`. При потере связи или превышении тайм-аута мост выдаёт `UNKNOWN` и не повторяет команду. Тайм-аут `result_timeout` по умолчанию равен 30 с; его истечение само по себе не останавливает робота.
+
+Неверные схемы, `GIVE_PAW`, `WAVE_PAW` и `CANCEL_ACTION` отклоняются мостом без отправки LCM. Запуск только из `STANDING`, проверку телеметрии и суставных ограничений выполняет FSM. В остальных командах поле `params` игнорируется. Сервис совместимости `robot_action` сохраняет прежние функции вставания и укладывания.
+
+### Сервисы совместимости
 
 При `legacy_services=true` доступны сервисы `mors_ros_msgs/srv/RobotCmd`:
 

@@ -1,13 +1,16 @@
 import math
 import os
+import re
 import select
 import signal
 import socket
+import shutil
 import subprocess
 import sys
 import tempfile
 import time
 from collections import deque
+from contextlib import ExitStack
 from pathlib import Path
 
 try:
@@ -34,9 +37,12 @@ class NodeTest:
         self.last_servo_damped = False
         self.servo_cmds = 0
         self.servo_trace = None
+        self.follow_action_joints = False
+        self.follow_body_height = False
         self.bus.subscribe("ROBOT_MODE_STATE", lambda _, data: self.states.append(State.decode(data)))
         self.bus.subscribe("ROBOT_MODE_RESULT", lambda _, data: self.results.append(Result.decode(data)))
         self.bus.subscribe("SERVO_CMD", self.receive_servo_cmd)
+        self.bus.subscribe("MPC_CMD", self.receive_body_reference)
 
         self.streaming = False
         self.last_publish = 0.0
@@ -51,8 +57,17 @@ class NodeTest:
         self.robot_state.legs.contact_states = [True] * 4
         self.robot_state.readiness = [True] * 18 + [False]
 
+    def receive_body_reference(self, _channel, data):
+        if self.follow_body_height:
+            cmd = MpcCommand.decode(data)
+            self.robot_state.body.position[2] = cmd.cmd_pose[2]
+            self.robot_state.body.lin_vel[2] = cmd.cmd_vel[2]
+
     def receive_servo_cmd(self, _channel, data):
         cmd = ServoCommand.decode(data)
+        if self.follow_action_joints and all(math.isclose(kp, 12.0, abs_tol=1e-6) for kp in cmd.kp):
+            self.robot_state.joints.position = list(cmd.position)
+            self.robot_state.joints.velocity = list(cmd.velocity)
         if self.servo_trace is not None:
             self.servo_trace.append((time.monotonic(), cmd))
         self.last_servo_damped = (
@@ -123,17 +138,19 @@ class NodeTest:
         msg.active_legs = [True] * 4
         self.bus.publish("ROBOT_CMD", msg.encode())
 
-    def send(self, command, target=0):
+    def send(self, command, target=0, params=0):
         msg = Command()
         msg.command = command
         msg.target = target
+        msg.params = params
         self.bus.publish("ROBOT_MODE_CMD", msg.encode())
 
     def result(self, command, expected, reason=None, *, timeout=4.0):
         self.wait_for(lambda: self.results, f"result {expected} for command {command}", timeout=timeout)
         result = self.results.popleft()
         assert (result.command, result.result) == (command, expected), (
-            result.command, result.result, result.reason, command, expected
+            result.command, result.result, result.reason, command, expected,
+            (self.states[-1].current_state, self.states[-1].fault_str) if self.states else None,
         )
         if expected in (Result.REJECTED, Result.CANCELED, Result.FAILED):
             assert result.reason
@@ -312,6 +329,8 @@ def recovery_transitions(test):
     assert test.states[-1].target_state == State.LOCOMOTION and not test.results
     test.robot_state.legs.contact_states[0] = False
     estimate(0.02, 0.02)
+    test.remains_in(State.LOCOMOTION, 0.10)
+    assert test.states[-1].target_state == State.LOCOMOTION and not test.results, "Recovery exited before its window filled"
     test.effective(State.LOCOMOTION, State.STANDING)
     estimate(0.09, 0.02)
     test.effective(State.LOCOMOTION, State.LOCOMOTION)
@@ -329,6 +348,11 @@ def recovery_transitions(test):
     assert not test.results, "RECOVERY was mistaken for WALKING"
     test.velocity(y=0.2)
     estimate(0.075, 0.095)  # Проходит пороги WALKING, но не STANDING.
+    deadline = time.monotonic() + 4.0
+    while not test.results:
+        assert time.monotonic() < deadline, "Timed out waiting for recovery to finish"
+        test.velocity(y=0.2)
+        test.run_for(0.05)
     test.result(Command.SET_MODE, Result.SUCCEEDED)
     test.effective(State.LOCOMOTION, State.LOCOMOTION)
     estimate(0.0, 0.0)
@@ -484,6 +508,124 @@ def exercise_laydown(test):
     test.remains_damped(State.FAILURE, 0.24)
 
 
+def exercise_switch_kin_sch(test):
+    test.state(State.PASSIVE)
+    test.send(Command.START_ACTION, Command.CHANGE_KINEMATICS, Command.KNEE_BACK)
+    test.result(Command.START_ACTION, Result.REJECTED, "STANDING")
+    test.streaming = True
+    test.mode(Command.STANDING, State.STANDING, timeout=STANDUP_TIMEOUT)
+    test.follow_body_height = True
+    initial = [0.06, -0.55, 1.10, -0.07, 0.65, -1.20,
+               0.08, 0.75, -1.30, -0.09, -0.85, 1.40]
+    # Independent encoder revolutions must not alter the chosen knee direction.
+    turns = [2 * math.pi, -2 * math.pi, 4 * math.pi, -4 * math.pi]
+    for leg, turn in enumerate(turns):
+        initial[3 * leg + 2] += turn
+    test.robot_state.joints.position = initial.copy()
+    test.run_for(0.08)
+    for target, params, reason in ((99, 0, "target"), (Command.CHANGE_KINEMATICS, 99, "parameter")):
+        test.send(Command.START_ACTION, target, params)
+        test.result(Command.START_ACTION, Result.REJECTED, reason)
+    test.robot_state.joints.position[2] = 0.0
+    test.run_for(0.04)
+    test.send(Command.START_ACTION, Command.CHANGE_KINEMATICS, Command.KNEE_FRONT)
+    test.result(Command.START_ACTION, Result.REJECTED, "zero")
+    test.robot_state.joints.position = initial.copy()
+    test.run_for(0.04)
+
+    def normalized(angle):
+        value = math.remainder(angle, 2 * math.pi)
+        return value - 2 * math.pi if value >= math.pi else value
+
+    def angles(cmd):
+        result = list(cmd.position)
+        result[2::3] = map(normalized, result[2::3])
+        return result
+
+    def matches(actual, expected):
+        return all(math.isclose(a, b, abs_tol=3e-5, rel_tol=0.0) for a, b in zip(actual, expected))
+
+    # Already reached goal must leave WBIC commands untouched.
+    test.servo_trace = []
+    test.send(Command.START_ACTION, Command.CHANGE_KINEMATICS, Command.KNEE_INSIDE)
+    test.result(Command.START_ACTION, Result.ACCEPTED)
+    test.result(Command.START_ACTION, Result.SUCCEEDED)
+    test.state(State.STANDING)
+    assert all(all(kp < 3.0 for kp in cmd.kp) for _, cmd in test.servo_trace), "No-op took joint control"
+    test.follow_action_joints = True
+
+    for params, signs in ((Command.KNEE_BACK, [1, -1, 1, -1]),
+                          (Command.KNEE_FRONT, [-1, 1, -1, 1]),
+                          (Command.KNEE_OUTSIDE, [-1, 1, 1, -1]),
+                          (Command.KNEE_INSIDE, [1, -1, -1, 1])):
+        before = test.robot_state.joints.position.copy()
+        before[2::3] = map(normalized, before[2::3])
+        target = before.copy()
+        for leg, sign in enumerate(signs):
+            j = 3 * leg + 2
+            if (before[j] > 0.0) != (sign > 0):
+                target[j - 1], target[j] = -before[j - 1], -before[j]
+        test.servo_trace = []
+        test.send(Command.START_ACTION, Command.CHANGE_KINEMATICS, params)
+        test.result(Command.START_ACTION, Result.ACCEPTED)
+        current = test.state(State.ACTION)
+        assert current.cur_action == Command.CHANGE_KINEMATICS and current.cur_params == params
+        assert current.target_state == State.STANDING
+        test.send(Command.SET_MODE, Command.IDLE)
+        test.result(Command.SET_MODE, Result.REJECTED, "Action")
+        test.send(Command.START_ACTION, Command.CHANGE_KINEMATICS, params)
+        test.result(Command.START_ACTION, Result.BUSY)
+        test.send(Command.CANCEL_ACTION)
+        test.result(Command.CANCEL_ACTION, Result.REJECTED, "Unsupported")
+        test.result(Command.START_ACTION, Result.SUCCEEDED, timeout=18.0)
+        current = test.state(State.STANDING)
+        assert current.cur_action == current.cur_params == -1
+        trace = test.servo_trace
+        test.servo_trace = None
+        full = [i for i, (_, cmd) in enumerate(trace)
+                if all(math.isclose(kp, 12.0, abs_tol=1e-6) for kp in cmd.kp)]
+        test.pump()
+        assert full, "Missing joint control commands"
+        assert any(matches(angles(cmd), target) and not any(cmd.velocity)
+                   for _, cmd in trace[full[0]:full[-1] + 1]), "Final measured-angle target missing"
+        test.pump()
+        # Old WBIC results must never replace direct commands during the action.
+        assert all(all(math.isclose(kp, 12.0, abs_tol=1e-6) for kp in cmd.kp)
+                   for _, cmd in trace[full[0]:full[-1] + 1])
+        test.pump()
+        assert any(2.1 < cmd.kp[0] < 11.9 for _, cmd in trace[:full[0]]), "Missing entry gain ramp"
+        assert any(2.1 < cmd.kp[0] < 11.9 for _, cmd in trace[full[-1] + 1:]), "Missing return gain ramp"
+        assert all(abs(v) <= 1.0 + 2e-5 for _, cmd in trace for v in cmd.velocity), "Speed limit exceeded"
+        test.pump()
+        front_moves = not matches(before[:6], target[:6])
+        rear_moves = not matches(before[6:], target[6:])
+        if front_moves and rear_moves:
+            rear_start = next(i for i in full if any(abs(v) > 1e-5 for v in trace[i][1].velocity[6:]))
+            assert any(matches(angles(cmd)[:6], target[:6]) and not any(cmd.velocity)
+                       for _, cmd in trace[full[0]:rear_start]), "Rear pair started before front finished"
+        for i in full:
+            if i % 100 == 0:
+                test.pump()
+            q = angles(trace[i][1])
+            assert matches(q[0::3], before[0::3]), "Abad changed"
+            if not front_moves:
+                assert matches(q[:6], before[:6]), "Skipped front pair moved"
+            if not rear_moves:
+                assert matches(q[6:], before[6:]), "Skipped rear pair moved"
+        test.run_for(0.04)
+
+    # ESTOP interrupts an accepted action and inhibits subsequent outputs.
+    test.send(Command.START_ACTION, Command.CHANGE_KINEMATICS, Command.KNEE_OUTSIDE)
+    test.result(Command.START_ACTION, Result.ACCEPTED)
+    test.state(State.ACTION)
+    test.run_for(0.48)
+    test.send(Command.ESTOP)
+    test.result(Command.START_ACTION, Result.FAILED, "ESTOP")
+    test.result(Command.ESTOP, Result.SUCCEEDED)
+    test.remains_damped(State.FAILURE, 0.10)
+    assert not test.results
+
+
 def run_node(executable, run_test, *, servo_url):
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as port_socket:
         port_socket.bind(("", 0))
@@ -497,9 +639,27 @@ def run_node(executable, run_test, *, servo_url):
     else:
         env["LCM_DEFAULT_URL"] = url
 
-    with tempfile.TemporaryFile() as log, subprocess.Popen(
-        [executable], env=env, stdout=log, stderr=subprocess.STDOUT
-    ) as process:
+    with ExitStack() as stack:
+        if run_test in (exercise, exercise_switch_kin_sch):
+            config = Path(stack.enter_context(tempfile.TemporaryDirectory()))
+            shutil.copytree(Path(__file__).resolve().parents[2] / "config", config, dirs_exist_ok=True)
+            robot = config / "robot.yaml"
+            settings = robot.read_text()
+            if run_test == exercise:
+                # Фиксируем пороги сценария независимо от пользовательской настройки робота.
+                for key, thresholds in (
+                    ("recovery_entry", "{position_m: 0.10, velocity_mps: 0.20}"),
+                    ("recovery_exit_walking", "{position_m: 0.07, velocity_mps: 0.12}"),
+                    ("recovery_exit_standing", "{position_m: 0.04, velocity_mps: 0.08}"),
+                ):
+                    settings = re.sub(rf"(?m)^(\s*){key}:.*$", rf"\1{key}: {thresholds}", settings)
+            else:
+                settings = re.sub(r"(?m)^(\s*)debug_mode:.*$", r"\1debug_mode: true", settings)
+            robot.write_text(settings)
+            env["CONFIGPATH"] = str(config)
+        log = stack.enter_context(tempfile.TemporaryFile())
+        process = stack.enter_context(subprocess.Popen(
+            [executable], env=env, stdout=log, stderr=subprocess.STDOUT))
         try:
             test = NodeTest(url, process)
             run_test(test)
@@ -519,7 +679,7 @@ def run_node(executable, run_test, *, servo_url):
 
 
 if __name__ == "__main__":
-    executable, generator, schema_dir = sys.argv[1:]
+    executable, generator, schema_dir = sys.argv[1:4]
     with tempfile.TemporaryDirectory() as bindings:
         subprocess.run(
             [generator, "--python", "--ppath", bindings,
@@ -529,12 +689,16 @@ if __name__ == "__main__":
         sys.path.insert(0, bindings)
         from mors_msgs import gait_params_msg as GaitParams
         from mors_msgs import robot_cmd_msg as RobotCommand
+        from mors_msgs import mpc_cmd_msg as MpcCommand
         from mors_msgs import robot_mode_cmd_msg as Command
         from mors_msgs import robot_mode_result_msg as Result
         from mors_msgs import robot_mode_state_msg as State
         from mors_msgs import servo_cmd_msg as ServoCommand
         from mors_msgs import robot_state_msg as RobotState
 
-        run_node(executable, exercise, servo_url=False)
-        run_node(executable, exercise_laydown, servo_url=True)
-        run_node(executable, exercise_stopping, servo_url=False)
+        if sys.argv[4:] == ["switch_kin_sch"]:
+            run_node(executable, exercise_switch_kin_sch, servo_url=True)
+        else:
+            run_node(executable, exercise, servo_url=False)
+            run_node(executable, exercise_laydown, servo_url=True)
+            run_node(executable, exercise_stopping, servo_url=False)

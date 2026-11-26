@@ -31,9 +31,7 @@ void LocomotionState::on_enter() {
     stable_since_.reset();
     last_command_.reset();
     last_update_s_ = monotonic_seconds();
-    speed_index_ = speed_count_ = 0;
-    speed_sum_ = 0.0;
-    last_sample_s_.reset();
+    speed_average_.reset();
     stop_requested_ = false;
 }
 
@@ -41,33 +39,20 @@ void LocomotionState::update_speed_average() {
     const auto& s = fsm.status;
     const double speed = std::hypot(s.vx, s.vy);
     const auto received = s.robot_state_received_at_s;
-    if (!received || !std::isfinite(*received) || s.safety.telemetry_fault
-        || !std::isfinite(speed) || !std::isfinite(s.yaw_rate)) {
-        speed_index_ = speed_count_ = 0;
-        speed_sum_ = 0.0;
-        last_sample_s_ = received && std::isfinite(*received) ? received : std::nullopt;
+    if (s.safety.telemetry_fault || !std::isfinite(s.yaw_rate)) {
+        speed_average_.reset(received);
         stable_since_.reset();
         return;
     }
-    if (last_sample_s_ && *received <= *last_sample_s_) {
-        return;
-    }
-    last_sample_s_ = received;
-    if (speed_count_ == speed_samples_.size()) {
-        speed_sum_ -= speed_samples_[speed_index_];
-    } else {
-        ++speed_count_;
-    }
-    speed_samples_[speed_index_] = speed;
-    speed_sum_ += speed;
-    speed_index_ = (speed_index_ + 1) % speed_samples_.size();
+    speed_average_.update(speed, received);
+    if (!speed_average_.value()) stable_since_.reset();
 }
 
 bool LocomotionState::velocity_is_low() const {
     const auto& s = fsm.status;
     const double speed = std::hypot(s.vx, s.vy);
-    return speed_count_ == speed_samples_.size()
-        && speed_sum_ / speed_samples_.size() < gait_stop_.linear_mps
+    const auto average = speed_average_.value();
+    return average && *average < gait_stop_.linear_mps
         && std::isfinite(speed) && speed < gait_stop_.linear_mps
         && std::isfinite(s.yaw_rate) && std::abs(s.yaw_rate) < gait_stop_.yaw_radps;
 }

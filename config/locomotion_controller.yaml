@@ -5,9 +5,18 @@ kd_idle: 0.4
 standup:
   max_joint_speed_rad_s: 1.0  # лимит суставной траектории подготовки, рад/с
 
+switch_kin_sch:
+  kp: 12.0
+  kd: 0.4
+  max_joint_speed_rad_s: 1.0
+  handoff_s: 0.4  # минимальное время передачи управления, с
+  preparation_height_m: 0.28
+  max_body_height_speed_mps: 0.05
+  height_motion_min_s: 1.5
+
 recovery:
-  t_sw: 0.20  # с
-  t_st: 0.30  # с
+  t_sw: 0.18  # с
+  t_st: 0.25  # с
 
 stance_controller_mpc:
   horizon: 16
@@ -58,7 +67,7 @@ reference_generator:
 swing_controller:
   interleave_x: [0.0, 0.0, 0.0, 0.0]
   interleave_y: [0.09, 0.09, 0.09, 0.09]
-  dz_near_ground: -0.05 #-0.05
+  dz_near_ground: -0.4 #-0.05
   rising_proportion: 0.35   # доля времени переноса на подъём стопы
 
   # foot step planner
